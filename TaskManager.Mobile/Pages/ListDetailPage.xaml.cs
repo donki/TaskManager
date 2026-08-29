@@ -134,6 +134,29 @@ public partial class ListDetailPage : ContentPage
         }
     }
 
+    /// <summary>Renombra la lista (nota de autor del 2026-08-29).</summary>
+    private async void OnRenameListClicked(object? sender, EventArgs e)
+    {
+        var list = await _tasks.Repository.GetListAsync(_listId);
+        if (list is null)
+        {
+            return;
+        }
+
+        var name = await SocShared.ModernDialog.PromptAsync(this, "Nombre de la lista", null,
+            "Guardar", "Cancelar", initialValue: list.Name);
+
+        name = name?.Trim();
+        if (string.IsNullOrEmpty(name) || name == list.Name)
+        {
+            return;
+        }
+
+        list.Name = name;
+        await _tasks.Repository.UpdateListAsync(list);
+        Title = name;
+    }
+
     private async void OnTaskTapped(object? sender, TappedEventArgs e)
     {
         if (e.Parameter is Guid id)

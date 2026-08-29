@@ -6,6 +6,10 @@
              x:Class="TaskManager.Mobile.Pages.ListDetailPage"
              Title="Lista">
 
+    <ContentPage.ToolbarItems>
+        <ToolbarItem IconImageSource="ic_edit_w.png" Clicked="OnRenameListClicked" />
+    </ContentPage.ToolbarItems>
+
     <Grid>
         <Grid RowDefinitions="Auto,*">
 

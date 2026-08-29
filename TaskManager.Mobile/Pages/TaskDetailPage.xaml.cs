@@ -85,9 +85,23 @@ public partial class TaskDetailPage : ContentPage
         ContextEditor.Text = _task.Context;
         TagsEntry.Text = TaskTags.ToInput(_task.Tags);
 
+        // Rango acotado: sin el, el selector de Android abre la lista de años entera y cuesta
+        // llegar al mes y al dia (nota de autor del 2026-08-29).
+        var floor = DateTime.Now.Date.AddYears(-1);
+        var ceiling = DateTime.Now.Date.AddYears(5);
+
+        DuePicker.MinimumDate = floor;
+        DuePicker.MaximumDate = ceiling;
+        PlannedPicker.MinimumDate = floor;
+        PlannedPicker.MaximumDate = ceiling;
+
         DueSwitch.IsToggled = _task.DueAt is not null;
         DuePicker.IsVisible = _task.DueAt is not null;
         DuePicker.Date = _task.DueAt?.Date ?? DateTime.Now.Date;
+
+        PlannedSwitch.IsToggled = _task.PlannedFor is not null;
+        PlannedPicker.IsVisible = _task.PlannedFor is not null;
+        PlannedPicker.Date = _task.PlannedFor?.Date ?? DateTime.Now.Date;
 
         var recurrence = _task.Recurrence;
         RecurrencePicker.SelectedIndex = Array.IndexOf(Kinds, recurrence.Kind) is var index && index >= 0 ? index : 0;
@@ -248,6 +262,11 @@ public partial class TaskDetailPage : ContentPage
         DuePicker.IsVisible = e.Value;
     }
 
+    private void OnPlannedToggled(object? sender, ToggledEventArgs e)
+    {
+        PlannedPicker.IsVisible = e.Value;
+    }
+
     private void OnRecurrenceChanged(object? sender, EventArgs e)
     {
         if (_loading)
@@ -308,6 +327,7 @@ public partial class TaskDetailPage : ContentPage
         _task.Tags = TaskTags.FromInput(TagsEntry.Text);
         // DatePicker.Date es nullable desde MAUI 10.
         _task.DueAt = DueSwitch.IsToggled ? DuePicker.Date?.Date : null;
+        _task.PlannedFor = PlannedSwitch.IsToggled ? PlannedPicker.Date?.Date : null;
 
         var kind = Kinds[Math.Clamp(RecurrencePicker.SelectedIndex, 0, Kinds.Length - 1)];
         _task.RecurrenceRule = new Recurrence(kind, (int)IntervalStepper.Value).Serialize();

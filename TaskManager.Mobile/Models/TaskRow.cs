@@ -51,8 +51,10 @@ public sealed class TaskRow
         get
         {
             var parts = new List<string>();
+            if (Task.PlannedFor is { } planned)
+                parts.Add($"Plan: {(planned.Date == DateTime.Now.Date ? "hoy" : planned.ToString("d MMM"))}");
             if (Task.DueAt is { } due)
-                parts.Add(due.Date == DateTime.Now.Date ? "Hoy" : due.ToString("d MMM"));
+                parts.Add($"Vence: {(due.Date == DateTime.Now.Date ? "hoy" : due.ToString("d MMM"))}");
             if (Task.Recurrence.Repeats)
                 parts.Add(Task.Recurrence.Describe().ToLowerInvariant());
 

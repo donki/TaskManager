@@ -57,6 +57,14 @@
                         </Grid>
                         <DatePicker x:Name="DuePicker" IsVisible="False" Format="dddd, d MMMM yyyy" />
 
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Grid.Column="0" Text="Planificada para" VerticalOptions="Center" />
+                            <Switch Grid.Column="1" x:Name="PlannedSwitch" Toggled="OnPlannedToggled" />
+                        </Grid>
+                        <DatePicker x:Name="PlannedPicker" IsVisible="False" Format="dddd, d MMMM yyyy" />
+                        <Label Style="{StaticResource HintText}"
+                               Text="El día en que piensas hacerla, que no tiene por qué ser el del plazo." />
+
                         <BoxView Style="{StaticResource Separator}" />
 
                         <Label Text="Repetición" Style="{StaticResource CardTitle}" />
