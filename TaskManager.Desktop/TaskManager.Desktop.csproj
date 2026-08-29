@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <!--
+      NotifyIcon vive en WinForms. Es la unica forma sin dependencias externas de tener icono de
+      bandeja en Windows, y mantiene el proyecto dentro de la regla MIT/monetizable.
+    -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>TaskManager.Desktop</RootNamespace>
+    <AssemblyName>TaskManager</AssemblyName>
+    <ApplicationTitle>Task Manager</ApplicationTitle>
+    <Version>2026.8.29.2</Version>
+    <AssemblyVersion>2026.8.29.2</AssemblyVersion>
+    <FileVersion>2026.8.29.2</FileVersion>
+    <Product>Task Manager</Product>
+    <Company>Socratic</Company>
+    <Copyright>Copyright © 2026 Socratic</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      UseWindowsForms mete System.Windows.Forms en los usings implicitos y choca con WPF en
+      Application, Point, Color, Rectangle y KeyEventArgs, y System.Drawing con Color y Rectangle.
+      Se quitan los dos: lo unico que se usa de
+      WinForms es NotifyIcon (con alias) y System.Drawing solo lo importa TrayIconHost.
+    -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- DPAPI para cifrar los tokens de sesion con la cuenta de Windows del usuario. -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TaskManager.Core\TaskManager.Core.csproj" />
+  </ItemGroup>
+
+</Project>

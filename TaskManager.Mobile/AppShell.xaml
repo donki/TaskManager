@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Shell xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       xmlns:pages="clr-namespace:TaskManager.Mobile.Pages"
+       x:Class="TaskManager.Mobile.AppShell"
+       FlyoutBehavior="Flyout"
+       FlyoutWidth="280"
+       FlyoutBackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundLight}, Dark={StaticResource PageBackgroundDark}}"
+       Shell.BackgroundColor="{StaticResource Primary}"
+       Shell.ForegroundColor="{StaticResource OnPrimary}"
+       Shell.TitleColor="{StaticResource OnPrimary}"
+       Shell.DisabledColor="{StaticResource OnPrimaryMuted}"
+       Shell.UnselectedColor="{StaticResource OnPrimaryMuted}">
+
+    <!-- Cabecera del menu: logo + nombre y nada mas (constitucion E.7). -->
+    <Shell.FlyoutHeader>
+        <Grid BackgroundColor="{StaticResource Primary}" HeightRequest="150" Padding="20,44,20,16">
+            <VerticalStackLayout VerticalOptions="End" Spacing="6">
+                <Image Source="app_logo.png" WidthRequest="52" HeightRequest="52" HorizontalOptions="Start" />
+                <Label Text="Task Manager"
+                       FontSize="22"
+                       FontAttributes="Bold"
+                       TextColor="{StaticResource OnPrimary}" />
+            </VerticalStackLayout>
+        </Grid>
+    </Shell.FlyoutHeader>
+
+    <!-- Contenido del menu: cada fila con su icono a la izquierda (constitucion A.9 y E.7). -->
+    <Shell.FlyoutContent>
+        <ScrollView>
+            <VerticalStackLayout Padding="0,8" Spacing="0">
+
+                <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                    <Image Grid.Column="0" Source="ic_day.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
+                    <Label Grid.Column="1" Text="Mi Día" VerticalOptions="Center" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnMyDayTapped" /></Grid.GestureRecognizers>
+                </Grid>
+
+                <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                    <Image Grid.Column="0" Source="ic_list.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
+                    <Label Grid.Column="1" Text="Mis listas privadas" VerticalOptions="Center" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnListsTapped" /></Grid.GestureRecognizers>
+                </Grid>
+
+                <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                    <Image Grid.Column="0" Source="ic_group.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
+                    <Label Grid.Column="1" Text="Mis grupos" VerticalOptions="Center" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnGroupsTapped" /></Grid.GestureRecognizers>
+                </Grid>
+
+                <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                    <Image Grid.Column="0" Source="ic_board.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
+                    <Label Grid.Column="1" Text="El Tablón del Gremio" VerticalOptions="Center" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnBoardTapped" /></Grid.GestureRecognizers>
+                </Grid>
+
+                <BoxView HeightRequest="1" Margin="20,8"
+                         Color="{AppThemeBinding Light={StaticResource SeparatorLight}, Dark={StaticResource SeparatorDark}}" />
+
+                <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                    <Image Grid.Column="0" Source="ic_settings.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
+                    <Label Grid.Column="1" Text="Ajustes" VerticalOptions="Center" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnSettingsTapped" /></Grid.GestureRecognizers>
+                </Grid>
+
+                <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                    <Image Grid.Column="0" Source="ic_info.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
+                    <Label Grid.Column="1" Text="Acerca de" VerticalOptions="Center" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnAboutTapped" /></Grid.GestureRecognizers>
+                </Grid>
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Shell.FlyoutContent>
+
+    <!-- Pie del menu: version de la app (constitucion E.7). -->
+    <Shell.FlyoutFooter>
+        <Grid Padding="20,12">
+            <Label x:Name="VersionLabel"
+                   Style="{StaticResource HintText}"
+                   HorizontalOptions="Center"
+                   VerticalOptions="Center" />
+        </Grid>
+    </Shell.FlyoutFooter>
+
+    <!-- Rutas de navegacion. El menu visual lo pinta FlyoutContent (constitucion A.9). -->
+    <!-- Primera ruta = puerta de entrada. Si ya hay sesion (o se eligio seguir sin cuenta), se
+         salta sola a Mi Dia; ver LoginPage.OnAppearing. -->
+    <ShellContent Route="LoginPage" ContentTemplate="{DataTemplate pages:LoginPage}" />
+
+    <ShellContent Route="MyDayPage" ContentTemplate="{DataTemplate pages:MyDayPage}" />
+    <ShellContent Route="ListsPage" ContentTemplate="{DataTemplate pages:ListsPage}" />
+    <ShellContent Route="GroupsPage" ContentTemplate="{DataTemplate pages:GroupsPage}" />
+    <ShellContent Route="BoardPage" ContentTemplate="{DataTemplate pages:BoardPage}" />
+    <ShellContent Route="SettingsPage" ContentTemplate="{DataTemplate pages:SettingsPage}" />
+    <ShellContent Route="AboutPage" ContentTemplate="{DataTemplate pages:AboutPage}" />
+
+</Shell>

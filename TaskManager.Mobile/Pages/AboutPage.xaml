@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="TaskManager.Mobile.Pages.AboutPage"
+             Title="Acerca de">
+
+    <!-- Estructura canonica de la pantalla Acerca de (constitucion A.9 y Mobile 7). -->
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="16">
+
+            <!-- Cabecera -->
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Padding="30,25" Spacing="10">
+                    <Image Source="about_logo.png" HeightRequest="84" WidthRequest="84" HorizontalOptions="Center" />
+                    <Label Text="Task Manager"
+                           FontSize="26"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource Primary}"
+                           HorizontalOptions="Center" />
+                    <Label x:Name="VersionLabel" Style="{StaticResource HintText}" FontSize="15" HorizontalOptions="Center" />
+                    <Label Text="Tareas diarias con listas por grupo, desglose de objetivos y celebración al completar."
+                           Style="{StaticResource HintText}" HorizontalTextAlignment="Center" />
+                    <Label Text="Socratic" Style="{StaticResource HintText}" HorizontalOptions="Center" Margin="0,8,0,0" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Contacto -->
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Padding="25,20" Spacing="12">
+                    <Label Text="Contacto" Style="{StaticResource CardTitle}" />
+                    <Button Text="Escribir al autor"
+                            Style="{StaticResource OutlineButton}"
+                            ImageSource="ic_edit.png"
+                            ContentLayout="Left,8"
+                            Clicked="OnContactClicked"
+                            HorizontalOptions="Fill" />
+                    <Label Text="Sugerencias, fallos o ideas: todo se lee." Style="{StaticResource HintText}"
+                           HorizontalOptions="Center" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Privacidad -->
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Padding="25,20" Spacing="10">
+                    <Label Text="Privacidad" Style="{StaticResource CardTitle}" TextColor="{StaticResource Success}" />
+                    <Label Style="{StaticResource BodyText}" FontSize="13"
+                           Text="Las tareas se guardan en el propio dispositivo. Solo salen de él si configuras la sincronización, y entonces van a tu proyecto de Supabase, a ningún otro sitio. El desglose con IA usa el servidor local que indiques; si no hay ninguno, se resuelve dentro de la aplicación sin enviar nada." />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Licencia -->
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Padding="25,20" Spacing="10">
+                    <Label Text="Licencia" Style="{StaticResource CardTitle}" />
+                    <Label Style="{StaticResource BodyText}" FontSize="13"
+                           Text="Software libre bajo licencia MIT. Las bibliotecas de terceros y sus licencias están en THIRD-PARTY-NOTICES.md." />
+                    <Label Text="MIT License · Copyright © 2026 Socratic" Style="{StaticResource HintText}" FontSize="11" />
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

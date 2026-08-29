@@ -1,0 +1,91 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net10.0-android36.0</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>TaskManager.Mobile</RootNamespace>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- Display name -->
+    <ApplicationTitle>Task Manager</ApplicationTitle>
+
+    <!-- App Identifier (constitucion A.2: com.socratic.[nombre-aplicacion]) -->
+    <ApplicationId>com.socratic.taskmanager</ApplicationId>
+
+    <!-- Versions (constitucion A.4: ambos valores en sincronia, esquema de fecha) -->
+    <ApplicationDisplayVersion>2026.08.29.2</ApplicationDisplayVersion>
+    <ApplicationVersion>202608292</ApplicationVersion>
+
+    <AcceptAndroidSDKLicenses>true</AcceptAndroidSDKLicenses>
+
+    <!-- Package information -->
+    <PackageId>TaskManager</PackageId>
+    <Title>Task Manager</Title>
+    <Product>Task Manager</Product>
+    <Description>Gestor de tareas diarias con listas por grupo, desglose de objetivos con IA local y celebracion al completar.</Description>
+    <Copyright>Copyright © 2026 Socratic</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageTags>tasks;todo;productivity;android;maui;dotnet</PackageTags>
+    <Authors>Socratic</Authors>
+    <Company>Socratic</Company>
+
+    <!-- Platform versions -->
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
+
+    <!-- Android specific (constitucion 5.2: TFM con version Y TargetSdkVersion explicito) -->
+    <TargetSdkVersion>36</TargetSdkVersion>
+    <AndroidUseLatestPlatformSdk>false</AndroidUseLatestPlatformSdk>
+    <AndroidCreatePackagePerAbi>false</AndroidCreatePackagePerAbi>
+
+    <AssemblyVersion>2026.8.29.2</AssemblyVersion>
+    <FileVersion>2026.8.29.2</FileVersion>
+  </PropertyGroup>
+
+  <!--
+    Ensamblados embebidos en cualquier despliegue, Debug y Release (constitucion A.7). Con Fast
+    Deployment no viajan en el APK y la app aborta al arrancar con "No assemblies found".
+  -->
+  <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <AndroidLinkMode>SdkOnly</AndroidLinkMode>
+    <RunAOTCompilation>false</RunAOTCompilation>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Icono: tick blanco sobre gradiente indigo (constitucion E.6). -->
+    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#3525CD" />
+
+    <!-- Splash nativo (constitucion E.8): solo el glifo, sobre el indigo de marca. -->
+    <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#3525CD" BaseSize="180,180" />
+
+    <!-- Iconografia vectorial: MAUI rasteriza los SVG por densidad (constitucion A.9). -->
+    <MauiImage Include="Resources\Images\*" />
+
+    <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TaskManager.Core\TaskManager.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Ficheros compartidos por las apps sOCratic (una sola fuente de verdad, anexo E). -->
+  <ItemGroup>
+    <Compile Include="..\..\Shared\AuthorNotes.cs" Link="AuthorNotes.cs" />
+    <Compile Include="..\..\Shared\ModernDialog.cs" Link="ModernDialog.cs" />
+  </ItemGroup>
+
+  <!-- Firma Release centralizada: la MISMA clave que File Manager (constitucion Mobile 2). -->
+  <Import Project="..\..\Shared\signing.props" />
+
+</Project>

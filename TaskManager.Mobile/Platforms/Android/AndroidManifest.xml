@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <application android:allowBackup="true"
+               android:icon="@mipmap/appicon"
+               android:roundIcon="@mipmap/appicon_round"
+               android:supportsRtl="true" />
+
+  <!--
+    Permisos (constitucion A.3: justificar cada uno y pedir el minimo imprescindible).
+
+    INTERNET / ACCESS_NETWORK_STATE: sincronizacion de las listas compartidas con Supabase y
+    consulta al servidor de IA local. Sin red la aplicacion sigue funcionando entera contra su
+    base de datos local.
+  -->
+  <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+  <!-- VIBRATE: el pequeno golpe haptico al completar una tarea, desactivable en Ajustes. -->
+  <uses-permission android:name="android.permission.VIBRATE" />
+
+  <queries>
+    <!-- Boton de contacto de la pantalla Acerca de. -->
+    <intent>
+      <action android:name="android.intent.action.SENDTO" />
+      <data android:scheme="mailto" />
+    </intent>
+  </queries>
+
+</manifest>
