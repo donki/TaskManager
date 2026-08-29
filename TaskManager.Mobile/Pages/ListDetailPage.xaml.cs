@@ -134,6 +134,14 @@ public partial class ListDetailPage : ContentPage
         }
     }
 
+    private async void OnTaskTapped(object? sender, TappedEventArgs e)
+    {
+        if (e.Parameter is Guid id)
+        {
+            await Shell.Current.GoToAsync($"{nameof(TaskDetailPage)}?taskId={id}");
+        }
+    }
+
     private async void OnToggleMyDayClicked(object? sender, EventArgs e)
     {
         if (sender is not ImageButton { CommandParameter: Guid id })

@@ -21,6 +21,8 @@ public sealed class SettingsService
     public const string KeyLlmModel = "ai.model";
     public const string KeySound = "celebration.sound";
     public const string KeyHaptics = "celebration.haptics";
+    public const string KeyNotifyEnabled = "notify.enabled";
+    public const string KeyNotifyHour = "notify.hour";
     public const string KeyHotkey = "desktop.hotkey";
     public const string KeyStartWithWindows = "desktop.autostart";
 
@@ -87,6 +89,12 @@ public sealed class SettingsService
     public bool SoundEnabled => GetBool(KeySound, true);
 
     public bool HapticsEnabled => GetBool(KeyHaptics, true);
+
+    /// <summary>Recordatorio diario de lo que queda pendiente. Encendido por defecto.</summary>
+    public bool NotificationsEnabled => GetBool(KeyNotifyEnabled, true);
+
+    /// <summary>Hora del recordatorio diario (0-23).</summary>
+    public int NotifyHour => int.TryParse(Get(KeyNotifyHour, "9"), out var hour) ? Math.Clamp(hour, 0, 23) : 9;
 
     public string AccountEmail => Get(KeyAccountEmail);
 

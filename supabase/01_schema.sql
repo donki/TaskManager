@@ -96,6 +96,8 @@ create table if not exists public.tasks (
     list_id    uuid        not null references public.task_lists (id) on delete cascade,
     title      text        not null check (length(trim(title)) between 1 and 200),
     notes      text        not null default '',
+    -- Contexto que acota el desglose de la tarea. Va cifrado como el resto del contenido.
+    context    text        not null default '',
     is_done    boolean     not null default false,
     done_at    timestamptz,
     done_by    uuid        references auth.users (id) on delete set null,

@@ -72,7 +72,7 @@ public sealed class TaskRepository
     // Tareas
     // -----------------------------------------------------------------------
 
-    public async Task<List<TaskItem>> GetTasksAsync(Guid listId, bool includeDone = true)
+    public async Task<List<TaskItem>> GetTasksAsync(Guid listId, bool includeDone = true, string? tag = null)
     {
         var query = Db.Table<TaskItem>().Where(t => t.ListId == listId && !t.Deleted);
         if (!includeDone)
@@ -82,14 +82,38 @@ public sealed class TaskRepository
 
         var tasks = await query.OrderBy(t => t.IsDone).ThenByDescending(t => t.CreatedAt)
                                .ToListAsync().ConfigureAwait(false);
+
+        tasks = FilterByTag(tasks, tag);
         await FillStepCountsAsync(tasks).ConfigureAwait(false);
         return tasks;
     }
 
     /// <summary>
+    /// El filtro por etiqueta se aplica en memoria: una lista de tareas cabe de sobra y asi la
+    /// comparacion respeta mayusculas y tildes igual que en el resto de la aplicacion.
+    /// </summary>
+    private static List<TaskItem> FilterByTag(List<TaskItem> tasks, string? tag) =>
+        string.IsNullOrWhiteSpace(tag)
+            ? tasks
+            : tasks.Where(t => TaskTags.Has(t.Tags, tag)).ToList();
+
+    /// <summary>Etiquetas en uso, ordenadas, para ofrecerlas como filtro.</summary>
+    public async Task<List<string>> GetTagsAsync()
+    {
+        var stored = await Db.QueryScalarsAsync<string>(
+            "SELECT Tags FROM tasks WHERE Deleted = 0 AND Tags <> ''").ConfigureAwait(false);
+
+        return stored
+            .SelectMany(TaskTags.Split)
+            .Distinct(StringComparer.CurrentCultureIgnoreCase)
+            .OrderBy(t => t, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+    }
+
+    /// <summary>
     /// "Mi Dia" del dia indicado (por defecto hoy). No hay lista fisica: es la fecha del campo.
     /// </summary>
-    public async Task<List<TaskItem>> GetMyDayAsync(DateTime? day = null)
+    public async Task<List<TaskItem>> GetMyDayAsync(DateTime? day = null, string? tag = null)
     {
         var date = (day ?? DateTime.Now).Date;
         var tasks = await Db.Table<TaskItem>()
@@ -97,6 +121,8 @@ public sealed class TaskRepository
                             .OrderBy(t => t.IsDone)
                             .ThenByDescending(t => t.CreatedAt)
                             .ToListAsync().ConfigureAwait(false);
+
+        tasks = FilterByTag(tasks, tag);
         await FillStepCountsAsync(tasks).ConfigureAwait(false);
         return tasks;
     }
@@ -119,6 +145,14 @@ public sealed class TaskRepository
             MyDayOn = inMyDay ? DateTime.Now.Date : null,
         };
 
+        await Db.InsertAsync(task).ConfigureAwait(false);
+        await QueueAsync("tasks", task.Id, "upsert").ConfigureAwait(false);
+        return task;
+    }
+
+    /// <summary>Da de alta una tarea ya construida (la siguiente vuelta de una repetitiva).</summary>
+    public async Task<TaskItem> AddTaskCopyAsync(TaskItem task)
+    {
         await Db.InsertAsync(task).ConfigureAwait(false);
         await QueueAsync("tasks", task.Id, "upsert").ConfigureAwait(false);
         return task;

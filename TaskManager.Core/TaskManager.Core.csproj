@@ -28,6 +28,11 @@
       El aviso se queda a la vista, sin silenciar, hasta que SQLitePCLRaw publique un bundle nuevo:
       es una version de SQLite con vulnerabilidad conocida y no conviene perderlo de vista.
     -->
+    <!--
+      MailKit (MIT): cliente IMAP para convertir correos en tareas. Es la biblioteca estandar de
+      .NET para esto y cumple la regla MIT/monetizable (constitucion 4).
+    -->
+    <PackageReference Include="MailKit" Version="4.17.0" />
   </ItemGroup>
 
 </Project>

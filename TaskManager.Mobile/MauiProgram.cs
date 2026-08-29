@@ -36,6 +36,8 @@ public static class MauiProgram
                 new HeuristicBreakdownService());
         });
 
+        builder.Services.AddSingleton<INotificationService, Platforms.Android.NotificationService>();
+        builder.Services.AddSingleton<IMailReader, MailKitReader>();
         builder.Services.AddSingleton<TaskService>();
 
         // Entrada con Google a traves de Supabase: navegador del sistema (Custom Tabs) y tokens en
@@ -49,6 +51,8 @@ public static class MauiProgram
         builder.Services.AddTransient<MyDayPage>();
         builder.Services.AddTransient<ListsPage>();
         builder.Services.AddTransient<ListDetailPage>();
+        builder.Services.AddTransient<TaskDetailPage>();
+        builder.Services.AddTransient<MailPage>();
         builder.Services.AddTransient<GroupsPage>();
         builder.Services.AddTransient<BoardPage>();
         builder.Services.AddTransient<SettingsPage>();

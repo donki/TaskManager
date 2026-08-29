@@ -22,6 +22,7 @@ public partial class App : Application
     private GlobalHotkey? _hotkey;
     private HttpClient? _http;
     private SupabaseAuthService _auth = null!;
+    private ReminderScheduler? _reminders;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -79,6 +80,9 @@ public partial class App : Application
 
         _tray.SetPending(await repository.CountMyDayPendingAsync());
 
+        // Recordatorios: el aviso diario y el de las tareas que vencen hoy, como globo de bandeja.
+        _reminders = new ReminderScheduler(repository, _settings, _tray);
+
         // Siempre arranca en la bandeja, se abra como se abra: es una aplicacion de bandeja, y
         // plantar el panel en pantalla al encender el equipo estorba mas que ayuda. Se despliega
         // con el clic en el icono o con el atajo global.
@@ -96,6 +100,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _reminders?.Dispose();
         _hotkey?.Dispose();
         _tray?.Dispose();
         _http?.Dispose();

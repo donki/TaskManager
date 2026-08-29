@@ -39,6 +39,28 @@
                 </VerticalStackLayout>
             </Border>
 
+            <!-- Recordatorios -->
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Padding="16" Spacing="10">
+                    <Label Text="Recordatorios" Style="{StaticResource CardTitle}" />
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" Text="Avisarme de lo que queda pendiente"
+                               VerticalOptions="Center" />
+                        <Switch Grid.Column="1" x:Name="NotifySwitch" Toggled="OnNotifyToggled" />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,Auto" x:Name="NotifyHourRow">
+                        <Label Grid.Column="0" Text="Hora del aviso diario" VerticalOptions="Center" />
+                        <TimePicker Grid.Column="1" x:Name="NotifyTimePicker" Format="HH:mm"
+                                    PropertyChanged="OnNotifyTimeChanged" />
+                    </Grid>
+
+                    <Label Style="{StaticResource HintText}"
+                           Text="Un solo aviso al día con lo que queda en Mi Día, más un recordatorio por cada tarea con fecha de finalización (a las 9:00 de ese día)." />
+                </VerticalStackLayout>
+            </Border>
+
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Padding="16" Spacing="10">
                     <Label Text="Celebración" Style="{StaticResource CardTitle}" />

@@ -11,7 +11,13 @@ public interface IBreakdownService
     /// <summary>Nombre visible de la via usada, para poder decirle al usuario de donde salio.</summary>
     string Source { get; }
 
-    Task<IReadOnlyList<string>> BreakdownAsync(string goal, CancellationToken cancellationToken = default);
+    /// <param name="context">
+    /// Detalles de la tarea que acotan el desglose. Vacio si no se ha escrito ninguno.
+    /// </param>
+    Task<IReadOnlyList<string>> BreakdownAsync(
+        string goal,
+        string context = "",
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -26,13 +32,16 @@ public sealed class CascadingBreakdownService : IBreakdownService
 
     public string Source { get; private set; } = string.Empty;
 
-    public async Task<IReadOnlyList<string>> BreakdownAsync(string goal, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<string>> BreakdownAsync(
+        string goal,
+        string context = "",
+        CancellationToken cancellationToken = default)
     {
         foreach (var service in _chain)
         {
             try
             {
-                var steps = await service.BreakdownAsync(goal, cancellationToken).ConfigureAwait(false);
+                var steps = await service.BreakdownAsync(goal, context, cancellationToken).ConfigureAwait(false);
                 if (steps.Count > 0)
                 {
                     Source = service.Source;
@@ -79,7 +88,10 @@ public sealed class LocalLlmBreakdownService : IBreakdownService
 
     public string Source => "IA local";
 
-    public async Task<IReadOnlyList<string>> BreakdownAsync(string goal, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<string>> BreakdownAsync(
+        string goal,
+        string context = "",
+        CancellationToken cancellationToken = default)
     {
         var baseUrl = _endpoint().TrimEnd('/');
         if (string.IsNullOrWhiteSpace(baseUrl))
@@ -95,7 +107,16 @@ public sealed class LocalLlmBreakdownService : IBreakdownService
             messages = new object[]
             {
                 new { role = "system", content = SystemPrompt },
-                new { role = "user", content = goal },
+
+                // El contexto va con el objetivo, no en el mensaje de sistema: es dato del caso
+                // concreto, no instruccion de como comportarse.
+                new
+                {
+                    role = "user",
+                    content = context.Trim().Length > 0
+                        ? $"{goal}\n\nTen en cuenta: {context.Trim()}"
+                        : goal,
+                },
             },
         };
 
@@ -210,9 +231,14 @@ public sealed class HeuristicBreakdownService : IBreakdownService
 
     public string Source => "plantillas";
 
-    public Task<IReadOnlyList<string>> BreakdownAsync(string goal, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<string>> BreakdownAsync(
+        string goal,
+        string context = "",
+        CancellationToken cancellationToken = default)
     {
-        var normalized = Normalize(goal);
+        // El contexto tambien cuenta para elegir plantilla: "llevar el coche al taller" con
+        // contexto "cambio de aceite y ruedas" tiene mas donde agarrarse que el titulo solo.
+        var normalized = Normalize(context.Trim().Length > 0 ? $"{goal} {context}" : goal);
 
         var words = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 

@@ -85,6 +85,14 @@ public class TaskItem
 
     public string Notes { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Contexto que precisa la tarea: lo que hay que tener en cuenta para desglosarla bien
+    /// ("piso sin ascensor, dos gatos, mudanza en agosto"). Se guarda con la tarea y se puede
+    /// cambiar cuando se quiera; cada desglose parte de lo que diga aqui, asi que afinarlo es la
+    /// forma de conseguir pasos que sirvan de verdad.
+    /// </summary>
+    public string Context { get; set; } = string.Empty;
+
     public bool IsDone { get; set; }
 
     public DateTime? DoneAt { get; set; }
@@ -98,7 +106,18 @@ public class TaskItem
     [Indexed]
     public DateTime? MyDayOn { get; set; }
 
+    /// <summary>Fecha de finalizacion. Opcional: una tarea no tiene por que tener plazo.</summary>
     public DateTime? DueAt { get; set; }
+
+    /// <summary>
+    /// Etiquetas separadas por comas, con comas tambien en los extremos (<c>,casa,urgente,</c>),
+    /// para poder filtrar con un LIKE exacto. Se manipulan con <see cref="TaskTags"/>.
+    /// </summary>
+    [Indexed]
+    public string Tags { get; set; } = string.Empty;
+
+    /// <summary>Repeticion serializada (<c>weekly:2</c>). Vacio = no se repite.</summary>
+    public string RecurrenceRule { get; set; } = string.Empty;
 
     public string CreatedBy { get; set; } = string.Empty;
 
@@ -119,6 +138,12 @@ public class TaskItem
 
     [Ignore]
     public double Progress => StepCount == 0 ? (IsDone ? 1 : 0) : (double)StepsDone / StepCount;
+
+    [Ignore]
+    public Recurrence Recurrence => Recurrence.Parse(RecurrenceRule);
+
+    [Ignore]
+    public IReadOnlyList<string> TagList => TaskTags.Split(Tags);
 }
 
 [Table("task_steps")]

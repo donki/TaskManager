@@ -18,6 +18,7 @@ public partial class MyDayPage : ContentPage
     private readonly Dictionary<Guid, string> _listNames = [];
 
     private Guid _defaultListId;
+    private string? _activeTag;
 
     public MyDayPage()
         : this(ServiceHelper.GetRequiredService<TaskService>(), ServiceHelper.GetRequiredService<SettingsService>())
@@ -53,7 +54,9 @@ public partial class MyDayPage : ContentPage
     {
         await LoadListNamesAsync();
 
-        var tasks = await _tasks.Repository.GetMyDayAsync();
+        await RefreshTagFilterAsync();
+
+        var tasks = await _tasks.Repository.GetMyDayAsync(tag: _activeTag);
         TasksView.ItemsSource = tasks
             .Select(t => new TaskRow(t, _listNames.GetValueOrDefault(t.ListId, string.Empty)))
             .ToList();
@@ -90,6 +93,76 @@ public partial class MyDayPage : ContentPage
             {
                 _listNames[list.Id] = $"{group.Name} · {list.Name}";
             }
+        }
+    }
+
+    /// <summary>
+    /// Pinta las etiquetas en uso como filtros. Si no hay ninguna, la fila no aparece: un filtro
+    /// vacio solo ocupa sitio.
+    /// </summary>
+    private async Task RefreshTagFilterAsync()
+    {
+        var tags = await _tasks.Repository.GetTagsAsync();
+
+        TagFilterScroll.IsVisible = tags.Count > 0;
+        TagFilterBox.Clear();
+
+        if (tags.Count == 0)
+        {
+            _activeTag = null;
+            return;
+        }
+
+        // La etiqueta activa pudo desaparecer al borrar la ultima tarea que la llevaba.
+        if (_activeTag is not null && !tags.Contains(_activeTag, StringComparer.CurrentCultureIgnoreCase))
+        {
+            _activeTag = null;
+        }
+
+        TagFilterBox.Add(BuildTagChip("Todas", null));
+        foreach (var tag in tags)
+        {
+            TagFilterBox.Add(BuildTagChip(tag, tag));
+        }
+    }
+
+    private View BuildTagChip(string text, string? tag)
+    {
+        var active = string.Equals(_activeTag, tag, StringComparison.CurrentCultureIgnoreCase);
+
+        var button = new Button
+        {
+            Text = text,
+            FontSize = 13,
+            Padding = new Thickness(14, 6),
+            MinimumHeightRequest = 0,
+            CornerRadius = 16,
+            BackgroundColor = active
+                ? Color.FromArgb("#3525CD")
+                : (Application.Current?.RequestedTheme == AppTheme.Dark
+                    ? Color.FromArgb("#2A2833")
+                    : Color.FromArgb("#EDEEEF")),
+            TextColor = active
+                ? Colors.White
+                : (Application.Current?.RequestedTheme == AppTheme.Dark
+                    ? Color.FromArgb("#E6E1E9")
+                    : Color.FromArgb("#191C1D")),
+        };
+
+        button.Clicked += async (_, _) =>
+        {
+            _activeTag = tag;
+            await ReloadAsync();
+        };
+
+        return button;
+    }
+
+    private async void OnTaskTapped(object? sender, TappedEventArgs e)
+    {
+        if (e.Parameter is Guid id)
+        {
+            await Shell.Current.GoToAsync($"{nameof(TaskDetailPage)}?taskId={id}");
         }
     }
 
