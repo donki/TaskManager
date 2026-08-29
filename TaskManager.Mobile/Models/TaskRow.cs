@@ -40,6 +40,28 @@ public sealed class TaskRow
 
     public bool HasSteps => Task.StepCount > 0;
 
+    /// <summary>Etiquetas de la tarea, para verlas de un vistazo en la fila.</summary>
+    public string TagsCaption => Task.TagList.Count > 0 ? "#" + string.Join("  #", Task.TagList) : string.Empty;
+
+    public bool HasTags => Task.TagList.Count > 0;
+
+    /// <summary>Plazo y repeticion, cuando los hay.</summary>
+    public string ScheduleCaption
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (Task.DueAt is { } due)
+                parts.Add(due.Date == DateTime.Now.Date ? "Hoy" : due.ToString("d MMM"));
+            if (Task.Recurrence.Repeats)
+                parts.Add(Task.Recurrence.Describe().ToLowerInvariant());
+
+            return string.Join(" · ", parts);
+        }
+    }
+
+    public bool HasSchedule => ScheduleCaption.Length > 0;
+
     public string StepsCaption => Task.StepCount > 0 ? $"{Task.StepsDone}/{Task.StepCount} pasos" : string.Empty;
 
     public double Progress => Task.Progress;

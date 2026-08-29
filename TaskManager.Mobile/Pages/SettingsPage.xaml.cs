@@ -13,22 +13,29 @@ public partial class SettingsPage : ContentPage
     private readonly SettingsService _settings;
     private readonly SupabaseAuthService _auth;
     private readonly TaskService _tasks;
+    private readonly INotificationService _notifications;
 
     private bool _loading;
 
     public SettingsPage()
         : this(ServiceHelper.GetRequiredService<SettingsService>(),
                ServiceHelper.GetRequiredService<SupabaseAuthService>(),
-               ServiceHelper.GetRequiredService<TaskService>())
+               ServiceHelper.GetRequiredService<TaskService>(),
+               ServiceHelper.GetRequiredService<INotificationService>())
     {
     }
 
-    public SettingsPage(SettingsService settings, SupabaseAuthService auth, TaskService tasks)
+    public SettingsPage(
+        SettingsService settings,
+        SupabaseAuthService auth,
+        TaskService tasks,
+        INotificationService notifications)
     {
         InitializeComponent();
         _settings = settings;
         _auth = auth;
         _tasks = tasks;
+        _notifications = notifications;
     }
 
     protected override async void OnAppearing()
@@ -40,6 +47,9 @@ public partial class SettingsPage : ContentPage
         _loading = true;
         HapticsSwitch.IsToggled = _settings.HapticsEnabled;
         SoundSwitch.IsToggled = _settings.SoundEnabled;
+        NotifySwitch.IsToggled = _settings.NotificationsEnabled;
+        NotifyTimePicker.Time = TimeSpan.FromHours(_settings.NotifyHour);
+        NotifyHourRow.IsVisible = _settings.NotificationsEnabled;
         _loading = false;
 
         DisplayNameEntry.Text = _settings.DisplayName;
@@ -124,6 +134,55 @@ public partial class SettingsPage : ContentPage
             await _settings.SetBoolAsync(SettingsService.KeyAuthSkipped, false);
             ShowAccount();
         }
+    }
+
+    /// <summary>
+    /// Al encender los recordatorios se pide el permiso en ese momento, no al abrir la aplicacion:
+    /// pedirlo antes de que haga falta es la forma mas rapida de que lo denieguen.
+    /// </summary>
+    private async void OnNotifyToggled(object? sender, ToggledEventArgs e)
+    {
+        if (_loading)
+        {
+            return;
+        }
+
+        NotifyHourRow.IsVisible = e.Value;
+
+        if (!e.Value)
+        {
+            await _settings.SetBoolAsync(SettingsService.KeyNotifyEnabled, false);
+            _notifications.CancelDailySummary();
+            return;
+        }
+
+        if (!await _notifications.RequestPermissionAsync())
+        {
+            // Sin permiso no hay aviso posible: el interruptor vuelve a su sitio en vez de mentir.
+            _loading = true;
+            NotifySwitch.IsToggled = false;
+            NotifyHourRow.IsVisible = false;
+            _loading = false;
+
+            await SocShared.ModernDialog.AlertAsync(this, "Sin permiso",
+                "Android no permite mostrar avisos hasta que se conceda el permiso de notificaciones.",
+                "OK");
+            return;
+        }
+
+        await _settings.SetBoolAsync(SettingsService.KeyNotifyEnabled, true);
+        _notifications.ScheduleDailySummary(NotifyTimePicker.Time ?? TimeSpan.FromHours(9));
+    }
+
+    private async void OnNotifyTimeChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (_loading || e.PropertyName != nameof(TimePicker.Time) || !NotifySwitch.IsToggled)
+        {
+            return;
+        }
+
+        await _settings.SetAsync(SettingsService.KeyNotifyHour, ((int)(NotifyTimePicker.Time ?? TimeSpan.FromHours(9)).TotalHours).ToString());
+        _notifications.ScheduleDailySummary(NotifyTimePicker.Time ?? TimeSpan.FromHours(9));
     }
 
     private async void OnHapticsToggled(object? sender, ToggledEventArgs e)

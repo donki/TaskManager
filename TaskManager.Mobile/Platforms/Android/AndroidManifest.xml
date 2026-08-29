@@ -19,6 +19,18 @@
   <!-- VIBRATE: el pequeno golpe haptico al completar una tarea, desactivable en Ajustes. -->
   <uses-permission android:name="android.permission.VIBRATE" />
 
+  <!--
+    POST_NOTIFICATIONS: el recordatorio diario de lo que queda pendiente y el aviso de las tareas
+    con fecha de finalizacion. Se pide al activarlo, no al arrancar.
+  -->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+  <!--
+    RECEIVE_BOOT_COMPLETED: al reiniciar el movil se pierden las alarmas programadas; sin esto el
+    recordatorio diario desapareceria despues de cada reinicio sin avisar a nadie.
+  -->
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
   <queries>
     <!-- Boton de contacto de la pantalla Acerca de. -->
     <intent>

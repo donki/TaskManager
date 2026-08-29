@@ -50,9 +50,18 @@
 
                                     <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center"
                                                          Opacity="{Binding Opacity}">
+                                        <VerticalStackLayout.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="OnTaskTapped" CommandParameter="{Binding Id}" />
+                                        </VerticalStackLayout.GestureRecognizers>
                                         <Label Text="{Binding Title}"
                                                Style="{StaticResource ItemTitle}"
                                                TextDecorations="{Binding Decoration}" />
+                                        <Label Text="{Binding TagsCaption}"
+                                               Style="{StaticResource HintText}"
+                                               IsVisible="{Binding HasTags}" />
+                                        <Label Text="{Binding ScheduleCaption}"
+                                               Style="{StaticResource HintText}"
+                                               IsVisible="{Binding HasSchedule}" />
                                         <Label Text="{Binding StepsCaption}"
                                                Style="{StaticResource ItemSubtitle}"
                                                IsVisible="{Binding HasSteps}" />

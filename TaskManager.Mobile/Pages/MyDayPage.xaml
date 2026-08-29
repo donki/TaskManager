@@ -7,7 +7,7 @@
              Title="Mi Día">
 
     <Grid>
-        <Grid RowDefinitions="Auto,Auto,*">
+        <Grid RowDefinitions="Auto,Auto,Auto,*">
 
             <!-- Fecha y estado del dia -->
             <VerticalStackLayout Grid.Row="0" Padding="16,12,16,4" Spacing="2">
@@ -31,7 +31,13 @@
                              Clicked="OnBreakdownClicked" />
             </Grid>
 
-            <RefreshView Grid.Row="2" x:Name="Refresher" Refreshing="OnRefreshing">
+            <!-- Filtro por etiqueta: se pinta con las etiquetas que hay en uso. -->
+            <ScrollView Grid.Row="2" Orientation="Horizontal" HorizontalScrollBarVisibility="Never"
+                        Padding="16,0,16,8" x:Name="TagFilterScroll" IsVisible="False">
+                <HorizontalStackLayout x:Name="TagFilterBox" Spacing="8" />
+            </ScrollView>
+
+            <RefreshView Grid.Row="3" x:Name="Refresher" Refreshing="OnRefreshing">
                 <CollectionView x:Name="TasksView" SelectionMode="None" Margin="8,0,8,8">
 
                     <CollectionView.EmptyView>
@@ -58,9 +64,16 @@
 
                                     <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center"
                                                          Opacity="{Binding Opacity}">
+                                        <!-- Tocar la tarea abre su detalle: editarla, darle contexto y ver los pasos. -->
+                                        <VerticalStackLayout.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="OnTaskTapped" CommandParameter="{Binding Id}" />
+                                        </VerticalStackLayout.GestureRecognizers>
                                         <Label Text="{Binding Title}"
                                                Style="{StaticResource ItemTitle}"
                                                TextDecorations="{Binding Decoration}" />
+                                        <Label Text="{Binding TagsCaption}"
+                                               Style="{StaticResource HintText}"
+                                               IsVisible="{Binding HasTags}" />
                                         <Label Text="{Binding StepsCaption}"
                                                Style="{StaticResource ItemSubtitle}"
                                                IsVisible="{Binding HasSteps}" />

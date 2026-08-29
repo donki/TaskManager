@@ -14,15 +14,21 @@ public sealed class TaskService
     private readonly TaskRepository _repository;
     private readonly SettingsService _settings;
     private readonly IBreakdownService _breakdown;
+    private readonly INotificationService? _notifications;
 
     private DateTime _lastCompletion = DateTime.MinValue;
     private int _chain;
 
-    public TaskService(TaskRepository repository, SettingsService settings, IBreakdownService breakdown)
+    public TaskService(
+        TaskRepository repository,
+        SettingsService settings,
+        IBreakdownService breakdown,
+        INotificationService? notifications = null)
     {
         _repository = repository;
         _settings = settings;
         _breakdown = breakdown;
+        _notifications = notifications;
     }
 
     public TaskRepository Repository => _repository;
@@ -74,9 +80,58 @@ public sealed class TaskService
         task.DoneBy = _settings.UserId;
         await _repository.UpdateTaskAsync(task).ConfigureAwait(false);
 
+        // Completada: su aviso ya no tiene sentido.
+        _notifications?.CancelTaskReminder(task.Id);
+
+        // Si la tarea se repite, aqui nace la siguiente vuelta. La completada se queda hecha como
+        // registro (y contando para rachas y XP) en vez de reabrirse.
+        await CreateNextOccurrenceAsync(task).ConfigureAwait(false);
+
         var celebration = await AwardAsync(XpRules.Task, XpKind.Task, task).ConfigureAwait(false);
         Celebrated?.Invoke(this, celebration);
         return celebration;
+    }
+
+    /// <summary>
+    /// Crea la siguiente aparicion de una tarea repetitiva. La fecha se cuenta desde el plazo que
+    /// tenia (o desde hoy si no tenia), y si esa fecha ya paso se va adelantando hasta la primera
+    /// que quede por delante: al completar tarde una tarea semanal olvidada, la siguiente es la que
+    /// viene, no cuatro atrasadas de golpe.
+    /// </summary>
+    private async Task CreateNextOccurrenceAsync(TaskItem task)
+    {
+        var recurrence = task.Recurrence;
+        if (!recurrence.Repeats)
+        {
+            return;
+        }
+
+        var today = DateTime.Now.Date;
+        var next = recurrence.Next(task.DueAt?.Date ?? today);
+        while (next.Date < today)
+        {
+            next = recurrence.Next(next);
+        }
+
+        var copy = new TaskItem
+        {
+            ListId = task.ListId,
+            Title = task.Title,
+            Notes = task.Notes,
+            Context = task.Context,
+            Tags = task.Tags,
+            RecurrenceRule = task.RecurrenceRule,
+            DueAt = next,
+            CreatedBy = _settings.UserId,
+
+            // Los micro-pasos NO se copian: son el desglose de aquella vez. La nueva vuelta puede
+            // desglosarse otra vez, y con el contexto que tenga entonces.
+        };
+
+        await _repository.AddTaskCopyAsync(copy).ConfigureAwait(false);
+
+        // La vuelta nueva ya nace con su plazo, asi que se programa su aviso aqui mismo.
+        _notifications?.ScheduleTaskReminder(copy);
     }
 
     /// <summary>Desmarcar no resta XP: la especificacion pide premiar sin castigar (4.B).</summary>
@@ -133,7 +188,7 @@ public sealed class TaskService
         TaskItem task,
         CancellationToken cancellationToken = default)
     {
-        var titles = await _breakdown.BreakdownAsync(task.Title, cancellationToken).ConfigureAwait(false);
+        var titles = await _breakdown.BreakdownAsync(task.Title, task.Context, cancellationToken).ConfigureAwait(false);
         if (titles.Count == 0)
         {
             return new BreakdownProposal([], 0, string.Empty);
