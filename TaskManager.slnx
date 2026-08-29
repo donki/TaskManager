@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="TaskManager.Core/TaskManager.Core.csproj" />
+  <Project Path="TaskManager.Mobile/TaskManager.Mobile.csproj" />
+  <Project Path="TaskManager.Desktop/TaskManager.Desktop.csproj" />
+</Solution>

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="TaskManager.Mobile.Pages.LoginPage"
+             Title="Tu cuenta"
+             Shell.FlyoutBehavior="Disabled"
+             Shell.NavBarIsVisible="False">
+
+    <Grid RowDefinitions="*,Auto,*" Padding="28">
+
+        <VerticalStackLayout Grid.Row="1" Spacing="18">
+
+            <Image Source="about_logo.png" HeightRequest="96" WidthRequest="96" HorizontalOptions="Center" />
+
+            <Label Text="Task Manager"
+                   FontSize="26" FontAttributes="Bold"
+                   TextColor="{StaticResource Primary}"
+                   HorizontalOptions="Center" />
+
+            <Label Text="Entra con Google para guardar tu usuario y llevarte tus listas a cualquier dispositivo."
+                   Style="{StaticResource HintText}"
+                   HorizontalTextAlignment="Center" />
+
+            <Button x:Name="GoogleButton"
+                    Text="Continuar con Google"
+                    ImageSource="ic_google_w.png"
+                    ContentLayout="Left,10"
+                    Clicked="OnGoogleClicked"
+                    HorizontalOptions="Fill" />
+
+            <ActivityIndicator x:Name="Busy" IsRunning="False" IsVisible="False" />
+
+            <Label x:Name="StatusLabel"
+                   Style="{StaticResource HintText}"
+                   HorizontalTextAlignment="Center"
+                   IsVisible="False" />
+
+            <Button x:Name="SkipButton"
+                    Text="Seguir sin cuenta"
+                    Style="{StaticResource OutlineButton}"
+                    Clicked="OnSkipClicked"
+                    HorizontalOptions="Fill" />
+
+            <Label Text="Sin cuenta, las tareas se quedan en este dispositivo y no se pueden compartir con ningún grupo."
+                   Style="{StaticResource HintText}"
+                   FontSize="11"
+                   HorizontalTextAlignment="Center" />
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>

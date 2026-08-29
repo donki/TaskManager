@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:pages="clr-namespace:TaskManager.Mobile.Pages"
+             x:Class="TaskManager.Mobile.Pages.BoardPage"
+             Title="El Tablón del Gremio">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="12">
+
+            <!-- Nivel y progreso -->
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Padding="16" Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" x:Name="LevelLabel" Style="{StaticResource CardTitle}" />
+                        <Label Grid.Column="1" x:Name="XpLabel" Style="{StaticResource HintText}"
+                               VerticalOptions="Center" />
+                    </Grid>
+                    <ProgressBar x:Name="LevelProgress" ProgressColor="{StaticResource Primary}" />
+                    <Label x:Name="NextLevelLabel" Style="{StaticResource HintText}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Racha -->
+            <Border Style="{StaticResource Card}">
+                <Grid Padding="16" ColumnDefinitions="40,*" ColumnSpacing="12">
+                    <Image Grid.Column="0" Source="ic_star.png" WidthRequest="28" HeightRequest="28"
+                           VerticalOptions="Center" />
+                    <VerticalStackLayout Grid.Column="1" Spacing="2">
+                        <Label x:Name="StreakLabel" Style="{StaticResource CardTitle}" />
+                        <Label x:Name="StreakHint" Style="{StaticResource HintText}" />
+                    </VerticalStackLayout>
+                </Grid>
+            </Border>
+
+            <!-- Productividad -->
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Padding="16" Spacing="6">
+                    <Label Text="Productividad" Style="{StaticResource CardTitle}" />
+                    <Label x:Name="TodayLabel" Style="{StaticResource BodyText}" />
+                    <Label x:Name="WeekLabel" Style="{StaticResource BodyText}" />
+                    <Label x:Name="LongestLabel" Style="{StaticResource BodyText}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Desbloqueos -->
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Padding="16" Spacing="8">
+                    <Label Text="Desbloqueado" Style="{StaticResource CardTitle}" />
+                    <VerticalStackLayout x:Name="UnlockedList" Spacing="4" />
+                    <Label x:Name="NextUnlockLabel" Style="{StaticResource HintText}" />
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

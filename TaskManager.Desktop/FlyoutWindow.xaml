@@ -1,0 +1,168 @@
+<Window x:Class="TaskManager.Desktop.FlyoutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:TaskManager.Desktop.Controls"
+        Title="Task Manager"
+        Width="400" Height="560"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        ResizeMode="NoResize"
+        Visibility="Hidden">
+
+    <Grid>
+        <Border Background="{DynamicResource PageBackground}"
+                CornerRadius="12"
+                Margin="10"
+                BorderBrush="{DynamicResource Separator}"
+                BorderThickness="1">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="18" ShadowDepth="2" Opacity="0.25" Color="#000000" />
+            </Border.Effect>
+
+            <Grid Margin="16,14,16,14">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- Cabecera: Mi Dia, nivel y ajustes -->
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Mi Día" FontSize="20" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimary}" />
+                        <TextBlock x:Name="DateLabel" FontSize="12"
+                                   Foreground="{DynamicResource TextSecondary}" />
+                    </StackPanel>
+
+                    <Border Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0"
+                            Background="{DynamicResource Primary}" CornerRadius="10" Padding="10,4">
+                        <TextBlock x:Name="LevelLabel" Foreground="{DynamicResource OnPrimary}"
+                                   FontSize="12" FontWeight="SemiBold" />
+                    </Border>
+
+                    <Button Grid.Column="2" x:Name="SettingsButton" Style="{StaticResource GhostIconButton}"
+                            Content="&#xE713;" ToolTip="Ajustes" Click="OnSettingsClick" />
+                </Grid>
+
+                <!-- Barra de progreso del nivel -->
+                <ProgressBar Grid.Row="1" x:Name="LevelProgress" Height="4" Margin="0,10,0,0"
+                             Minimum="0" Maximum="1"
+                             Foreground="{DynamicResource Primary}"
+                             Background="{DynamicResource Separator}"
+                             BorderThickness="0" />
+
+                <!-- Captura rapida: lista destino + texto + anadir + desglosar con IA -->
+                <Grid Grid.Row="2" Margin="0,14,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <ComboBox Grid.Row="0" Grid.ColumnSpan="3" x:Name="ListPicker"
+                              Height="28" FontSize="12" Margin="0,0,0,8"
+                              DisplayMemberPath="Display" SelectedValuePath="Id" />
+
+                    <Border Grid.Row="1" Grid.Column="0"
+                            Background="{DynamicResource CardBackground}"
+                            BorderBrush="{DynamicResource Separator}" BorderThickness="1"
+                            CornerRadius="8" Padding="10,0" Margin="0,0,8,0">
+                        <TextBox x:Name="QuickAdd"
+                                 BorderThickness="0" Background="Transparent"
+                                 VerticalContentAlignment="Center" Height="34" FontSize="14"
+                                 Foreground="{DynamicResource TextPrimary}"
+                                 CaretBrush="{DynamicResource TextPrimary}"
+                                 KeyDown="OnQuickAddKeyDown" />
+                    </Border>
+
+                    <Button Grid.Row="1" Grid.Column="1" x:Name="AddButton" Style="{StaticResource IconButton}"
+                            Content="&#xE710;" ToolTip="Añadir tarea (Intro)" Margin="0,0,8,0"
+                            Click="OnAddClick" />
+
+                    <Button Grid.Row="1" Grid.Column="2" x:Name="BreakdownButton" Style="{StaticResource IconButton}"
+                            Content="&#xE945;" ToolTip="Desglosar con IA la tarea seleccionada"
+                            Click="OnBreakdownClick" />
+                </Grid>
+
+                <!-- Tareas de hoy -->
+                <ListBox Grid.Row="3" x:Name="TaskList"
+                         Background="Transparent" BorderThickness="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         HorizontalContentAlignment="Stretch">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="Margin" Value="0,0,0,6" />
+                            <Setter Property="Background" Value="Transparent" />
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="10,8">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <CheckBox Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"
+                                              IsChecked="{Binding IsDone, Mode=OneWay}"
+                                              Checked="OnTaskChecked" Unchecked="OnTaskUnchecked"
+                                              Tag="{Binding Id}" />
+
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontSize="14"
+                                                   Foreground="{DynamicResource TextPrimary}" />
+                                        <TextBlock Text="{Binding StepsCaption}" FontSize="11"
+                                                   Foreground="{DynamicResource TextSecondary}"
+                                                   Visibility="{Binding StepsVisibility}" />
+                                    </StackPanel>
+
+                                    <TextBlock Grid.Column="2" Text="{Binding ListName}" FontSize="11"
+                                               VerticalAlignment="Center" Margin="8,0,0,0"
+                                               Foreground="{DynamicResource TextSecondary}" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <!-- Pie: pendientes y atajo -->
+                <Grid Grid.Row="4" Margin="0,10,0,0">
+                    <TextBlock x:Name="StatusLabel" FontSize="11" HorizontalAlignment="Left"
+                               VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
+                    <TextBlock x:Name="HotkeyLabel" FontSize="11" HorizontalAlignment="Right"
+                               VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- El confeti va encima de todo y no intercepta el raton -->
+        <controls:ConfettiHost x:Name="Confetti" />
+
+        <!-- Indicador flotante de XP -->
+        <Border x:Name="XpToast" HorizontalAlignment="Center" VerticalAlignment="Top"
+                Margin="0,60,0,0" Background="{DynamicResource Primary}" CornerRadius="14"
+                Padding="14,6" Opacity="0" IsHitTestVisible="False">
+            <TextBlock x:Name="XpToastLabel" Foreground="{DynamicResource OnPrimary}"
+                       FontSize="14" FontWeight="SemiBold" />
+        </Border>
+    </Grid>
+</Window>

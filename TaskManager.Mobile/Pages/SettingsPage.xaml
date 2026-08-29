@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="TaskManager.Mobile.Pages.SettingsPage"
+             Title="Ajustes">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="12">
+
+            <!-- Cuenta: entrar con Google es lo que guarda el usuario y permite compartir grupos -->
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Padding="16" Spacing="10">
+                    <Label Text="Tu cuenta" Style="{StaticResource CardTitle}" />
+
+                    <Grid ColumnDefinitions="44,*" ColumnSpacing="12">
+                        <Image Grid.Column="0" Source="ic_account.png" WidthRequest="28" HeightRequest="28"
+                               VerticalOptions="Center" />
+                        <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                            <Label x:Name="AccountNameLabel" Style="{StaticResource ItemTitle}" />
+                            <Label x:Name="AccountEmailLabel" Style="{StaticResource ItemSubtitle}" />
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <Button x:Name="SignInButton"
+                            Text="Continuar con Google"
+                            ImageSource="ic_google_w.png"
+                            ContentLayout="Left,10"
+                            Clicked="OnSignInClicked"
+                            HorizontalOptions="Fill" />
+
+                    <Button x:Name="SignOutButton"
+                            Text="Cerrar sesión"
+                            Style="{StaticResource OutlineButton}"
+                            Clicked="OnSignOutClicked"
+                            HorizontalOptions="Fill"
+                            IsVisible="False" />
+
+                    <Label x:Name="AccountHintLabel" Style="{StaticResource HintText}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Padding="16" Spacing="10">
+                    <Label Text="Celebración" Style="{StaticResource CardTitle}" />
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" Text="Vibración al completar" VerticalOptions="Center" />
+                        <Switch Grid.Column="1" x:Name="HapticsSwitch" Toggled="OnHapticsToggled" />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" Text="Sonido al completar" VerticalOptions="Center" />
+                        <Switch Grid.Column="1" x:Name="SoundSwitch" Toggled="OnSoundToggled" />
+                    </Grid>
+                    <Label Text="El sonido llegará con los temas desbloqueables (fase 5)."
+                           Style="{StaticResource HintText}" />
+                </VerticalStackLayout>
+            </Border>
+
+
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Padding="16" Spacing="10">
+                    <Label Text="Identidad" Style="{StaticResource CardTitle}" />
+                    <Border Style="{StaticResource Card}" Padding="12,0">
+                        <Entry x:Name="DisplayNameEntry" Placeholder="Cómo te ven en los grupos"
+                               Completed="OnSaveName" />
+                    </Border>
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

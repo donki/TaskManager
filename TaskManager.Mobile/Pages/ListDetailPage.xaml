@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:TaskManager.Mobile.Models"
+             xmlns:controls="clr-namespace:TaskManager.Mobile.Controls"
+             x:Class="TaskManager.Mobile.Pages.ListDetailPage"
+             Title="Lista">
+
+    <Grid>
+        <Grid RowDefinitions="Auto,*">
+
+            <!-- Captura rapida dentro de la lista -->
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Padding="16,12,16,8">
+                <Border Grid.Column="0" Style="{StaticResource Card}" Padding="12,0">
+                    <Entry x:Name="QuickAdd"
+                           Placeholder="Añadir una tarea"
+                           ReturnType="Done"
+                           Completed="OnAddClicked" />
+                </Border>
+                <ImageButton Grid.Column="1" Style="{StaticResource HeaderIconButton}"
+                             Source="ic_add_w.png" BackgroundColor="{StaticResource Primary}"
+                             Clicked="OnAddClicked" />
+                <ImageButton Grid.Column="2" x:Name="WandButton" Style="{StaticResource HeaderIconButton}"
+                             Source="ic_magic_w.png" BackgroundColor="{StaticResource Accent}"
+                             Clicked="OnBreakdownClicked" />
+            </Grid>
+
+            <CollectionView Grid.Row="1" x:Name="TasksView" SelectionMode="None" Margin="8,0,8,8">
+
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout Padding="24" Spacing="8">
+                        <Label Text="Lista vacía" Style="{StaticResource CardTitle}"
+                               HorizontalTextAlignment="Center" />
+                        <Label Text="Escribe arriba la primera tarea." Style="{StaticResource HintText}"
+                               HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:TaskRow">
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,6">
+                            <VerticalStackLayout Padding="6,8,8,8" Spacing="4">
+
+                                <Grid ColumnDefinitions="44,*,Auto,Auto" ColumnSpacing="2">
+                                    <ImageButton Grid.Column="0"
+                                                 Style="{StaticResource RowIconButton}"
+                                                 Source="{Binding StateIcon}"
+                                                 CommandParameter="{Binding Id}"
+                                                 Clicked="OnToggleDoneClicked" />
+
+                                    <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center"
+                                                         Opacity="{Binding Opacity}">
+                                        <Label Text="{Binding Title}"
+                                               Style="{StaticResource ItemTitle}"
+                                               TextDecorations="{Binding Decoration}" />
+                                        <Label Text="{Binding StepsCaption}"
+                                               Style="{StaticResource ItemSubtitle}"
+                                               IsVisible="{Binding HasSteps}" />
+                                    </VerticalStackLayout>
+
+                                    <!-- Estrella: llevar o quitar de Mi Dia -->
+                                    <ImageButton Grid.Column="2"
+                                                 Style="{StaticResource RowIconButton}"
+                                                 Source="{Binding MyDayIcon}"
+                                                 CommandParameter="{Binding Id}"
+                                                 Clicked="OnToggleMyDayClicked" />
+
+                                    <ImageButton Grid.Column="3"
+                                                 Style="{StaticResource RowIconButton}"
+                                                 Source="ic_magic.png"
+                                                 CommandParameter="{Binding Id}"
+                                                 Clicked="OnRowBreakdownClicked" />
+                                </Grid>
+
+                                <!-- Micro-pasos: cada uno suma su parte de XP al marcarse -->
+                                <VerticalStackLayout BindableLayout.ItemsSource="{Binding Steps}"
+                                                     IsVisible="{Binding ShowSteps}"
+                                                     Margin="44,0,0,0" Spacing="0">
+                                    <BindableLayout.ItemTemplate>
+                                        <DataTemplate x:DataType="models:StepRow">
+                                            <Grid ColumnDefinitions="36,*" ColumnSpacing="2">
+                                                <ImageButton Grid.Column="0"
+                                                             Style="{StaticResource RowIconButton}"
+                                                             HeightRequest="32" WidthRequest="32"
+                                                             Source="{Binding StateIcon}"
+                                                             CommandParameter="{Binding Id}"
+                                                             Clicked="OnToggleStepClicked" />
+                                                <Label Grid.Column="1"
+                                                       Text="{Binding Title}"
+                                                       Style="{StaticResource ItemSubtitle}"
+                                                       VerticalOptions="Center"
+                                                       Opacity="{Binding Opacity}"
+                                                       TextDecorations="{Binding Decoration}" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </BindableLayout.ItemTemplate>
+                                </VerticalStackLayout>
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </Grid>
+
+        <controls:CelebrationView x:Name="Celebration" />
+    </Grid>
+</ContentPage>

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:TaskManager.Mobile.Models"
+             xmlns:controls="clr-namespace:TaskManager.Mobile.Controls"
+             x:Class="TaskManager.Mobile.Pages.MyDayPage"
+             Title="Mi Día">
+
+    <Grid>
+        <Grid RowDefinitions="Auto,Auto,*">
+
+            <!-- Fecha y estado del dia -->
+            <VerticalStackLayout Grid.Row="0" Padding="16,12,16,4" Spacing="2">
+                <Label x:Name="DateLabel" Style="{StaticResource HintText}" />
+                <Label x:Name="SummaryLabel" Style="{StaticResource CardTitle}" />
+            </VerticalStackLayout>
+
+            <!-- Captura rapida: escribir y anadir, o desglosar el objetivo con IA -->
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Padding="16,8">
+                <Border Grid.Column="0" Style="{StaticResource Card}" Padding="12,0">
+                    <Entry x:Name="QuickAdd"
+                           Placeholder="Añadir una tarea a hoy"
+                           ReturnType="Done"
+                           Completed="OnAddClicked" />
+                </Border>
+                <ImageButton Grid.Column="1" Style="{StaticResource HeaderIconButton}"
+                             Source="ic_add_w.png" BackgroundColor="{StaticResource Primary}"
+                             Clicked="OnAddClicked" />
+                <ImageButton Grid.Column="2" x:Name="WandButton" Style="{StaticResource HeaderIconButton}"
+                             Source="ic_magic_w.png" BackgroundColor="{StaticResource Accent}"
+                             Clicked="OnBreakdownClicked" />
+            </Grid>
+
+            <RefreshView Grid.Row="2" x:Name="Refresher" Refreshing="OnRefreshing">
+                <CollectionView x:Name="TasksView" SelectionMode="None" Margin="8,0,8,8">
+
+                    <CollectionView.EmptyView>
+                        <VerticalStackLayout Padding="24" Spacing="8">
+                            <Label Text="Hoy no hay nada en Mi Día"
+                                   Style="{StaticResource CardTitle}"
+                                   HorizontalTextAlignment="Center" />
+                            <Label Text="Escribe arriba lo primero que quieras sacarte de encima."
+                                   Style="{StaticResource HintText}"
+                                   HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </CollectionView.EmptyView>
+
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="models:TaskRow">
+                            <Border Style="{StaticResource Card}" Margin="0,0,0,6">
+                                <Grid ColumnDefinitions="44,*,Auto" ColumnSpacing="4" Padding="6,8,8,8">
+
+                                    <ImageButton Grid.Column="0"
+                                                 Style="{StaticResource RowIconButton}"
+                                                 Source="{Binding StateIcon}"
+                                                 CommandParameter="{Binding Id}"
+                                                 Clicked="OnToggleDoneClicked" />
+
+                                    <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center"
+                                                         Opacity="{Binding Opacity}">
+                                        <Label Text="{Binding Title}"
+                                               Style="{StaticResource ItemTitle}"
+                                               TextDecorations="{Binding Decoration}" />
+                                        <Label Text="{Binding StepsCaption}"
+                                               Style="{StaticResource ItemSubtitle}"
+                                               IsVisible="{Binding HasSteps}" />
+                                        <Label Text="{Binding ListName}"
+                                               Style="{StaticResource HintText}"
+                                               IsVisible="{Binding ShowListName}" />
+                                    </VerticalStackLayout>
+
+                                    <ImageButton Grid.Column="2"
+                                                 Style="{StaticResource RowIconButton}"
+                                                 Source="ic_magic.png"
+                                                 CommandParameter="{Binding Id}"
+                                                 Clicked="OnRowBreakdownClicked" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </RefreshView>
+        </Grid>
+
+        <!-- La celebracion va encima de todo y no intercepta el toque -->
+        <controls:CelebrationView x:Name="Celebration" />
+    </Grid>
+</ContentPage>
