@@ -242,16 +242,70 @@ public sealed class HeuristicBreakdownService : IBreakdownService
 
         var words = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
+        IReadOnlyList<string> baseSteps = Generic(goal.Trim());
         foreach (var (keywords, steps) in Templates)
         {
             if (keywords.Any(k => Matches(k, normalized, words)))
             {
-                return Task.FromResult<IReadOnlyList<string>>(steps.Take(5).ToList());
+                baseSteps = steps;
+                break;
             }
         }
 
-        return Task.FromResult(Generic(goal.Trim()));
+        return Task.FromResult(Combine(baseSteps, context));
     }
+
+    /// <summary>
+    /// Mezcla los pasos de la plantilla con lo que diga el contexto.
+    /// </summary>
+    /// <remarks>
+    /// Sin modelo de lenguaje no se puede *interpretar* el contexto, pero ignorarlo es peor: el
+    /// usuario escribe "piso sin ascensor, dos gatos" y recibe los mismos pasos genericos de
+    /// siempre, con razon para pensar que no sirve de nada. Aqui cada condicion del contexto se
+    /// convierte en un paso propio, que es lo que de verdad hay que resolver, y se pone por delante
+    /// de la plantilla porque es lo especifico de ESTA tarea.
+    /// </remarks>
+    private static IReadOnlyList<string> Combine(IReadOnlyList<string> baseSteps, string context)
+    {
+        var fragments = SplitContext(context);
+        if (fragments.Count == 0)
+        {
+            return baseSteps.Take(5).ToList();
+        }
+
+        var result = new List<string>();
+
+        // Lo del contexto primero, hasta tres: es lo que distingue esta tarea de cualquier otra.
+        foreach (var fragment in fragments.Take(3))
+        {
+            result.Add($"Resolver: {Capitalize(fragment)}");
+        }
+
+        foreach (var step in baseSteps)
+        {
+            if (result.Count >= 5)
+            {
+                break;
+            }
+
+            result.Add(step);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Trocea el contexto en condiciones sueltas. Se parte por comas, puntos y saltos de linea, que
+    /// es como se escribe de corrido ("piso sin ascensor, dos gatos, mudanza en agosto").
+    /// </summary>
+    private static List<string> SplitContext(string context) =>
+        context.Split([',', ';', '.', '\n', '\r'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+               .Where(f => f.Length >= 4)
+               .Distinct(StringComparer.CurrentCultureIgnoreCase)
+               .ToList();
+
+    private static string Capitalize(string text) =>
+        text.Length == 0 ? text : char.ToUpper(text[0]) + text[1..];
 
     /// <summary>
     /// La palabra tiene que empezar por la clave, no contenerla en cualquier posicion: si no,

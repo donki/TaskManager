@@ -31,6 +31,8 @@
                         <Label Text="Contexto" Style="{StaticResource CardTitle}" />
                         <Label Style="{StaticResource HintText}"
                                Text="Lo que hay que tener en cuenta para desglosarla bien: condiciones, plazos, material, quién participa. Se guarda con la tarea y cada desglose parte de aquí." />
+                        <Label Style="{StaticResource HintText}" FontSize="11"
+                               Text="Sin un modelo local disponible, cada condición que escribas (separada por comas) se convierte en un paso; con modelo, se interpreta." />
                         <Border Style="{StaticResource Card}" Padding="12,4">
                             <Editor x:Name="ContextEditor" HeightRequest="110" AutoSize="Disabled"
                                     Placeholder="Piso sin ascensor, dos gatos, mudanza en agosto..." />
