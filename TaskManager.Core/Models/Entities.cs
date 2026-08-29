@@ -110,6 +110,13 @@ public class TaskItem
     public DateTime? DueAt { get; set; }
 
     /// <summary>
+    /// Dia para el que se ha planificado hacerla, que no es lo mismo que el plazo: una tarea puede
+    /// vencer el viernes y estar planificada para el miercoles. Opcional.
+    /// </summary>
+    [Indexed]
+    public DateTime? PlannedFor { get; set; }
+
+    /// <summary>
     /// Etiquetas separadas por comas, con comas tambien en los extremos (<c>,casa,urgente,</c>),
     /// para poder filtrar con un LIKE exacto. Se manipulan con <see cref="TaskTags"/>.
     /// </summary>

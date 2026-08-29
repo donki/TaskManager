@@ -122,6 +122,12 @@ public sealed class TaskService
             Tags = task.Tags,
             RecurrenceRule = task.RecurrenceRule,
             DueAt = next,
+
+            // Si estaba planificada, la vuelta siguiente se planifica con el mismo desfase respecto
+            // al plazo: quien se organiza dos dias antes lo sigue haciendo dos dias antes.
+            PlannedFor = task is { PlannedFor: not null, DueAt: not null }
+                ? next - (task.DueAt.Value.Date - task.PlannedFor.Value.Date)
+                : null,
             CreatedBy = _settings.UserId,
 
             // Los micro-pasos NO se copian: son el desglose de aquella vez. La nueva vuelta puede
