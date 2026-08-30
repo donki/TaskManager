@@ -1,6 +1,7 @@
 <Window x:Class="TaskManager.Desktop.FlyoutWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:TaskManager.Desktop.Localization"
         xmlns:controls="clr-namespace:TaskManager.Desktop.Controls"
         Title="Task Manager"
         Width="400" Height="560"
@@ -40,7 +41,7 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0">
-                        <TextBlock Text="Mi Día" FontSize="20" FontWeight="SemiBold"
+                        <TextBlock Text="{loc:T MenuMyDay}" FontSize="20" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextPrimary}" />
                         <TextBlock x:Name="DateLabel" FontSize="12"
                                    Foreground="{DynamicResource TextSecondary}" />
@@ -53,7 +54,7 @@
                     </Border>
 
                     <Button Grid.Column="2" x:Name="SettingsButton" Style="{StaticResource GhostIconButton}"
-                            Content="&#xE713;" ToolTip="Ajustes" Click="OnSettingsClick" />
+                            Content="&#xE713;" ToolTip="{loc:T MenuSettings}" Click="OnSettingsClick" />
                 </Grid>
 
                 <!-- Barra de progreso del nivel -->
@@ -92,11 +93,11 @@
                     </Border>
 
                     <Button Grid.Row="1" Grid.Column="1" x:Name="AddButton" Style="{StaticResource IconButton}"
-                            Content="&#xE710;" ToolTip="Añadir tarea (Intro)" Margin="0,0,8,0"
+                            Content="&#xE710;" ToolTip="{loc:T AddTaskTooltip}" Margin="0,0,8,0"
                             Click="OnAddClick" />
 
                     <Button Grid.Row="1" Grid.Column="2" x:Name="BreakdownButton" Style="{StaticResource IconButton}"
-                            Content="&#xE945;" ToolTip="Desglosar con IA la tarea seleccionada"
+                            Content="&#xE945;" ToolTip="{loc:T BreakdownTooltip}"
                             Click="OnBreakdownClick" />
                 </Grid>
 

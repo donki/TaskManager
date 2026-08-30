@@ -31,7 +31,10 @@ public partial class FlyoutWindow : Window
         _settings = settings;
         TaskList.ItemsSource = _rows;
 
-        DateLabel.Text = DateTime.Now.ToString("dddd, d 'de' MMMM");
+        // La fecha va en el idioma elegido: en ingles «de» sobra y el dia de la semana cambia.
+        DateLabel.Text = DateTime.Now.ToString(
+            Localization.Loc.Get("DatePattern"),
+            System.Globalization.CultureInfo.GetCultureInfo(Localization.Loc.Language));
         QuickAdd.Text = string.Empty;
     }
 
@@ -131,15 +134,15 @@ public partial class FlyoutWindow : Window
         var pending = tasks.Count(t => !t.IsDone);
         StatusLabel.Text = pending switch
         {
-            0 when tasks.Count == 0 => "Hoy no hay nada en Mi Día",
-            0 => "Todo hecho por hoy",
-            1 => "1 pendiente",
-            _ => $"{pending} pendientes",
+            0 when tasks.Count == 0 => Localization.Loc.Get("NothingInMyDay"),
+            0 => Localization.Loc.Get("AllDone"),
+            1 => Localization.Loc.Get("PendingOne"),
+            _ => Localization.Loc.Format("PendingMany", pending),
         };
         HotkeyLabel.Text = _settings.Get(SettingsService.KeyHotkey, "Ctrl+Alt+T");
 
         var board = await _tasks.GetBoardAsync();
-        LevelLabel.Text = $"Nv {board.Level}";
+        LevelLabel.Text = Localization.Loc.Format("LevelShort", board.Level);
         LevelProgress.Value = board.ProgressInLevel;
 
         PendingChanged?.Invoke(this, pending);
@@ -225,7 +228,7 @@ public partial class FlyoutWindow : Window
 
             if (!proposal.HasSomethingNew)
             {
-                ShowToast(proposal.AlreadyPresent > 0 ? "Ya los tenías todos" : "Sin pasos esta vez");
+                ShowToast(proposal.AlreadyPresent > 0 ? Localization.Loc.Get("MagicAllPresent") : Localization.Loc.Get("MagicNothing"));
                 return;
             }
 
@@ -234,7 +237,7 @@ public partial class FlyoutWindow : Window
             if (proposal.AlreadyPresent > 0)
                 detail += $"\n\n({proposal.AlreadyPresent} ya estaban y se han descartado)";
 
-            var accepted = MessageBox.Show(this, detail, $"Pasos Mágicos · {proposal.Source}",
+            var accepted = MessageBox.Show(this, detail, $"{Localization.Loc.Get("MagicSteps")} · {proposal.Source}",
                 MessageBoxButton.OKCancel, MessageBoxImage.Question) == MessageBoxResult.OK;
 
             if (!accepted)
@@ -304,7 +307,7 @@ public partial class FlyoutWindow : Window
         Confetti.Burst(origin, celebration.Combo);
 
         var text = celebration.LeveledUp
-            ? $"¡Nivel {celebration.Level}! +{celebration.Xp} XP"
+            ? Localization.Loc.Format("LevelUp", celebration.Level, celebration.Xp)
             : celebration.IsCombo
                 ? $"+{celebration.Xp} XP · ¡Racha x{celebration.Combo:0.#}!"
                 : $"+{celebration.Xp} XP";
@@ -313,7 +316,7 @@ public partial class FlyoutWindow : Window
 
         if (celebration.Unlocked is { } unlocked)
         {
-            ShowToast($"Desbloqueado: {unlocked.Name}");
+            ShowToast(Localization.Loc.Format("UnlockedItem", unlocked.Name));
         }
     }
 

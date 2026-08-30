@@ -47,16 +47,28 @@ public sealed class TrayIconHost : IDisposable
 
     public event EventHandler? SettingsRequested;
 
+    /// <summary>Ultimo recuento pintado, para poder rehacer el icono sin volver a consultarlo.</summary>
+    public int Pending { get; private set; }
+
+    /// <summary>Vuelve a montar el menu, que es lo que hace falta al cambiar de idioma.</summary>
+    public void RebuildMenu()
+    {
+        var old = _icon.ContextMenuStrip;
+        _icon.ContextMenuStrip = BuildMenu();
+        old?.Dispose();
+    }
+
     public void SetPending(int pending)
     {
+        Pending = pending;
         var previous = _current;
         _current = Render(pending);
         _icon.Icon = _current;
         _icon.Text = pending switch
         {
-            0 => "Task Manager — Mi Dia al dia",
-            1 => "Task Manager — 1 tarea pendiente",
-            _ => $"Task Manager — {pending} tareas pendientes",
+            0 => TaskManager.Desktop.Localization.Loc.Get("TrayUpToDate"),
+            1 => TaskManager.Desktop.Localization.Loc.Get("TrayOnePending"),
+            _ => TaskManager.Desktop.Localization.Loc.Format("TrayManyPending", pending),
         };
 
         previous?.Dispose();
@@ -93,13 +105,13 @@ public sealed class TrayIconHost : IDisposable
     {
         var menu = new WinForms.ContextMenuStrip();
 
-        var open = new WinForms.ToolStripMenuItem("Abrir panel rapido");
+        var open = new WinForms.ToolStripMenuItem(TaskManager.Desktop.Localization.Loc.Get("TrayOpen"));
         open.Click += (_, _) => Activated?.Invoke(this, EventArgs.Empty);
 
-        var settings = new WinForms.ToolStripMenuItem("Ajustes");
+        var settings = new WinForms.ToolStripMenuItem(TaskManager.Desktop.Localization.Loc.Get("MenuSettings"));
         settings.Click += (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty);
 
-        var exit = new WinForms.ToolStripMenuItem("Salir");
+        var exit = new WinForms.ToolStripMenuItem(TaskManager.Desktop.Localization.Loc.Get("TrayExit"));
         exit.Click += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
 
         menu.Items.Add(open);
