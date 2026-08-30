@@ -130,6 +130,58 @@ public sealed class TaskRepository
         return tasks;
     }
 
+    /// <summary>
+    /// Tareas de un intervalo de dias, agrupadas por dia, para pintar el calendario.
+    /// </summary>
+    /// <remarks>
+    /// <para>Una tarea cae en el dia en el que <b>toca hacerla</b>: la fecha de planificacion si la
+    /// tiene y, si no, la de vencimiento. No se pinta en las dos, porque entonces el mes se llena
+    /// de duplicados y deja de servir para ver la carga de trabajo, que es justo para lo que se
+    /// mira un calendario.</para>
+    /// <para>Las repetitivas aparecen solo en su vuelta actual. Proyectar hacia delante todas las
+    /// repeticiones daria un calendario lleno de tareas que aun no existen y que, si se cambia la
+    /// periodicidad, nunca llegaran a existir.</para>
+    /// </remarks>
+    public async Task<Dictionary<DateTime, List<TaskItem>>> GetCalendarAsync(
+        DateTime from, DateTime to, string? tag = null)
+    {
+        var start = from.Date;
+        var end = to.Date;
+
+        var tasks = await Db.Table<TaskItem>()
+                            .Where(t => !t.Deleted)
+                            .ToListAsync().ConfigureAwait(false);
+
+        tasks = FilterByTag(tasks, tag);
+
+        var byDay = new Dictionary<DateTime, List<TaskItem>>();
+
+        foreach (var task in tasks)
+        {
+            var when = (task.PlannedFor ?? task.DueAt)?.Date;
+            if (when is null || when < start || when > end)
+            {
+                continue;
+            }
+
+            if (!byDay.TryGetValue(when.Value, out var list))
+            {
+                byDay[when.Value] = list = [];
+            }
+
+            list.Add(task);
+        }
+
+        foreach (var list in byDay.Values)
+        {
+            list.Sort((a, b) => a.IsDone != b.IsDone
+                ? a.IsDone.CompareTo(b.IsDone)
+                : a.SortOrder.CompareTo(b.SortOrder));
+        }
+
+        return byDay;
+    }
+
     public Task<int> CountMyDayPendingAsync()
     {
         var date = DateTime.Now.Date;

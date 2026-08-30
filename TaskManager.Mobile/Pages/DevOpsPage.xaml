@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:TaskManager.Mobile.Localization"
+             x:Class="TaskManager.Mobile.Pages.DevOpsPage"
+             Title="{loc:T MenuDevOps}">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- Cuenta -->
+        <Border Grid.Row="0" Style="{StaticResource Card}" Margin="12,12,12,6">
+            <VerticalStackLayout Padding="16" Spacing="10">
+                <Label Text="{loc:T DevOpsTitle}" Style="{StaticResource CardTitle}" />
+                <Label Text="{loc:T DevOpsPitch}" Style="{StaticResource HintText}" />
+
+                <Button x:Name="SignInButton" Text="{loc:T SignInMicrosoft}"
+                        FontSize="13" Clicked="OnSignInClicked" />
+
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <Label Grid.Column="0" x:Name="StatusLabel" Style="{StaticResource HintText}"
+                           VerticalOptions="Center" />
+                    <ImageButton Grid.Column="1" x:Name="RefreshButton"
+                                 Style="{StaticResource HeaderIconButton}"
+                                 BackgroundColor="{StaticResource Primary}"
+                                 Source="ic_refresh_w.png"
+                                 SemanticProperties.Description="{loc:T DevOpsRefresh}"
+                                 Clicked="OnRefreshClicked" />
+                </Grid>
+            </VerticalStackLayout>
+        </Border>
+
+        <!-- Elementos de trabajo asignados -->
+        <RefreshView Grid.Row="1" x:Name="Refresher" Refreshing="OnRefreshing">
+            <CollectionView x:Name="ItemsView" SelectionMode="None" Margin="12,0,12,12">
+
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout Padding="24" Spacing="6" VerticalOptions="Center">
+                        <Label x:Name="EmptyTitle" Style="{StaticResource CardTitle}"
+                               HorizontalTextAlignment="Center" />
+                        <Label x:Name="EmptyMessage" Style="{StaticResource HintText}"
+                               HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,8" Padding="14,12">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                    <Label Text="{Binding Title}" Style="{StaticResource ItemTitle}" />
+                                    <Label Text="{Binding Caption}" Style="{StaticResource ItemSubtitle}" />
+                                </VerticalStackLayout>
+
+                                <ImageButton Grid.Column="1" Style="{StaticResource RowIconButton}"
+                                             Source="ic_add.png"
+                                             SemanticProperties.Description="{loc:T DevOpsImport}"
+                                             CommandParameter="{Binding Id}"
+                                             Clicked="OnImportClicked" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </RefreshView>
+    </Grid>
+</ContentPage>

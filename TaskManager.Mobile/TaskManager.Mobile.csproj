@@ -16,8 +16,8 @@
     <ApplicationId>com.socratic.taskmanager</ApplicationId>
 
     <!-- Versions (constitucion A.4: ambos valores en sincronia, esquema de fecha) -->
-    <ApplicationDisplayVersion>2026.08.29.2</ApplicationDisplayVersion>
-    <ApplicationVersion>202608292</ApplicationVersion>
+    <ApplicationDisplayVersion>2026.08.30.1</ApplicationDisplayVersion>
+    <ApplicationVersion>202608301</ApplicationVersion>
 
     <AcceptAndroidSDKLicenses>true</AcceptAndroidSDKLicenses>
 

@@ -24,6 +24,7 @@ public partial class App : Application
     private HttpClient? _http;
     private SupabaseAuthService _auth = null!;
     private ISyncService _sync = null!;
+    private CalendarWindow? _calendar;
     private ReminderScheduler? _reminders;
 
     protected override async void OnStartup(StartupEventArgs e)
@@ -75,6 +76,7 @@ public partial class App : Application
         _flyout = new FlyoutWindow(_tasks, _settings) { Icon = TrayIconHost.CreateWindowIcon() };
         _flyout.PendingChanged += (_, pending) => _tray.SetPending(pending);
         _flyout.SettingsRequested += (_, _) => OpenSettings();
+        _flyout.CalendarRequested += (_, _) => OpenCalendar();
 
         _tray = new TrayIconHost();
         _tray.Activated += (_, _) => _flyout.ShowFlyout();
@@ -121,6 +123,7 @@ public partial class App : Application
         _flyout = new FlyoutWindow(_tasks, _settings) { Icon = TrayIconHost.CreateWindowIcon() };
         _flyout.PendingChanged += (_, count) => _tray.SetPending(count);
         _flyout.SettingsRequested += (_, _) => OpenSettings();
+        _flyout.CalendarRequested += (_, _) => OpenCalendar();
 
         // El atajo global cuelga de un handle de ventana: al cambiar de ventana hay que rehacerlo.
         var handle = new WindowInteropHelper(_flyout).EnsureHandle();
@@ -151,6 +154,26 @@ public partial class App : Application
         {
             System.Diagnostics.Debug.WriteLine($"Sync: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Abre el calendario, o trae al frente el que ya estuviera abierto.
+    /// </summary>
+    /// <remarks>
+    /// Se guarda la referencia para no acabar con cinco calendarios apilados cuando se pulsa el
+    /// boton varias veces, que es lo que pasa si cada clic crea una ventana nueva.
+    /// </remarks>
+    private void OpenCalendar()
+    {
+        if (_calendar is { IsLoaded: true })
+        {
+            _calendar.Activate();
+            return;
+        }
+
+        _calendar = new CalendarWindow(_tasks) { Icon = TrayIconHost.CreateWindowIcon() };
+        _calendar.Closed += (_, _) => _calendar = null;
+        _calendar.Show();
     }
 
     private void OpenSettings()

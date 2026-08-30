@@ -39,6 +39,13 @@
                 </Grid>
 
                 <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                    <Image Grid.Column="0" Source="ic_calendar.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
+                    <Label Grid.Column="1" Text="{loc:T MenuCalendar}" VerticalOptions="Center" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnCalendarTapped" /></Grid.GestureRecognizers>
+                </Grid>
+
+                <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
                     <Image Grid.Column="0" Source="ic_list.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
                     <Label Grid.Column="1" Text="{loc:T MenuLists}" VerticalOptions="Center" FontSize="16"
                            TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
@@ -57,6 +64,13 @@
                     <Label Grid.Column="1" Text="{loc:T MenuBoard}" VerticalOptions="Center" FontSize="16"
                            TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
                     <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnBoardTapped" /></Grid.GestureRecognizers>
+                </Grid>
+
+                <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                    <Image Grid.Column="0" Source="ic_board.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
+                    <Label Grid.Column="1" Text="{loc:T MenuDevOps}" VerticalOptions="Center" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnDevOpsTapped" /></Grid.GestureRecognizers>
                 </Grid>
 
                 <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
@@ -103,10 +117,12 @@
     <ShellContent Route="LoginPage" ContentTemplate="{DataTemplate pages:LoginPage}" />
 
     <ShellContent Route="MyDayPage" ContentTemplate="{DataTemplate pages:MyDayPage}" />
+    <ShellContent Route="CalendarPage" ContentTemplate="{DataTemplate pages:CalendarPage}" />
     <ShellContent Route="ListsPage" ContentTemplate="{DataTemplate pages:ListsPage}" />
     <ShellContent Route="GroupsPage" ContentTemplate="{DataTemplate pages:GroupsPage}" />
     <ShellContent Route="BoardPage" ContentTemplate="{DataTemplate pages:BoardPage}" />
     <ShellContent Route="MailPage" ContentTemplate="{DataTemplate pages:MailPage}" />
+    <ShellContent Route="DevOpsPage" ContentTemplate="{DataTemplate pages:DevOpsPage}" />
     <ShellContent Route="SettingsPage" ContentTemplate="{DataTemplate pages:SettingsPage}" />
     <ShellContent Route="AboutPage" ContentTemplate="{DataTemplate pages:AboutPage}" />
 

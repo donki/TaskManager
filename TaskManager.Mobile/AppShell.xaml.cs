@@ -17,6 +17,10 @@ public partial class AppShell : Shell
 
     private async void OnMyDayTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//MyDayPage");
 
+    private async void OnCalendarTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//CalendarPage");
+
+    private async void OnDevOpsTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//DevOpsPage");
+
     private async void OnListsTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//ListsPage");
 
     private async void OnGroupsTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//GroupsPage");

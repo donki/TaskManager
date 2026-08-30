@@ -50,6 +50,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<INotificationService, Platforms.Android.NotificationService>();
         builder.Services.AddSingleton<IMailReader, MailKitReader>();
         builder.Services.AddSingleton<MailOAuthService>();
+        builder.Services.AddSingleton<AzureDevOpsService>();
         builder.Services.AddSingleton<TaskService>();
 
         // Entrada con Google a traves de Supabase: navegador del sistema (Custom Tabs) y tokens en

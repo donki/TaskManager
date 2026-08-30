@@ -290,13 +290,13 @@ public partial class MailPage : ContentPage
 
         var lists = await _tasks.Repository.GetPrivateListsAsync();
         var listId = lists.FirstOrDefault()?.Id
-            ?? (await _tasks.Repository.CreateListAsync("Tareas")).Id;
+            ?? (await _tasks.Repository.CreateListAsync(Localization.Loc.Instance["DefaultListName"])).Id;
 
         var task = await _tasks.Repository.AddTaskAsync(listId, row.Message.ToTaskTitle(), inMyDay: true);
         task.Context = row.Message.ToTaskContext();
         task.Tags = TaskManager.Core.Models.TaskTags.FromInput("correo");
         await _tasks.Repository.UpdateTaskAsync(task);
 
-        StatusLabel.Text = $"Tarea creada: {task.Title}";
+        StatusLabel.Text = Localization.Loc.Instance.Format("TaskCreated", task.Title);
     }
 }
