@@ -29,22 +29,22 @@ public partial class BoardPage : ContentPage
 
         var board = await _tasks.GetBoardAsync();
 
-        LevelLabel.Text = $"Nivel {board.Level}";
-        XpLabel.Text = $"{board.TotalXp} XP";
+        LevelLabel.Text = Localization.Loc.Instance.Format("Level", board.Level);
+        XpLabel.Text = Localization.Loc.Instance.Format("XpTotal", board.TotalXp);
         LevelProgress.Progress = board.ProgressInLevel;
-        NextLevelLabel.Text = $"Faltan {board.XpToNextLevel} XP para el nivel {board.Level + 1}";
+        NextLevelLabel.Text = Localization.Loc.Instance.Format("ToNextLevel", board.XpToNextLevel, board.Level + 1);
 
         StreakLabel.Text = board.CurrentStreak switch
         {
-            0 => "Sin racha todavía",
-            1 => "1 día de racha",
-            _ => $"{board.CurrentStreak} días de racha",
+            0 => Localization.Loc.Instance["NoStreak"],
+            1 => Localization.Loc.Instance["StreakOne"],
+            _ => Localization.Loc.Instance.Format("StreakMany", board.CurrentStreak),
         };
-        StreakHint.Text = "Un día de descanso no rompe la racha.";
+        StreakHint.Text = Localization.Loc.Instance["StreakHint"];
 
-        TodayLabel.Text = $"Hoy: {board.CompletedToday} tareas completadas";
-        WeekLabel.Text = $"Últimos 7 días: {board.CompletedThisWeek}";
-        LongestLabel.Text = $"Racha más larga: {board.LongestStreak} días";
+        TodayLabel.Text = Localization.Loc.Instance.Format("Today", board.CompletedToday);
+        WeekLabel.Text = Localization.Loc.Instance.Format("LastWeek", board.CompletedThisWeek);
+        LongestLabel.Text = Localization.Loc.Instance.Format("LongestStreak", board.LongestStreak);
 
         UnlockedList.Clear();
         foreach (var unlockable in board.Unlocked)
@@ -54,11 +54,11 @@ public partial class BoardPage : ContentPage
 
         if (board.Unlocked.Count == 0)
         {
-            UnlockedList.Add(new Label { Text = "Todavía nada. Al nivel 2 llega el primero." });
+            UnlockedList.Add(new Label { Text = Localization.Loc.Instance["NothingUnlocked"] });
         }
 
         NextUnlockLabel.Text = board.NextUnlock is { } next
-            ? $"Siguiente: {next.Name} en el nivel {next.Level}"
-            : "Todo desbloqueado.";
+            ? Localization.Loc.Instance.Format("NextUnlock", next.Name, next.Level)
+            : Localization.Loc.Instance["AllUnlocked"];
     }
 }
