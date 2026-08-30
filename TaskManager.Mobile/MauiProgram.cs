@@ -1,3 +1,4 @@
+using TaskManager.Core;
 using System.Net.Http;
 using Microsoft.Extensions.Logging;
 using TaskManager.Core.Data;
@@ -20,9 +21,18 @@ public static class MauiProgram
         builder.Services.AddSingleton<TaskRepository>();
         builder.Services.AddSingleton<SettingsService>();
         builder.Services.AddSingleton<LocalizationService>();
-        builder.Services.AddSingleton<ISyncService, LocalOnlySyncService>();
 
         builder.Services.AddSingleton(new HttpClient { Timeout = TimeSpan.FromSeconds(12) });
+
+        // Sincronizacion: la de verdad si hay proyecto de Supabase, y si no la local, que deja la
+        // cola esperando sin perder nada. Se decide aqui una vez y ninguna pantalla se entera.
+        builder.Services.AddSingleton<ISyncService>(services => SupabaseConfig.IsConfigured
+            ? new SupabaseSyncService(
+                services.GetRequiredService<HttpClient>(),
+                services.GetRequiredService<TaskRepository>(),
+                services.GetRequiredService<SettingsService>(),
+                services.GetRequiredService<SupabaseAuthService>())
+            : new LocalOnlySyncService(services.GetRequiredService<TaskRepository>()));
 
         // El desglose intenta el modelo local (el PC de la LAN, si esta configurado) y cae a
         // plantillas: en un movil sin conexion el boton de la varita tiene que responder igual.

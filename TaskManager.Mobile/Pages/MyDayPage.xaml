@@ -39,7 +39,9 @@
             </ScrollView>
 
             <RefreshView Grid.Row="3" x:Name="Refresher" Refreshing="OnRefreshing">
-                <CollectionView x:Name="TasksView" SelectionMode="None" Margin="8,0,8,8">
+                <!-- Se ordena arrastrando: manten pulsada una tarea y subela o bajala. -->
+                <CollectionView x:Name="TasksView" SelectionMode="None" Margin="8,0,8,8"
+                                CanReorderItems="True" ReorderCompleted="OnReorderCompleted">
 
                     <CollectionView.EmptyView>
                         <VerticalStackLayout Padding="24" Spacing="8">

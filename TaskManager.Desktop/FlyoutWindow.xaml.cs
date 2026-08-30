@@ -334,6 +334,83 @@ public partial class FlyoutWindow : Window
     private sealed record ListOption(Guid Id, string Display);
 
     /// <summary>Fila de la lista. Se aplana aqui lo que el XAML necesita mostrar.</summary>
+    // -----------------------------------------------------------------------
+    // Ordenar arrastrando
+    // -----------------------------------------------------------------------
+
+    private Point _dragStart;
+    private TaskRow? _dragging;
+
+    private void OnTaskDragStart(object sender, MouseButtonEventArgs e)
+    {
+        _dragStart = e.GetPosition(null);
+        _dragging = RowUnder(e.OriginalSource as DependencyObject);
+    }
+
+    /// <summary>
+    /// Empieza el arrastre solo cuando el raton se ha movido lo que Windows considera un arrastre
+    /// de verdad. Sin ese umbral, el temblor de la mano al hacer clic en la casilla de completar se
+    /// interpretaria como un arrastre y la tarea se movria de sitio sola.
+    /// </summary>
+    private void OnTaskDragMove(object sender, MouseEventArgs e)
+    {
+        if (_dragging is null || e.LeftButton != MouseButtonState.Pressed)
+        {
+            return;
+        }
+
+        var moved = e.GetPosition(null) - _dragStart;
+        if (Math.Abs(moved.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(moved.Y) < SystemParameters.MinimumVerticalDragDistance)
+        {
+            return;
+        }
+
+        DragDrop.DoDragDrop(TaskList, _dragging, DragDropEffects.Move);
+    }
+
+    private void OnTaskDragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent(typeof(TaskRow)) ? DragDropEffects.Move : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private async void OnTaskDrop(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetData(typeof(TaskRow)) is not TaskRow moved)
+        {
+            return;
+        }
+
+        var target = RowUnder(e.OriginalSource as DependencyObject);
+        var from = _rows.IndexOf(moved);
+
+        // Soltar fuera de cualquier fila deja la tarea al final; es lo que se espera al arrastrar
+        // hacia el hueco de abajo.
+        var to = target is null ? _rows.Count - 1 : _rows.IndexOf(target);
+
+        _dragging = null;
+
+        if (from < 0 || to < 0 || from == to)
+        {
+            return;
+        }
+
+        _rows.Move(from, to);
+        await _tasks.Repository.ReorderTasksAsync([.. _rows.Select(r => r.Id)]);
+    }
+
+    /// <summary>Fila del listado que hay bajo un elemento visual cualquiera de la plantilla.</summary>
+    private static TaskRow? RowUnder(DependencyObject? source)
+    {
+        while (source is not null and not ListBoxItem)
+        {
+            source = System.Windows.Media.VisualTreeHelper.GetParent(source);
+        }
+
+        return (source as ListBoxItem)?.DataContext as TaskRow;
+    }
+
     public sealed class TaskRow
     {
         public TaskRow(TaskItem task, string listName)

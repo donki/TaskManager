@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using TaskManager.Core.Models;
 using TaskManager.Core.Services;
 using TaskManager.Mobile.Helpers;
@@ -16,6 +17,7 @@ public partial class ListDetailPage : ContentPage
     private readonly SettingsService _settings;
 
     private Guid _listId;
+    private ObservableCollection<TaskRow> _rows = [];
 
     public ListDetailPage()
         : this(ServiceHelper.GetRequiredService<TaskService>(), ServiceHelper.GetRequiredService<SettingsService>())
@@ -62,8 +64,25 @@ public partial class ListDetailPage : ContentPage
             rows.Add(new TaskRow(task) { Steps = steps.Select(s => new StepRow(s)).ToList() });
         }
 
-        TasksView.ItemsSource = rows;
+        // Coleccion observable, no una lista: al arrastrar, CollectionView mueve el elemento
+        // dentro de la propia fuente, y con una List<> corriente el cambio no se ve.
+        _rows = new ObservableCollection<TaskRow>(rows);
+        TasksView.ItemsSource = _rows;
     }
+
+    /// <summary>
+    /// Guarda el orden manual despues de arrastrar.
+    /// </summary>
+    /// <remarks>
+    /// No se recarga la lista al terminar: CollectionView ya ha dejado las filas donde el usuario
+    /// las ha soltado, y volver a pintarlas provoca un parpadeo justo cuando acaba de levantar el
+    /// dedo. Lo unico que hace falta es persistir el orden que ya se ve.
+    /// </remarks>
+    private async void OnReorderCompleted(object? sender, EventArgs e)
+    {
+        await _tasks.Repository.ReorderTasksAsync([.. _rows.Select(r => r.Id)]);
+    }
+
 
     // -----------------------------------------------------------------------
 

@@ -2,6 +2,7 @@ using System.IO;
 using System.Net.Http;
 using System.Windows;
 using System.Windows.Interop;
+using TaskManager.Core;
 using TaskManager.Core.Data;
 using TaskManager.Core.Services;
 using TaskManager.Desktop.Services;
@@ -22,6 +23,7 @@ public partial class App : Application
     private GlobalHotkey? _hotkey;
     private HttpClient? _http;
     private SupabaseAuthService _auth = null!;
+    private ISyncService _sync = null!;
     private ReminderScheduler? _reminders;
 
     protected override async void OnStartup(StartupEventArgs e)
@@ -57,6 +59,14 @@ public partial class App : Application
         _auth = new SupabaseAuthService(_http, _settings, new DpapiTokenStore(folder), new LoopbackOAuthBrowser());
         await _auth.RestoreSessionAsync();
 
+        // Sincronizacion con el movil. Se lanza sin esperarla: si la red va lenta o no hay, el
+        // panel tiene que abrirse igual de rapido; las tareas locales ya estan.
+        _sync = SupabaseConfig.IsConfigured
+            ? new SupabaseSyncService(_http, repository, _settings, _auth)
+            : new LocalOnlySyncService(repository);
+
+        _ = SyncInBackgroundAsync();
+
         _flyout = new FlyoutWindow(_tasks, _settings) { Icon = TrayIconHost.CreateWindowIcon() };
         _flyout.PendingChanged += (_, pending) => _tray.SetPending(pending);
         _flyout.SettingsRequested += (_, _) => OpenSettings();
@@ -87,6 +97,26 @@ public partial class App : Application
         // plantar el panel en pantalla al encender el equipo estorba mas que ayuda. Se despliega
         // con el clic en el icono o con el atajo global.
         _tray.Notify("Task Manager", "Funcionando en la bandeja. Ctrl+Alt+T para abrir el panel.");
+    }
+
+    /// <summary>
+    /// Sube lo pendiente y baja lo que haya hecho el movil, y refresca el panel si algo cambio.
+    /// </summary>
+    /// <remarks>
+    /// Se traga los fallos a proposito: quedarse sin conexion no es un error que haya que
+    /// ensenarle a nadie, y la cola de salida no se pierde. Cuando vuelva la red, subira.
+    /// </remarks>
+    private async Task SyncInBackgroundAsync()
+    {
+        try
+        {
+            await _sync.StartAsync();
+            await _flyout.ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Sync: {ex.Message}");
+        }
     }
 
     private void OpenSettings()

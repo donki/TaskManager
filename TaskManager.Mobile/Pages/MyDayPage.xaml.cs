@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using TaskManager.Core.Models;
 using TaskManager.Core.Services;
@@ -19,6 +20,7 @@ public partial class MyDayPage : ContentPage
 
     private Guid _defaultListId;
     private string? _activeTag;
+    private ObservableCollection<TaskRow> _rows = [];
 
     public MyDayPage()
         : this(ServiceHelper.GetRequiredService<TaskService>(), ServiceHelper.GetRequiredService<SettingsService>())
@@ -32,8 +34,11 @@ public partial class MyDayPage : ContentPage
         _tasks = tasks;
         _settings = settings;
 
-        var culture = new CultureInfo("es-ES");
-        DateLabel.Text = DateTime.Now.ToString("dddd, d 'de' MMMM", culture);
+        // La fecha va en el idioma elegido, no clavada en español: en ingles «de» sobra y el
+        // dia de la semana cambia.
+        var culture = CultureInfo.GetCultureInfo(Localization.Loc.Instance.Language);
+        var pattern = Localization.Loc.Instance["DatePattern"];
+        DateLabel.Text = DateTime.Now.ToString(pattern, culture);
     }
 
     protected override async void OnAppearing()
@@ -57,9 +62,13 @@ public partial class MyDayPage : ContentPage
         await RefreshTagFilterAsync();
 
         var tasks = await _tasks.Repository.GetMyDayAsync(tag: _activeTag);
-        TasksView.ItemsSource = tasks
-            .Select(t => new TaskRow(t, _listNames.GetValueOrDefault(t.ListId, string.Empty)))
-            .ToList();
+
+        // Coleccion observable, no una lista: al arrastrar, CollectionView mueve el elemento
+        // dentro de la propia fuente, y con una List<> corriente el cambio no se ve.
+        _rows = new ObservableCollection<TaskRow>(tasks
+            .Select(t => new TaskRow(t, _listNames.GetValueOrDefault(t.ListId, string.Empty))));
+
+        TasksView.ItemsSource = _rows;
 
         var pending = tasks.Count(t => !t.IsDone);
         SummaryLabel.Text = tasks.Count switch
@@ -69,6 +78,20 @@ public partial class MyDayPage : ContentPage
             1 => Localization.Loc.Instance["OnePending"],
             _ => Localization.Loc.Instance.Format("ManyPending", pending),
         };
+    }
+
+
+    /// <summary>
+    /// Guarda el orden manual despues de arrastrar.
+    /// </summary>
+    /// <remarks>
+    /// No se recarga la lista al terminar: CollectionView ya ha dejado las filas donde el usuario
+    /// las ha soltado, y volver a pintarlas provoca un parpadeo justo cuando acaba de levantar el
+    /// dedo. Lo unico que hace falta es persistir el orden que ya se ve.
+    /// </remarks>
+    private async void OnReorderCompleted(object? sender, EventArgs e)
+    {
+        await _tasks.Repository.ReorderTasksAsync([.. _rows.Select(r => r.Id)]);
     }
 
     /// <summary>

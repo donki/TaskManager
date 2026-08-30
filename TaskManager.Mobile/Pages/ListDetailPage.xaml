@@ -30,7 +30,9 @@
                              Clicked="OnBreakdownClicked" />
             </Grid>
 
-            <CollectionView Grid.Row="1" x:Name="TasksView" SelectionMode="None" Margin="8,0,8,8">
+            <!-- Se ordena arrastrando: manten pulsada una tarea y subela o bajala. -->
+            <CollectionView Grid.Row="1" x:Name="TasksView" SelectionMode="None" Margin="8,0,8,8"
+                            CanReorderItems="True" ReorderCompleted="OnReorderCompleted">
 
                 <CollectionView.EmptyView>
                     <VerticalStackLayout Padding="24" Spacing="8">
