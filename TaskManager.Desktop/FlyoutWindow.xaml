@@ -53,8 +53,16 @@
                                    FontSize="12" FontWeight="SemiBold" />
                     </Border>
 
-                    <Button Grid.Column="2" x:Name="SettingsButton" Style="{StaticResource GhostIconButton}"
-                            Content="&#xE713;" ToolTip="{loc:T MenuSettings}" Click="OnSettingsClick" />
+                    <!-- Calendario y ajustes comparten la ultima columna: van en una pila para
+                         no tener que tocar la rejilla cada vez que se anade un boton. -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="CalendarButton" Style="{StaticResource GhostIconButton}"
+                                Content="&#xE787;" ToolTip="{loc:T MenuCalendar}"
+                                Click="OnCalendarClick" Margin="0,0,6,0" />
+                        <Button x:Name="SettingsButton" Style="{StaticResource GhostIconButton}"
+                                Content="&#xE713;" ToolTip="{loc:T MenuSettings}"
+                                Click="OnSettingsClick" />
+                    </StackPanel>
                 </Grid>
 
                 <!-- Barra de progreso del nivel -->

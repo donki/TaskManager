@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:TaskManager.Mobile.Localization"
+             x:Class="TaskManager.Mobile.Pages.CalendarPage"
+             Title="{loc:T MenuCalendar}">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="12,8">
+
+        <!-- Mes, con los saltos a un lado y otro -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="4,0,4,8">
+            <ImageButton Grid.Column="0" Style="{StaticResource HeaderIconButton}"
+                         Source="ic_chevron_left.png"
+                         SemanticProperties.Description="{loc:T PreviousMonth}"
+                         Clicked="OnPreviousMonthClicked" />
+
+            <Label Grid.Column="1" x:Name="MonthLabel" Style="{StaticResource CardTitle}"
+                   HorizontalOptions="Center" VerticalOptions="Center" />
+
+            <ImageButton Grid.Column="2" Style="{StaticResource HeaderIconButton}"
+                         Source="ic_chevron_right.png"
+                         SemanticProperties.Description="{loc:T NextMonth}"
+                         Clicked="OnNextMonthClicked" />
+        </Grid>
+
+        <!-- Iniciales de los dias de la semana -->
+        <Grid Grid.Row="1" x:Name="WeekdayRow"
+              ColumnDefinitions="*,*,*,*,*,*,*" Margin="0,0,0,4" />
+
+        <!-- Rejilla del mes -->
+        <Grid Grid.Row="2" x:Name="MonthGrid"
+              ColumnDefinitions="*,*,*,*,*,*,*"
+              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+              ColumnSpacing="3" RowSpacing="3" />
+
+        <!-- Tareas del dia elegido -->
+        <Grid Grid.Row="3" RowDefinitions="Auto,*" Margin="0,14,0,0">
+            <Label Grid.Row="0" x:Name="DayLabel" Style="{StaticResource ItemTitle}"
+                   Margin="4,0,0,6" />
+
+            <CollectionView Grid.Row="1" x:Name="DayTasksView" SelectionMode="None">
+                <CollectionView.EmptyView>
+                    <Label x:Name="EmptyLabel" Style="{StaticResource HintText}"
+                           HorizontalOptions="Center" Margin="0,20,0,0" />
+                </CollectionView.EmptyView>
+
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource Card}" Margin="4,0,4,6" Padding="12,10">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnTaskTapped" />
+                            </Border.GestureRecognizers>
+
+                            <Grid ColumnDefinitions="Auto,*">
+                                <Image Grid.Column="0" Source="{Binding StateIcon}"
+                                       HeightRequest="20" WidthRequest="20"
+                                       VerticalOptions="Center" Margin="0,0,10,0" />
+
+                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                                    <Label Text="{Binding Title}" Style="{StaticResource ItemTitle}" />
+                                    <Label Text="{Binding ListName}" Style="{StaticResource ItemSubtitle}"
+                                           IsVisible="{Binding ShowListName}" />
+                                </VerticalStackLayout>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </Grid>
+    </Grid>
+</ContentPage>
