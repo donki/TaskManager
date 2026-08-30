@@ -23,6 +23,8 @@ public partial class SettingsWindow : Window
 
         DisplayNameBox.Text = settings.DisplayName;
         HotkeyBox.Text = settings.Get(SettingsService.KeyHotkey, "Ctrl+Alt+T");
+
+        FillLanguages();
         AutoStartBox.IsChecked = AutoStart.IsEnabled;
         SoundBox.IsChecked = settings.SoundEnabled;
 
@@ -39,8 +41,8 @@ public partial class SettingsWindow : Window
         {
             var id = _settings.InstallationId;
             AccountLabel.Text = id.Length >= 8
-                ? $"Este equipo · instalación {id[..8]}"
-                : "Este equipo";
+                ? Localization.Loc.Format("ThisComputerId", id[..8])
+                : Localization.Loc.Get("ThisComputer");
             SignInButton.IsEnabled = false;
             SignOutButton.IsEnabled = false;
             return;
@@ -50,7 +52,7 @@ public partial class SettingsWindow : Window
 
         AccountLabel.Text = user is not null
             ? $"{user.DisplayName} · {user.Email}"
-            : "Sin cuenta: entra con Google para guardar tu usuario y compartir listas.";
+            : Localization.Loc.Get("NoAccountDesktop");
 
         SignInButton.IsEnabled = user is null && _settings.IsSupabaseConfigured;
         SignOutButton.IsEnabled = user is not null;
@@ -59,7 +61,7 @@ public partial class SettingsWindow : Window
     private async void OnSignInClick(object sender, RoutedEventArgs e)
     {
         SignInButton.IsEnabled = false;
-        StatusLabel.Text = "Terminando la entrada en el navegador...";
+        StatusLabel.Text = Localization.Loc.Get("SigningInBrowser");
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
@@ -67,11 +69,11 @@ public partial class SettingsWindow : Window
 
             // Lo hecho sin cuenta pasa a la cuenta: el nivel y las rachas no se pierden.
             await _tasks.AdoptAccountAsync(user.Id);
-            StatusLabel.Text = $"Dentro como {user.Email}.";
+            StatusLabel.Text = Localization.Loc.Format("SignedInAs", user.Email);
         }
         catch (TaskCanceledException)
         {
-            StatusLabel.Text = "Entrada cancelada.";
+            StatusLabel.Text = Localization.Loc.Get("SignInCancelled");
         }
         catch (Exception ex)
         {
@@ -86,7 +88,7 @@ public partial class SettingsWindow : Window
     private async void OnSignOutClick(object sender, RoutedEventArgs e)
     {
         await _auth.SignOutAsync();
-        StatusLabel.Text = "Sesión cerrada.";
+        StatusLabel.Text = Localization.Loc.Get("SessionClosed");
         ShowAccount();
     }
 
@@ -101,14 +103,48 @@ public partial class SettingsWindow : Window
         var combination = HotkeyBox.Text.Trim();
         if (_hotkey is not null && !_hotkey.Register(combination))
         {
-            StatusLabel.Text = $"El atajo {combination} no está disponible; se mantiene el anterior.";
+            StatusLabel.Text = Localization.Loc.Format("HotkeyUnavailable", combination);
             _hotkey.Register(_settings.Get(SettingsService.KeyHotkey, "Ctrl+Alt+T"));
             return;
         }
 
         await _settings.SetAsync(SettingsService.KeyHotkey, combination);
+
+        // El idioma se guarda el ultimo: si cambia, la aplicacion recrea sus ventanas, y hacerlo
+        // antes de guardar el resto se llevaria por delante lo que aun no se hubiera escrito.
+        var language = LanguageBox.SelectedIndex switch { 1 => "es", 2 => "en", _ => string.Empty };
+        var changed = language != _settings.Get(SettingsService.KeyLanguage);
+
+        if (changed)
+        {
+            await new LocalizationService(_settings).SetLanguageAsync(language);
+        }
+
         DialogResult = true;
         Close();
+
+        if (changed && Application.Current is App app)
+        {
+            app.RebuildUi();
+        }
+    }
+
+    /// <summary>
+    /// Opciones de idioma. La primera sigue al sistema, que es lo que hace la aplicacion mientras
+    /// nadie elija nada.
+    /// </summary>
+    private void FillLanguages()
+    {
+        LanguageBox.Items.Add(Localization.Loc.Get("LanguageSystem"));
+        LanguageBox.Items.Add("Español");
+        LanguageBox.Items.Add("English");
+
+        LanguageBox.SelectedIndex = _settings.Get(SettingsService.KeyLanguage) switch
+        {
+            "es" => 1,
+            "en" => 2,
+            _ => 0,
+        };
     }
 
     private void OnCancelClick(object sender, RoutedEventArgs e) => Close();
