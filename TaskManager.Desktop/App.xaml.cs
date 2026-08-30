@@ -25,6 +25,10 @@ public partial class App : Application
     private SupabaseAuthService _auth = null!;
     private ISyncService _sync = null!;
     private CalendarWindow? _calendar;
+    private MainWindow? _main;
+    private MailOAuthService _mailOAuth = null!;
+    private AzureDevOpsService _devops = null!;
+    private IMailReader _mail = null!;
     private ReminderScheduler? _reminders;
 
     protected override async void OnStartup(StartupEventArgs e)
@@ -65,6 +69,12 @@ public partial class App : Application
         _auth = new SupabaseAuthService(_http, _settings, new DpapiTokenStore(folder), new LoopbackOAuthBrowser());
         await _auth.RestoreSessionAsync();
 
+        // Correo y Azure DevOps: el mismo registro de Entra para los dos, y el navegador del
+        // sistema con un servidor local de un solo uso para recoger la respuesta.
+        _mailOAuth = new MailOAuthService(_http, new LoopbackOAuthBrowser(), new DpapiTokenStore(folder));
+        _mail = new MailKitReader();
+        _devops = new AzureDevOpsService(_http, _mailOAuth);
+
         // Sincronizacion con el movil. Se lanza sin esperarla: si la red va lenta o no hay, el
         // panel tiene que abrirse igual de rapido; las tareas locales ya estan.
         _sync = SupabaseConfig.IsConfigured
@@ -77,10 +87,12 @@ public partial class App : Application
         _flyout.PendingChanged += (_, pending) => _tray.SetPending(pending);
         _flyout.SettingsRequested += (_, _) => OpenSettings();
         _flyout.CalendarRequested += (_, _) => OpenCalendar();
+        _flyout.MainRequested += (_, _) => OpenMain();
 
         _tray = new TrayIconHost();
         _tray.Activated += (_, _) => _flyout.ShowFlyout();
         _tray.SettingsRequested += (_, _) => OpenSettings();
+        _tray.MainRequested += (_, _) => OpenMain();
         _tray.ExitRequested += (_, _) => Shutdown();
 
         // El atajo global necesita un handle: se fuerza sin llegar a mostrar la ventana.
@@ -124,6 +136,7 @@ public partial class App : Application
         _flyout.PendingChanged += (_, count) => _tray.SetPending(count);
         _flyout.SettingsRequested += (_, _) => OpenSettings();
         _flyout.CalendarRequested += (_, _) => OpenCalendar();
+        _flyout.MainRequested += (_, _) => OpenMain();
 
         // El atajo global cuelga de un handle de ventana: al cambiar de ventana hay que rehacerlo.
         var handle = new WindowInteropHelper(_flyout).EnsureHandle();
@@ -163,6 +176,24 @@ public partial class App : Application
     /// Se guarda la referencia para no acabar con cinco calendarios apilados cuando se pulsa el
     /// boton varias veces, que es lo que pasa si cada clic crea una ventana nueva.
     /// </remarks>
+    /// <summary>Abre la ventana principal, o la trae al frente si ya estaba.</summary>
+    private void OpenMain()
+    {
+        if (_main is { IsLoaded: true })
+        {
+            _main.Activate();
+            return;
+        }
+
+        _main = new MainWindow(_tasks, _settings, _mail, _mailOAuth, _devops)
+        {
+            Icon = TrayIconHost.CreateWindowIcon(),
+        };
+
+        _main.Closed += (_, _) => _main = null;
+        _main.Show();
+    }
+
     private void OpenCalendar()
     {
         if (_calendar is { IsLoaded: true })

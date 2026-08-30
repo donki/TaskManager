@@ -45,6 +45,8 @@ public partial class FlyoutWindow : Window
 
     public event EventHandler? CalendarRequested;
 
+    public event EventHandler? MainRequested;
+
     // -----------------------------------------------------------------------
     // Mostrar y ocultar
     // -----------------------------------------------------------------------
@@ -301,6 +303,9 @@ public partial class FlyoutWindow : Window
 
     private void OnCalendarClick(object sender, RoutedEventArgs e) =>
         CalendarRequested?.Invoke(this, EventArgs.Empty);
+
+    private void OnMainClick(object sender, RoutedEventArgs e) =>
+        MainRequested?.Invoke(this, EventArgs.Empty);
 
     // -----------------------------------------------------------------------
     // Celebracion

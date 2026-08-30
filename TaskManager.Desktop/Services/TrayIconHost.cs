@@ -47,6 +47,8 @@ public sealed class TrayIconHost : IDisposable
 
     public event EventHandler? SettingsRequested;
 
+    public event EventHandler? MainRequested;
+
     /// <summary>Ultimo recuento pintado, para poder rehacer el icono sin volver a consultarlo.</summary>
     public int Pending { get; private set; }
 
@@ -108,6 +110,9 @@ public sealed class TrayIconHost : IDisposable
         var open = new WinForms.ToolStripMenuItem(TaskManager.Desktop.Localization.Loc.Get("TrayOpen"));
         open.Click += (_, _) => Activated?.Invoke(this, EventArgs.Empty);
 
+        var main = new WinForms.ToolStripMenuItem(TaskManager.Desktop.Localization.Loc.Get("OpenMainWindow"));
+        main.Click += (_, _) => MainRequested?.Invoke(this, EventArgs.Empty);
+
         var settings = new WinForms.ToolStripMenuItem(TaskManager.Desktop.Localization.Loc.Get("MenuSettings"));
         settings.Click += (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty);
 
@@ -115,6 +120,7 @@ public sealed class TrayIconHost : IDisposable
         exit.Click += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
 
         menu.Items.Add(open);
+        menu.Items.Add(main);
         menu.Items.Add(settings);
         menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add(exit);

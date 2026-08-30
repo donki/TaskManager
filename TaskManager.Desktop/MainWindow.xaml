@@ -1,0 +1,174 @@
+<Window x:Class="TaskManager.Desktop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:TaskManager.Desktop.Localization"
+        Title="{loc:T AppName}"
+        Width="900" Height="620"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource PageBackground}">
+
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        </Style>
+        <Style x:Key="Hint" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style x:Key="Rows" TargetType="ListBox">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        </Style>
+    </Window.Resources>
+
+    <TabControl Margin="10" Background="Transparent" BorderThickness="0">
+
+        <!-- ============================== Listas ============================== -->
+        <TabItem Header="{loc:T MenuLists}">
+            <Grid Margin="10" ColumnDefinitions="240,*">
+
+                <DockPanel Grid.Column="0" Margin="0,0,12,0">
+                    <Button DockPanel.Dock="Bottom" x:Name="NewListButton" Height="30"
+                            Content="{loc:T NewListTitle}" Margin="0,8,0,0" Click="OnNewListClick" />
+                    <ListBox x:Name="ListsBox" Style="{StaticResource Rows}"
+                             SelectionChanged="OnListSelected">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="4,6">
+                                    <TextBlock Text="{Binding Name}" FontSize="13" />
+                                    <TextBlock Text="{Binding Caption}" Style="{StaticResource Hint}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+
+                <DockPanel Grid.Column="1">
+                    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                        <TextBox Grid.Column="0" x:Name="NewTaskBox" Padding="6,4"
+                                 KeyDown="OnNewTaskKeyDown" />
+                        <Button Grid.Column="1" Content="+" Width="34" Margin="6,0,0,0"
+                                ToolTip="{loc:T AddTaskTooltip}" Click="OnAddTaskClick" />
+                    </Grid>
+
+                    <ListBox x:Name="ListTasksBox" Style="{StaticResource Rows}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{DynamicResource CardBackground}" CornerRadius="8"
+                                        Padding="10,8" Margin="0,0,0,6">
+                                    <Grid ColumnDefinitions="Auto,*">
+                                        <CheckBox Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"
+                                                  IsChecked="{Binding IsDone, Mode=OneWay}"
+                                                  Tag="{Binding Id}" Click="OnTaskToggled" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="13"
+                                                   VerticalAlignment="Center" TextWrapping="Wrap" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Grid>
+        </TabItem>
+
+        <!-- ============================== Correo ============================== -->
+        <TabItem Header="{loc:T MenuMail}">
+            <DockPanel Margin="10">
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                    <TextBlock Text="{loc:T Mailbox}" FontWeight="SemiBold" Margin="0,0,0,6" />
+
+                    <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,6">
+                        <TextBox Grid.Column="0" x:Name="MailAddressBox" Padding="6,4" />
+                        <Button Grid.Column="1" x:Name="MailGoogleButton" Margin="6,0,0,0" Padding="10,0"
+                                Content="{loc:T SignInGoogle}" Click="OnMailGoogleClick" />
+                        <Button Grid.Column="2" x:Name="MailMicrosoftButton" Margin="6,0,0,0" Padding="10,0"
+                                Content="{loc:T SignInMicrosoft}" Click="OnMailMicrosoftClick" />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,*,Auto,Auto">
+                        <PasswordBox Grid.Column="0" x:Name="MailPasswordBox" Padding="6,4" Margin="0,0,6,0" />
+                        <TextBox Grid.Column="1" x:Name="MailHostBox" Padding="6,4" Margin="0,0,6,0" />
+                        <TextBox Grid.Column="2" x:Name="MailPortBox" Padding="6,4" Width="60" Margin="0,0,6,0" />
+                        <Button Grid.Column="3" x:Name="MailReadButton" Padding="10,0"
+                                Content="{loc:T ReadMailbox}" Click="OnMailReadClick" />
+                    </Grid>
+
+                    <TextBlock x:Name="MailStatus" Style="{StaticResource Hint}" Margin="0,6,0,0" />
+                </StackPanel>
+
+                <ListBox x:Name="MailBox" Style="{StaticResource Rows}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{DynamicResource CardBackground}" CornerRadius="8"
+                                    Padding="10,8" Margin="0,0,0,6">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{Binding Subject}" FontSize="13" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Caption}" Style="{StaticResource Hint}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="+" Width="30" VerticalAlignment="Center"
+                                            ToolTip="{loc:T MailToTask}" Tag="{Binding Uid}"
+                                            Click="OnMailToTaskClick" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </TabItem>
+
+        <!-- ============================== Azure DevOps ============================== -->
+        <TabItem Header="{loc:T MenuDevOps}">
+            <DockPanel Margin="10">
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                    <TextBlock Text="{loc:T DevOpsTitle}" FontWeight="SemiBold" Margin="0,0,0,4" />
+                    <TextBlock Text="{loc:T DevOpsPitch}" Style="{StaticResource Hint}" Margin="0,0,0,8" />
+
+                    <Grid ColumnDefinitions="Auto,Auto,*">
+                        <Button Grid.Column="0" x:Name="DevOpsSignInButton" Padding="10,4"
+                                Content="{loc:T SignInMicrosoft}" Click="OnDevOpsSignInClick" />
+                        <Button Grid.Column="1" x:Name="DevOpsRefreshButton" Padding="10,4" Margin="6,0,0,0"
+                                Content="{loc:T DevOpsRefresh}" Click="OnDevOpsRefreshClick" />
+                        <TextBlock Grid.Column="2" x:Name="DevOpsStatus" Style="{StaticResource Hint}"
+                                   VerticalAlignment="Center" Margin="10,0,0,0" />
+                    </Grid>
+                </StackPanel>
+
+                <ListBox x:Name="DevOpsBox" Style="{StaticResource Rows}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{DynamicResource CardBackground}" CornerRadius="8"
+                                    Padding="10,8" Margin="0,0,0,6">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{Binding Title}" FontSize="13" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Caption}" Style="{StaticResource Hint}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="+" Width="30" VerticalAlignment="Center"
+                                            ToolTip="{loc:T DevOpsImport}" Tag="{Binding Id}"
+                                            Click="OnDevOpsImportClick" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </TabItem>
+
+        <!-- ============================== Gremio ============================== -->
+        <TabItem Header="{loc:T MenuBoard}">
+            <StackPanel Margin="20" MaxWidth="420" HorizontalAlignment="Left">
+                <TextBlock x:Name="BoardLevel" FontSize="24" FontWeight="Bold" />
+                <ProgressBar x:Name="BoardProgress" Height="8" Margin="0,8,0,4" Maximum="1" />
+                <TextBlock x:Name="BoardToNext" Style="{StaticResource Hint}" />
+
+                <TextBlock x:Name="BoardXp" Margin="0,20,0,0" />
+                <TextBlock x:Name="BoardStreak" Margin="0,6,0,0" />
+                <TextBlock x:Name="BoardNextUnlock" Style="{StaticResource Hint}" Margin="0,16,0,0" />
+            </StackPanel>
+        </TabItem>
+    </TabControl>
+</Window>
