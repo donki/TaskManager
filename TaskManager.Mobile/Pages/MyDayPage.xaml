@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:TaskManager.Mobile.Localization"
              xmlns:models="clr-namespace:TaskManager.Mobile.Models"
              xmlns:controls="clr-namespace:TaskManager.Mobile.Controls"
              x:Class="TaskManager.Mobile.Pages.MyDayPage"
-             Title="Mi Día">
+             Title="{loc:T MenuMyDay}">
 
     <Grid>
         <Grid RowDefinitions="Auto,Auto,Auto,*">
@@ -19,7 +20,7 @@
             <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Padding="16,8">
                 <Border Grid.Column="0" Style="{StaticResource Card}" Padding="12,0">
                     <Entry x:Name="QuickAdd"
-                           Placeholder="Añadir una tarea a hoy"
+                           Placeholder="{loc:T MyDayAddPlaceholder}"
                            ReturnType="Done"
                            Completed="OnAddClicked" />
                 </Border>
@@ -42,10 +43,10 @@
 
                     <CollectionView.EmptyView>
                         <VerticalStackLayout Padding="24" Spacing="8">
-                            <Label Text="Hoy no hay nada en Mi Día"
+                            <Label Text="{loc:T MyDayEmptyTitle}"
                                    Style="{StaticResource CardTitle}"
                                    HorizontalTextAlignment="Center" />
-                            <Label Text="Escribe arriba lo primero que quieras sacarte de encima."
+                            <Label Text="{loc:T MyDayEmptyMessage}"
                                    Style="{StaticResource HintText}"
                                    HorizontalTextAlignment="Center" />
                         </VerticalStackLayout>

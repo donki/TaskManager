@@ -35,4 +35,7 @@
     <PackageReference Include="MailKit" Version="4.17.0" />
   </ItemGroup>
 
+  <!-- Identificadores de OAuth: se generan al compilar, nunca viven en el repositorio. -->
+  <Import Project="$(MSBuildThisFileDirectory)..\oauth.props" />
+
 </Project>

@@ -18,9 +18,10 @@ public sealed class MailKitReader : IMailReader
 
     public async Task<IReadOnlyList<MailMessage>> FetchAsync(
         MailAccount account,
-        string password,
+        string secret,
         int take = 25,
         bool onlyUnread = false,
+        bool useOAuth = false,
         CancellationToken cancellationToken = default)
     {
         if (!account.IsComplete)
@@ -38,7 +39,16 @@ public sealed class MailKitReader : IMailReader
                 account.UseSsl ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls,
                 cancellationToken).ConfigureAwait(false);
 
-            await client.AuthenticateAsync(account.Address, password, cancellationToken).ConfigureAwait(false);
+            if (useOAuth)
+            {
+                // XOAUTH2: es el unico modo que aceptan ya Gmail y Microsoft 365 para IMAP.
+                var sasl = new SaslMechanismOAuth2(account.Address, secret);
+                await client.AuthenticateAsync(sasl, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await client.AuthenticateAsync(account.Address, secret, cancellationToken).ConfigureAwait(false);
+            }
 
             var inbox = client.Inbox;
             await inbox.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
@@ -81,9 +91,10 @@ public sealed class MailKitReader : IMailReader
         catch (AuthenticationException ex)
         {
             // El fallo mas comun con diferencia, y el que mas confunde: merece un mensaje propio.
-            throw new MailException(
-                "El servidor ha rechazado el usuario o la contraseña. Gmail necesita una contraseña " +
-                "de aplicación, y Outlook.com ya no admite contraseña para IMAP (solo OAuth2).", ex);
+            throw new MailException(useOAuth
+                ? "El servidor ha rechazado el token. Vuelve a entrar con la cuenta."
+                : "El servidor ha rechazado el usuario o la contraseña. Gmail necesita una contraseña " +
+                  "de aplicación, y Outlook.com ya no admite contraseña para IMAP: entra con la cuenta.", ex);
         }
         catch (OperationCanceledException)
         {

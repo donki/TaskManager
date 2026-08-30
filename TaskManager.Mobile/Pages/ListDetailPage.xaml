@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:TaskManager.Mobile.Localization"
              xmlns:models="clr-namespace:TaskManager.Mobile.Models"
              xmlns:controls="clr-namespace:TaskManager.Mobile.Controls"
              x:Class="TaskManager.Mobile.Pages.ListDetailPage"
@@ -17,7 +18,7 @@
             <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Padding="16,12,16,8">
                 <Border Grid.Column="0" Style="{StaticResource Card}" Padding="12,0">
                     <Entry x:Name="QuickAdd"
-                           Placeholder="Añadir una tarea"
+                           Placeholder="{loc:T AddTaskPlaceholder}"
                            ReturnType="Done"
                            Completed="OnAddClicked" />
                 </Border>
@@ -33,9 +34,9 @@
 
                 <CollectionView.EmptyView>
                     <VerticalStackLayout Padding="24" Spacing="8">
-                        <Label Text="Lista vacía" Style="{StaticResource CardTitle}"
+                        <Label Text="{loc:T ListDetailEmptyTitle}" Style="{StaticResource CardTitle}"
                                HorizontalTextAlignment="Center" />
-                        <Label Text="Escribe arriba la primera tarea." Style="{StaticResource HintText}"
+                        <Label Text="{loc:T ListDetailEmptyMessage}" Style="{StaticResource HintText}"
                                HorizontalTextAlignment="Center" />
                     </VerticalStackLayout>
                 </CollectionView.EmptyView>

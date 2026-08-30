@@ -17,6 +17,8 @@ public sealed class SettingsService
     /// <summary>El usuario eligio seguir sin cuenta: no se le vuelve a preguntar al arrancar.</summary>
     public const string KeyAuthSkipped = "auth.skipped";
     public const string KeyDisplayName = "user.display_name";
+    /// <summary>Idioma elegido (es/en). Vacio = seguir al del sistema.</summary>
+    public const string KeyLanguage = "user.language";
     public const string KeyLlmEndpoint = "ai.endpoint";
     public const string KeyLlmModel = "ai.model";
     public const string KeySound = "celebration.sound";

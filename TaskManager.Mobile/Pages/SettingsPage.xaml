@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:TaskManager.Mobile.Localization"
              x:Class="TaskManager.Mobile.Pages.SettingsPage"
-             Title="Ajustes">
+             Title="{loc:T MenuSettings}">
 
     <ScrollView>
         <VerticalStackLayout Padding="16" Spacing="12">
@@ -10,7 +11,7 @@
             <!-- Cuenta: entrar con Google es lo que guarda el usuario y permite compartir grupos -->
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Padding="16" Spacing="10">
-                    <Label Text="Tu cuenta" Style="{StaticResource CardTitle}" />
+                    <Label Text="{loc:T YourAccount}" Style="{StaticResource CardTitle}" />
 
                     <Grid ColumnDefinitions="44,*" ColumnSpacing="12">
                         <Image Grid.Column="0" Source="ic_account.png" WidthRequest="28" HeightRequest="28"
@@ -22,14 +23,14 @@
                     </Grid>
 
                     <Button x:Name="SignInButton"
-                            Text="Continuar con Google"
+                            Text="{loc:T ContinueGoogle}"
                             ImageSource="ic_google_w.png"
                             ContentLayout="Left,10"
                             Clicked="OnSignInClicked"
                             HorizontalOptions="Fill" />
 
                     <Button x:Name="SignOutButton"
-                            Text="Cerrar sesión"
+                            Text="{loc:T SignOut}"
                             Style="{StaticResource OutlineButton}"
                             Clicked="OnSignOutClicked"
                             HorizontalOptions="Fill"
@@ -42,39 +43,39 @@
             <!-- Recordatorios -->
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Padding="16" Spacing="10">
-                    <Label Text="Recordatorios" Style="{StaticResource CardTitle}" />
+                    <Label Text="{loc:T Reminders}" Style="{StaticResource CardTitle}" />
 
                     <Grid ColumnDefinitions="*,Auto">
-                        <Label Grid.Column="0" Text="Avisarme de lo que queda pendiente"
+                        <Label Grid.Column="0" Text="{loc:T RemindPending}"
                                VerticalOptions="Center" />
                         <Switch Grid.Column="1" x:Name="NotifySwitch" Toggled="OnNotifyToggled" />
                     </Grid>
 
                     <Grid ColumnDefinitions="*,Auto" x:Name="NotifyHourRow">
-                        <Label Grid.Column="0" Text="Hora del aviso diario" VerticalOptions="Center" />
+                        <Label Grid.Column="0" Text="{loc:T ReminderHour}" VerticalOptions="Center" />
                         <TimePicker Grid.Column="1" x:Name="NotifyTimePicker" Format="HH:mm"
                                     PropertyChanged="OnNotifyTimeChanged" />
                     </Grid>
 
                     <Label Style="{StaticResource HintText}"
-                           Text="Un solo aviso al día con lo que queda en Mi Día, más un recordatorio por cada tarea con fecha de finalización (a las 9:00 de ese día)." />
+                           Text="{loc:T ReminderHelp}" />
                 </VerticalStackLayout>
             </Border>
 
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Padding="16" Spacing="10">
-                    <Label Text="Celebración" Style="{StaticResource CardTitle}" />
+                    <Label Text="{loc:T Celebration}" Style="{StaticResource CardTitle}" />
 
                     <Grid ColumnDefinitions="*,Auto">
-                        <Label Grid.Column="0" Text="Vibración al completar" VerticalOptions="Center" />
+                        <Label Grid.Column="0" Text="{loc:T Vibration}" VerticalOptions="Center" />
                         <Switch Grid.Column="1" x:Name="HapticsSwitch" Toggled="OnHapticsToggled" />
                     </Grid>
 
                     <Grid ColumnDefinitions="*,Auto">
-                        <Label Grid.Column="0" Text="Sonido al completar" VerticalOptions="Center" />
+                        <Label Grid.Column="0" Text="{loc:T Sound}" VerticalOptions="Center" />
                         <Switch Grid.Column="1" x:Name="SoundSwitch" Toggled="OnSoundToggled" />
                     </Grid>
-                    <Label Text="El sonido llegará con los temas desbloqueables (fase 5)."
+                    <Label Text="{loc:T SoundLater}"
                            Style="{StaticResource HintText}" />
                 </VerticalStackLayout>
             </Border>
@@ -82,9 +83,9 @@
 
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Padding="16" Spacing="10">
-                    <Label Text="Identidad" Style="{StaticResource CardTitle}" />
+                    <Label Text="{loc:T Identity}" Style="{StaticResource CardTitle}" />
                     <Border Style="{StaticResource Card}" Padding="12,0">
-                        <Entry x:Name="DisplayNameEntry" Placeholder="Cómo te ven en los grupos"
+                        <Entry x:Name="DisplayNameEntry" Placeholder="{loc:T DisplayNamePlaceholder}"
                                Completed="OnSaveName" />
                     </Border>
                 </VerticalStackLayout>

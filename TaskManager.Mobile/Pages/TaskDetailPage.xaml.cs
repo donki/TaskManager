@@ -43,7 +43,8 @@ public partial class TaskDetailPage : ContentPage
 
         RecurrencePicker.ItemsSource = new List<string>
         {
-            "No se repite", "Cada día", "Cada semana", "Cada mes", "Cada año",
+            Localization.Loc.Instance["RepeatNever"], Localization.Loc.Instance["RepeatDaily"], Localization.Loc.Instance["RepeatWeekly"],
+            Localization.Loc.Instance["RepeatMonthly"], Localization.Loc.Instance["RepeatYearly"],
         };
     }
 
@@ -215,10 +216,8 @@ public partial class TaskDetailPage : ContentPage
 
             if (!proposal.HasSomethingNew)
             {
-                await SocShared.ModernDialog.AlertAsync(this, "Pasos Mágicos",
-                    proposal.AlreadyPresent > 0
-                        ? "Los pasos propuestos ya están en la tarea."
-                        : "No ha salido ningún paso esta vez.",
+                await SocShared.ModernDialog.AlertAsync(this, Localization.Loc.Instance["MagicSteps"],
+                    proposal.AlreadyPresent > 0 ? Localization.Loc.Instance["MagicAllPresent"] : Localization.Loc.Instance["MagicNothing"],
                     "OK");
                 return;
             }
@@ -226,11 +225,11 @@ public partial class TaskDetailPage : ContentPage
             var detail = "• " + string.Join("\n• ", proposal.Steps);
             if (proposal.AlreadyPresent > 0)
             {
-                detail += $"\n\n({proposal.AlreadyPresent} ya estaban y se han descartado)";
+                detail += "\n\n" + Localization.Loc.Instance.Format("MagicDiscarded", proposal.AlreadyPresent);
             }
 
             var accepted = await SocShared.ModernDialog.AlertAsync(this,
-                $"Pasos Mágicos · {proposal.Source}", detail, "Añadir", "Ahora no");
+                $"{Localization.Loc.Instance["MagicSteps"]} · {proposal.Source}", detail, Localization.Loc.Instance["MagicAdd"], Localization.Loc.Instance["MagicNotNow"]);
 
             if (!accepted)
             {
@@ -314,8 +313,8 @@ public partial class TaskDetailPage : ContentPage
         {
             if (!silent)
             {
-                await SocShared.ModernDialog.AlertAsync(this, "Falta el título",
-                    "La tarea necesita un título.", "OK");
+                await SocShared.ModernDialog.AlertAsync(this,
+                    Localization.Loc.Instance["NeedTitleTitle"], Localization.Loc.Instance["NeedTitleMessage"], "OK");
             }
 
             return false;
@@ -346,8 +345,9 @@ public partial class TaskDetailPage : ContentPage
             return;
         }
 
-        var confirmed = await SocShared.ModernDialog.AlertAsync(this, "Borrar tarea",
-            $"Se borrará «{_task.Title}» y sus pasos.", "Borrar", "Cancelar");
+        var confirmed = await SocShared.ModernDialog.AlertAsync(this,
+            Localization.Loc.Instance["DeleteTask"], Localization.Loc.Instance.Format("DeleteTaskMessage", _task.Title),
+            Localization.Loc.Instance["Delete"], Localization.Loc.Instance["Cancel"]);
 
         if (!confirmed)
         {

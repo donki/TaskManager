@@ -43,6 +43,11 @@ public partial class MailPage : ContentPage
     private readonly TaskService _tasks;
     private readonly SettingsService _settings;
     private readonly ITokenStore _tokens;
+    private readonly MailOAuthService _oauth;
+
+    /// <summary>Sesion OAuth en uso, si se entro con la cuenta en vez de con contraseña.</summary>
+    private MailOAuthSession? _session;
+    private MailOAuthProvider? _provider;
 
     private readonly List<MailRow> _rows = [];
 
@@ -50,11 +55,17 @@ public partial class MailPage : ContentPage
         : this(ServiceHelper.GetRequiredService<IMailReader>(),
                ServiceHelper.GetRequiredService<TaskService>(),
                ServiceHelper.GetRequiredService<SettingsService>(),
-               ServiceHelper.GetRequiredService<ITokenStore>())
+               ServiceHelper.GetRequiredService<ITokenStore>(),
+               ServiceHelper.GetRequiredService<MailOAuthService>())
     {
     }
 
-    public MailPage(IMailReader mail, TaskService tasks, SettingsService settings, ITokenStore tokens)
+    public MailPage(
+        IMailReader mail,
+        TaskService tasks,
+        SettingsService settings,
+        ITokenStore tokens,
+        MailOAuthService oauth)
     {
         InitializeComponent();
 
@@ -62,6 +73,7 @@ public partial class MailPage : ContentPage
         _tasks = tasks;
         _settings = settings;
         _tokens = tokens;
+        _oauth = oauth;
 
         MailView.ItemsSource = _rows;
     }
@@ -76,7 +88,69 @@ public partial class MailPage : ContentPage
         ImapPortEntry.Text = _settings.Get("mail.imap_port", "993");
         PasswordEntry.Text = await _tokens.GetAsync(PasswordKey) ?? string.Empty;
 
+        // Los botones de cuenta solo se ofrecen si hay identificador de cliente: sin el, pulsarlos
+        // solo daria un error, asi que es mejor que no esten.
+        GoogleButton.IsVisible = MailOAuthConfig.IsConfigured(MailOAuthProvider.Google);
+        MicrosoftButton.IsVisible = MailOAuthConfig.IsConfigured(MailOAuthProvider.Microsoft);
+        OAuthRow.IsVisible = GoogleButton.IsVisible || MicrosoftButton.IsVisible;
+
+        // Sesion de una entrada anterior: si sigue viva, no hay que volver a pedir nada.
+        foreach (var provider in new[] { MailOAuthProvider.Google, MailOAuthProvider.Microsoft })
+        {
+            if (!MailOAuthConfig.IsConfigured(provider))
+            {
+                continue;
+            }
+
+            var restored = await _oauth.RestoreAsync(provider);
+            if (restored is not null)
+            {
+                _session = restored;
+                _provider = provider;
+                StatusLabel.Text = $"Sesión de {provider.Name} recuperada.";
+                break;
+            }
+        }
+
         ShowProviderHint();
+    }
+
+    private async void OnGoogleSignInClicked(object? sender, EventArgs e) =>
+        await SignInAsync(MailOAuthProvider.Google);
+
+    private async void OnMicrosoftSignInClicked(object? sender, EventArgs e) =>
+        await SignInAsync(MailOAuthProvider.Microsoft);
+
+    /// <summary>
+    /// Abre el navegador para que el usuario entre con su cuenta. Si su organizacion exige
+    /// aprobacion, es el propio proveedor quien le enseña la pantalla de consentimiento del
+    /// administrador; la aplicacion no hace nada distinto.
+    /// </summary>
+    private async Task SignInAsync(MailOAuthProvider provider)
+    {
+        StatusLabel.Text = $"Entrando con {provider.Name}...";
+
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+            _session = await _oauth.SignInAsync(provider, cts.Token);
+            _provider = provider;
+
+            // Los servidores del proveedor mandan sobre lo que hubiera escrito a mano.
+            ImapHostEntry.Text = provider.ImapHost;
+            ImapPortEntry.Text = provider.ImapPort.ToString();
+
+            StatusLabel.Text = $"Dentro con {provider.Name}. Pulsa «Leer buzón».";
+        }
+        catch (MailException ex)
+        {
+            StatusLabel.Text = string.Empty;
+            await SocShared.ModernDialog.AlertAsync(this, "Correo", ex.Message, "OK");
+        }
+        catch (TaskCanceledException)
+        {
+            StatusLabel.Text = "Entrada cancelada.";
+        }
     }
 
     /// <summary>
@@ -129,9 +203,20 @@ public partial class MailPage : ContentPage
         var address = AddressEntry.Text?.Trim() ?? string.Empty;
         var password = PasswordEntry.Text ?? string.Empty;
 
-        if (!address.Contains('@') || password.Length == 0)
+        // Con sesion OAuth viva se usa el token; si no, la contraseña de aplicacion.
+        var useOAuth = _session is not null && _provider is not null;
+        if (useOAuth && _session!.IsExpired && _provider is not null)
         {
-            StatusLabel.Text = "Faltan la dirección o la contraseña.";
+            _session = await _oauth.RestoreAsync(_provider);
+        }
+
+        var secret = useOAuth ? _session?.AccessToken ?? string.Empty : password;
+
+        if (!address.Contains('@') || secret.Length == 0)
+        {
+            StatusLabel.Text = useOAuth
+                ? "La sesión ha caducado: vuelve a entrar con la cuenta."
+                : "Faltan la dirección o la contraseña.";
             return;
         }
 
@@ -146,15 +231,19 @@ public partial class MailPage : ContentPage
         await _settings.SetAsync("mail.address", address);
         await _settings.SetAsync("mail.imap_host", account.ImapHost);
         await _settings.SetAsync("mail.imap_port", account.ImapPort.ToString());
-        await _tokens.SetAsync(PasswordKey, password);
+        if (!useOAuth)
+        {
+            await _tokens.SetAsync(PasswordKey, password);
+        }
 
         ConnectButton.IsEnabled = false;
-        StatusLabel.Text = "Leyendo el buzón...";
+        StatusLabel.Text = Localization.Loc.Instance["MailReading"];
 
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(45));
-            var messages = await _mail.FetchAsync(account, password, take: 25, cancellationToken: cts.Token);
+            var messages = await _mail.FetchAsync(
+                account, secret, take: 25, useOAuth: useOAuth, cancellationToken: cts.Token);
 
             _rows.Clear();
             _rows.AddRange(messages.Select(m => new MailRow(m)));

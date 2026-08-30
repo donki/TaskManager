@@ -143,8 +143,8 @@ public partial class ListDetailPage : ContentPage
             return;
         }
 
-        var name = await SocShared.ModernDialog.PromptAsync(this, "Nombre de la lista", null,
-            "Guardar", "Cancelar", initialValue: list.Name);
+        var name = await SocShared.ModernDialog.PromptAsync(this,
+            Localization.Loc.Instance["ListNameTitle"], null, Localization.Loc.Instance["Save"], Localization.Loc.Instance["Cancel"], initialValue: list.Name);
 
         name = name?.Trim();
         if (string.IsNullOrEmpty(name) || name == list.Name)
@@ -185,8 +185,8 @@ public partial class ListDetailPage : ContentPage
         var task = await AddTaskAsync();
         if (task is null)
         {
-            await SocShared.ModernDialog.AlertAsync(this, "Pasos Mágicos",
-                "Escribe primero el objetivo que quieres desglosar.", "OK");
+            await SocShared.ModernDialog.AlertAsync(this, Localization.Loc.Instance["MagicSteps"],
+                Localization.Loc.Instance["MagicNeedGoal"], "OK");
             return;
         }
 
@@ -219,20 +219,18 @@ public partial class ListDetailPage : ContentPage
             {
                 // Distinguir "no hay nada" de "ya los tienes todos": son dos situaciones distintas
                 // y el usuario merece saber cual es.
-                await SocShared.ModernDialog.AlertAsync(this, "Pasos Mágicos",
-                    proposal.AlreadyPresent > 0
-                        ? "Los pasos propuestos ya están en la tarea."
-                        : "No ha salido ningún paso esta vez.",
+                await SocShared.ModernDialog.AlertAsync(this, Localization.Loc.Instance["MagicSteps"],
+                    proposal.AlreadyPresent > 0 ? Localization.Loc.Instance["MagicAllPresent"] : Localization.Loc.Instance["MagicNothing"],
                     "OK");
                 return;
             }
 
             var detail = "• " + string.Join("\n• ", proposal.Steps);
             if (proposal.AlreadyPresent > 0)
-                detail += $"\n\n({proposal.AlreadyPresent} ya estaban y se han descartado)";
+                detail += "\n\n" + Localization.Loc.Instance.Format("MagicDiscarded", proposal.AlreadyPresent);
 
             var accepted = await SocShared.ModernDialog.AlertAsync(this,
-                $"Pasos Mágicos · {proposal.Source}", detail, "Añadir", "Ahora no");
+                $"{Localization.Loc.Instance["MagicSteps"]} · {proposal.Source}", detail, Localization.Loc.Instance["MagicAdd"], Localization.Loc.Instance["MagicNotNow"]);
 
             if (!accepted)
                 return;

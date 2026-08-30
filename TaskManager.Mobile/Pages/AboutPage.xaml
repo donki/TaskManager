@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:TaskManager.Mobile.Localization"
              x:Class="TaskManager.Mobile.Pages.AboutPage"
-             Title="Acerca de">
+             Title="{loc:T MenuAbout}">
 
     <!-- Estructura canonica de la pantalla Acerca de (constitucion A.9 y Mobile 7). -->
     <ScrollView>
@@ -18,23 +19,39 @@
                            TextColor="{StaticResource Primary}"
                            HorizontalOptions="Center" />
                     <Label x:Name="VersionLabel" Style="{StaticResource HintText}" FontSize="15" HorizontalOptions="Center" />
-                    <Label Text="Tareas diarias con listas por grupo, desglose de objetivos y celebración al completar."
+                    <Label Text="{loc:T AboutDescription}"
                            Style="{StaticResource HintText}" HorizontalTextAlignment="Center" />
-                    <Label Text="Socratic" Style="{StaticResource HintText}" HorizontalOptions="Center" Margin="0,8,0,0" />
+                    <Label Text="{loc:T Publisher}" Style="{StaticResource HintText}" HorizontalOptions="Center" Margin="0,8,0,0" />
                 </VerticalStackLayout>
             </Border>
 
             <!-- Contacto -->
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Padding="25,20" Spacing="12">
-                    <Label Text="Contacto" Style="{StaticResource CardTitle}" />
-                    <Button Text="Escribir al autor"
+                    <Label Text="{loc:T Contact}" Style="{StaticResource CardTitle}" />
+                    <Button Text="{loc:T WriteAuthor}"
                             Style="{StaticResource OutlineButton}"
                             ImageSource="ic_edit.png"
                             ContentLayout="Left,8"
                             Clicked="OnContactClicked"
                             HorizontalOptions="Fill" />
-                    <Label Text="Sugerencias, fallos o ideas: todo se lee." Style="{StaticResource HintText}"
+                    <Label Text="{loc:T ContactHint}" Style="{StaticResource HintText}"
+                           HorizontalOptions="Center" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Idioma: la pantalla Acerca de es homogenea en todas las apps y lleva selector
+                 (constitucion Mobile 7). -->
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Padding="25,20" Spacing="12">
+                    <Label Text="{loc:T LanguageTitle}" Style="{StaticResource CardTitle}" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Button Grid.Column="0" x:Name="SpanishButton" Text="Español"
+                                Style="{StaticResource OutlineButton}" Clicked="OnSpanishClicked" />
+                        <Button Grid.Column="1" x:Name="EnglishButton" Text="English"
+                                Style="{StaticResource OutlineButton}" Clicked="OnEnglishClicked" />
+                    </Grid>
+                    <Label Text="{loc:T LanguageHint}" Style="{StaticResource HintText}"
                            HorizontalOptions="Center" />
                 </VerticalStackLayout>
             </Border>
@@ -42,19 +59,19 @@
             <!-- Privacidad -->
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Padding="25,20" Spacing="10">
-                    <Label Text="Privacidad" Style="{StaticResource CardTitle}" TextColor="{StaticResource Success}" />
+                    <Label Text="{loc:T Privacy}" Style="{StaticResource CardTitle}" TextColor="{StaticResource Success}" />
                     <Label Style="{StaticResource BodyText}" FontSize="13"
-                           Text="Las tareas se guardan en el propio dispositivo. Solo salen de él si configuras la sincronización, y entonces van a tu proyecto de Supabase, a ningún otro sitio. El desglose con IA usa el servidor local que indiques; si no hay ninguno, se resuelve dentro de la aplicación sin enviar nada." />
+                           Text="{loc:T PrivacyText}" />
                 </VerticalStackLayout>
             </Border>
 
             <!-- Licencia -->
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Padding="25,20" Spacing="10">
-                    <Label Text="Licencia" Style="{StaticResource CardTitle}" />
+                    <Label Text="{loc:T License}" Style="{StaticResource CardTitle}" />
                     <Label Style="{StaticResource BodyText}" FontSize="13"
-                           Text="Software libre bajo licencia MIT. Las bibliotecas de terceros y sus licencias están en THIRD-PARTY-NOTICES.md." />
-                    <Label Text="MIT License · Copyright © 2026 Socratic" Style="{StaticResource HintText}" FontSize="11" />
+                           Text="{loc:T LicenseText}" />
+                    <Label Text="{loc:T LicenseLine}" Style="{StaticResource HintText}" FontSize="11" />
                 </VerticalStackLayout>
             </Border>
 

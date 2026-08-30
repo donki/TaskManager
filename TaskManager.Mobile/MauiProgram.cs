@@ -19,6 +19,7 @@ public static class MauiProgram
             Path.Combine(FileSystem.AppDataDirectory, "taskmanager.db3")));
         builder.Services.AddSingleton<TaskRepository>();
         builder.Services.AddSingleton<SettingsService>();
+        builder.Services.AddSingleton<LocalizationService>();
         builder.Services.AddSingleton<ISyncService, LocalOnlySyncService>();
 
         builder.Services.AddSingleton(new HttpClient { Timeout = TimeSpan.FromSeconds(12) });
@@ -38,6 +39,7 @@ public static class MauiProgram
 
         builder.Services.AddSingleton<INotificationService, Platforms.Android.NotificationService>();
         builder.Services.AddSingleton<IMailReader, MailKitReader>();
+        builder.Services.AddSingleton<MailOAuthService>();
         builder.Services.AddSingleton<TaskService>();
 
         // Entrada con Google a traves de Supabase: navegador del sistema (Custom Tabs) y tokens en

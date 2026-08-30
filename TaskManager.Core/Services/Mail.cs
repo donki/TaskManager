@@ -100,11 +100,15 @@ public interface IMailReader
     /// Ultimos mensajes de la bandeja de entrada, mas recientes primero. Lanza
     /// <see cref="MailException"/> con un mensaje entendible si algo falla.
     /// </summary>
+    /// <param name="secret">
+    /// Contraseña de aplicacion, o token de acceso OAuth2 si <paramref name="useOAuth"/> es true.
+    /// </param>
     Task<IReadOnlyList<MailMessage>> FetchAsync(
         MailAccount account,
-        string password,
+        string secret,
         int take = 25,
         bool onlyUnread = false,
+        bool useOAuth = false,
         CancellationToken cancellationToken = default);
 }
 

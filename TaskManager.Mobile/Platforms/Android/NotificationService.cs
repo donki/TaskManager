@@ -166,7 +166,7 @@ public class ReminderReceiver : BroadcastReceiver
                 return;
             }
 
-            var title = intent.GetStringExtra(ExtraTitle) ?? "Tarea pendiente";
+            var title = intent.GetStringExtra(ExtraTitle) ?? "Task Manager";
             Show(context, title.GetHashCode(), "Task Manager", title);
         }
         catch (Exception ex)
@@ -201,8 +201,14 @@ public class ReminderReceiver : BroadcastReceiver
             return;
         }
 
-        var text = pending == 1 ? "Te queda 1 tarea para hoy" : $"Te quedan {pending} tareas para hoy";
-        Show(context, 1, "Mi Día", text);
+        // El aviso puede saltar con la aplicacion cerrada, asi que no hay contenedor del que sacar
+        // el servicio: se construye aqui sobre la misma base de datos.
+        var settings = new TaskManager.Core.Services.SettingsService(database);
+        await settings.LoadAsync();
+        var texts = new TaskManager.Core.Services.LocalizationService(settings);
+
+        var text = pending == 1 ? texts["NotifyOnePending"] : texts.Format("NotifyManyPending", pending);
+        Show(context, 1, texts["MenuMyDay"], text);
     }
 
     /// <summary>La alarma diaria no se repite sola: al dispararse se vuelve a poner para mañana.</summary>
@@ -239,7 +245,8 @@ public class ReminderReceiver : BroadcastReceiver
         var notification = new NotificationCompat.Builder(context, ChannelId)
             .SetContentTitle(title)
             .SetContentText(text)
-            .SetSmallIcon(global::Android.Resource.Drawable.IcDialogInfo)
+            // Icono de marca, no el generico del sistema (constitucion Mobile 7).
+            .SetSmallIcon(Resource.Drawable.ic_notification)
             .SetAutoCancel(true)
             .SetContentIntent(pending)
             .SetPriority((int)NotificationPriority.Default)
