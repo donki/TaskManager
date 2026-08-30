@@ -126,6 +126,18 @@ public class TaskItem
     /// <summary>Repeticion serializada (<c>weekly:2</c>). Vacio = no se repite.</summary>
     public string RecurrenceRule { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Prioridad manual: cuanto mas bajo, mas arriba en la lista. Es lo que mueve el arrastre, y
+    /// es la unica prioridad que hay: en vez de pedir que elijas entre «alta» y «media» —que cada
+    /// uno interpreta a su manera y acaba con todo en «alta»— el orden lo dice la posicion.
+    /// </summary>
+    /// <remarks>
+    /// Las tareas anteriores a esta columna se quedan a cero. Por eso el orden sigue desempatando
+    /// por fecha de creacion: sin ello, todo lo antiguo apareceria revuelto la primera vez.
+    /// </remarks>
+    [Indexed]
+    public int SortOrder { get; set; }
+
     public string CreatedBy { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

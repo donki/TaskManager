@@ -132,6 +132,8 @@ public sealed class LocalizationService
         ["RepeatYearlyN"] = "Every {0} years",
 
         // --- Pasos Magicos ---
+        ["DatePattern"] = "dddd, MMMM d",
+        ["ReorderHint"] = "Hold a task down to move it",
         ["MagicSteps"] = "Magic Steps",
         ["MagicNeedGoal"] = "Write the goal you want to break down first.",
         ["MagicNothing"] = "No steps came out this time.",
@@ -318,6 +320,8 @@ public sealed class LocalizationService
         ["RepeatYearly"] = "Cada año",
         ["RepeatYearlyN"] = "Cada {0} años",
 
+        ["DatePattern"] = "dddd, d 'de' MMMM",
+        ["ReorderHint"] = "Manten pulsada una tarea para cambiarla de orden",
         ["MagicSteps"] = "Pasos Mágicos",
         ["MagicNeedGoal"] = "Escribe primero el objetivo que quieres desglosar.",
         ["MagicNothing"] = "No ha salido ningún paso esta vez.",

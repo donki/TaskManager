@@ -80,7 +80,9 @@ public sealed class TaskRepository
             query = query.Where(t => !t.IsDone);
         }
 
-        var tasks = await query.OrderBy(t => t.IsDone).ThenByDescending(t => t.CreatedAt)
+        var tasks = await query.OrderBy(t => t.IsDone)
+                               .ThenBy(t => t.SortOrder)
+                               .ThenByDescending(t => t.CreatedAt)
                                .ToListAsync().ConfigureAwait(false);
 
         tasks = FilterByTag(tasks, tag);
@@ -119,6 +121,7 @@ public sealed class TaskRepository
         var tasks = await Db.Table<TaskItem>()
                             .Where(t => !t.Deleted && t.MyDayOn == date)
                             .OrderBy(t => t.IsDone)
+                            .ThenBy(t => t.SortOrder)
                             .ThenByDescending(t => t.CreatedAt)
                             .ToListAsync().ConfigureAwait(false);
 
@@ -143,11 +146,56 @@ public sealed class TaskRepository
             ListId = listId,
             Title = title.Trim(),
             MyDayOn = inMyDay ? DateTime.Now.Date : null,
+            // Lo nuevo entra arriba, que es donde estaba antes por fecha de creacion.
+            SortOrder = await NextTopOrderAsync(listId).ConfigureAwait(false),
         };
 
         await Db.InsertAsync(task).ConfigureAwait(false);
         await QueueAsync("tasks", task.Id, "upsert").ConfigureAwait(false);
         return task;
+    }
+
+    /// <summary>Hueco libre por encima de todo lo que hay en la lista.</summary>
+    private async Task<int> NextTopOrderAsync(Guid listId)
+    {
+        var lowest = await Db.ExecuteScalarAsync<int?>(
+            "SELECT MIN(SortOrder) FROM tasks WHERE ListId = ? AND Deleted = 0", listId)
+            .ConfigureAwait(false);
+
+        return (lowest ?? 0) - 1;
+    }
+
+    /// <summary>
+    /// Fija el orden manual a partir de como han quedado las tareas tras arrastrar.
+    /// </summary>
+    /// <remarks>
+    /// Se renumera la lista entera de 0 en adelante en vez de tocar solo la que se ha movido: con
+    /// numeros consecutivos no hay empates ni huecos que se agoten, y una lista de tareas es
+    /// pequeña de sobra para que renumerarla salga gratis. Se escribe en una transaccion para que
+    /// no pueda quedarse a medias y dejar el orden inconsistente.
+    /// </remarks>
+    public async Task ReorderTasksAsync(IReadOnlyList<Guid> orderedIds)
+    {
+        if (orderedIds.Count == 0)
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+
+        await Db.RunInTransactionAsync(db =>
+        {
+            for (var i = 0; i < orderedIds.Count; i++)
+            {
+                db.Execute("UPDATE tasks SET SortOrder = ?, UpdatedAt = ? WHERE Id = ?",
+                    i, now, orderedIds[i]);
+            }
+        }).ConfigureAwait(false);
+
+        foreach (var id in orderedIds)
+        {
+            await QueueAsync("tasks", id, "upsert").ConfigureAwait(false);
+        }
     }
 
     /// <summary>Da de alta una tarea ya construida (la siguiente vuelta de una repetitiva).</summary>
@@ -343,6 +391,18 @@ public sealed class TaskRepository
 
     private Task QueueAsync(string entity, Guid id, string operation) =>
         Db.InsertAsync(new SyncOp { Entity = entity, EntityId = id.ToString(), Operation = operation });
+
+    /// <summary>
+    /// Escribe una fila que viene del servidor.
+    /// </summary>
+    /// <remarks>
+    /// No pasa por los metodos normales a proposito: esos encolan la fila para subirla, y aqui
+    /// acabaria devolviendole al servidor lo que el servidor acaba de mandar. Ademas se respeta la
+    /// marca de tiempo que trae, en vez de ponerle la de ahora, que es lo que permite que la regla
+    /// de "gana lo mas reciente" siga teniendo sentido en la siguiente vuelta.
+    /// </remarks>
+    public Task SaveFromRemoteAsync<T>(T row, bool isNew) where T : notnull =>
+        isNew ? Db.InsertAsync(row) : Db.UpdateAsync(row);
 
     public Task<List<SyncOp>> GetPendingSyncAsync(int take = 200) =>
         Db.Table<SyncOp>().OrderBy(o => o.Id).Take(take).ToListAsync();

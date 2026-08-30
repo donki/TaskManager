@@ -26,8 +26,16 @@ namespace TaskManager.Core;
 /// </remarks>
 public static class AuthOptions
 {
-    /// <summary>Entrada con Google. Desactivada a peticion del usuario (2026-08-29).</summary>
-    public const bool GoogleSignInEnabled = false;
+    /// <summary>
+    /// Entrada con cuenta. <b>Activada</b> (2026-08-30) porque Windows y Android tienen que
+    /// compartir las tareas, y para eso hace falta que las dos sepan que son el mismo usuario.
+    /// </summary>
+    /// <remarks>
+    /// La sesion anonima no sirve para esto: da un usuario distinto en cada dispositivo, asi que
+    /// cada uno veria solo lo suyo. Sigue estando para quien no quiera entrar con ninguna cuenta,
+    /// pero entonces las tareas se quedan en ese aparato.
+    /// </remarks>
+    public const bool GoogleSignInEnabled = true;
 
     /// <summary>
     /// Sesion anonima de Supabase para el identificador de instalacion. Hace falta activar
