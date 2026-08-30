@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:TaskManager.Mobile.Localization"
              x:Class="TaskManager.Mobile.Pages.LoginPage"
-             Title="Tu cuenta"
+             Title="{loc:T YourAccount}"
              Shell.FlyoutBehavior="Disabled"
              Shell.NavBarIsVisible="False">
 
@@ -17,12 +18,12 @@
                    TextColor="{StaticResource Primary}"
                    HorizontalOptions="Center" />
 
-            <Label Text="Entra con Google para guardar tu usuario y llevarte tus listas a cualquier dispositivo."
+            <Label Text="{loc:T LoginPitch}"
                    Style="{StaticResource HintText}"
                    HorizontalTextAlignment="Center" />
 
             <Button x:Name="GoogleButton"
-                    Text="Continuar con Google"
+                    Text="{loc:T ContinueGoogle}"
                     ImageSource="ic_google_w.png"
                     ContentLayout="Left,10"
                     Clicked="OnGoogleClicked"
@@ -36,12 +37,12 @@
                    IsVisible="False" />
 
             <Button x:Name="SkipButton"
-                    Text="Seguir sin cuenta"
+                    Text="{loc:T ContinueWithoutAccount}"
                     Style="{StaticResource OutlineButton}"
                     Clicked="OnSkipClicked"
                     HorizontalOptions="Fill" />
 
-            <Label Text="Sin cuenta, las tareas se quedan en este dispositivo y no se pueden compartir con ningún grupo."
+            <Label Text="{loc:T NoAccountHint}"
                    Style="{StaticResource HintText}"
                    FontSize="11"
                    HorizontalTextAlignment="Center" />

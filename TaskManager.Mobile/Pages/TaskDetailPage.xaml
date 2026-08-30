@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:TaskManager.Mobile.Localization"
              xmlns:models="clr-namespace:TaskManager.Mobile.Models"
              xmlns:controls="clr-namespace:TaskManager.Mobile.Controls"
              x:Class="TaskManager.Mobile.Pages.TaskDetailPage"
-             Title="Tarea">
+             Title="{loc:T TaskTitle}">
 
     <Grid>
         <ScrollView>
@@ -13,12 +14,12 @@
                 <!-- Que hay que hacer -->
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Padding="16" Spacing="10">
-                        <Label Text="Tarea" Style="{StaticResource CardTitle}" />
+                        <Label Text="{loc:T TaskTitle}" Style="{StaticResource CardTitle}" />
                         <Border Style="{StaticResource Card}" Padding="12,0">
-                            <Entry x:Name="TitleEntry" Placeholder="Qué hay que hacer" />
+                            <Entry x:Name="TitleEntry" Placeholder="{loc:T TaskWhat}" />
                         </Border>
 
-                        <Label Text="Notas" Style="{StaticResource HintText}" />
+                        <Label Text="{loc:T Notes}" Style="{StaticResource HintText}" />
                         <Border Style="{StaticResource Card}" Padding="12,4">
                             <Editor x:Name="NotesEditor" HeightRequest="80" AutoSize="Disabled" />
                         </Border>
@@ -28,14 +29,14 @@
                 <!-- Contexto: lo que precisa el desglose -->
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Padding="16" Spacing="10">
-                        <Label Text="Contexto" Style="{StaticResource CardTitle}" />
+                        <Label Text="{loc:T Context}" Style="{StaticResource CardTitle}" />
                         <Label Style="{StaticResource HintText}"
-                               Text="Lo que hay que tener en cuenta para desglosarla bien: condiciones, plazos, material, quién participa. Se guarda con la tarea y cada desglose parte de aquí." />
+                               Text="{loc:T ContextHelp}" />
                         <Label Style="{StaticResource HintText}" FontSize="11"
-                               Text="Sin un modelo local disponible, cada condición que escribas (separada por comas) se convierte en un paso; con modelo, se interpreta." />
+                               Text="{loc:T ContextNoModel}" />
                         <Border Style="{StaticResource Card}" Padding="12,4">
                             <Editor x:Name="ContextEditor" HeightRequest="110" AutoSize="Disabled"
-                                    Placeholder="Piso sin ascensor, dos gatos, mudanza en agosto..." />
+                                    Placeholder="{loc:T ContextPlaceholder}" />
                         </Border>
                     </VerticalStackLayout>
                 </Border>
@@ -43,31 +44,31 @@
                 <!-- Etiquetas, plazo y repeticion -->
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Padding="16" Spacing="10">
-                        <Label Text="Etiquetas" Style="{StaticResource CardTitle}" />
+                        <Label Text="{loc:T Tags}" Style="{StaticResource CardTitle}" />
                         <Border Style="{StaticResource Card}" Padding="12,0">
-                            <Entry x:Name="TagsEntry" Placeholder="casa, urgente, trabajo" />
+                            <Entry x:Name="TagsEntry" Placeholder="{loc:T TagsPlaceholder}" />
                         </Border>
-                        <Label Style="{StaticResource HintText}" Text="Separadas por comas. Sirven para filtrar." />
+                        <Label Style="{StaticResource HintText}" Text="{loc:T TagsHelp}" />
 
                         <BoxView Style="{StaticResource Separator}" />
 
                         <Grid ColumnDefinitions="*,Auto">
-                            <Label Grid.Column="0" Text="Fecha de finalización" VerticalOptions="Center" />
+                            <Label Grid.Column="0" Text="{loc:T DueDate}" VerticalOptions="Center" />
                             <Switch Grid.Column="1" x:Name="DueSwitch" Toggled="OnDueToggled" />
                         </Grid>
                         <DatePicker x:Name="DuePicker" IsVisible="False" Format="dddd, d MMMM yyyy" />
 
                         <Grid ColumnDefinitions="*,Auto">
-                            <Label Grid.Column="0" Text="Planificada para" VerticalOptions="Center" />
+                            <Label Grid.Column="0" Text="{loc:T PlannedFor}" VerticalOptions="Center" />
                             <Switch Grid.Column="1" x:Name="PlannedSwitch" Toggled="OnPlannedToggled" />
                         </Grid>
                         <DatePicker x:Name="PlannedPicker" IsVisible="False" Format="dddd, d MMMM yyyy" />
                         <Label Style="{StaticResource HintText}"
-                               Text="El día en que piensas hacerla, que no tiene por qué ser el del plazo." />
+                               Text="{loc:T PlannedHelp}" />
 
                         <BoxView Style="{StaticResource Separator}" />
 
-                        <Label Text="Repetición" Style="{StaticResource CardTitle}" />
+                        <Label Text="{loc:T Recurrence}" Style="{StaticResource CardTitle}" />
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                             <Picker Grid.Column="0" x:Name="RecurrencePicker" SelectedIndexChanged="OnRecurrenceChanged" />
                             <Stepper Grid.Column="1" x:Name="IntervalStepper" Minimum="1" Maximum="30" Increment="1"
@@ -81,7 +82,7 @@
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Padding="16" Spacing="10">
                         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                            <Label Grid.Column="0" Text="Pasos" Style="{StaticResource CardTitle}"
+                            <Label Grid.Column="0" Text="{loc:T Steps}" Style="{StaticResource CardTitle}"
                                    VerticalOptions="Center" />
                             <ActivityIndicator Grid.Column="1" x:Name="StepsBusy" IsRunning="False" IsVisible="False"
                                                HeightRequest="20" WidthRequest="20" />
@@ -92,18 +93,29 @@
                         </Grid>
 
                         <Label x:Name="NoStepsLabel" Style="{StaticResource HintText}"
-                               Text="Todavía no hay pasos. La varita los propone a partir del título y del contexto." />
+                               Text="{loc:T NoSteps}" />
 
                         <VerticalStackLayout x:Name="StepsBox" Spacing="0" />
                     </VerticalStackLayout>
                 </Border>
 
-                <Button x:Name="SaveButton" Text="Guardar" ImageSource="ic_check_w.png"
-                        ContentLayout="Left,8" Clicked="OnSaveClicked" HorizontalOptions="Fill" />
-
-                <Button x:Name="DeleteButton" Text="Borrar tarea" Style="{StaticResource OutlineButton}"
-                        ImageSource="ic_delete_danger.png" ContentLayout="Left,8"
-                        Clicked="OnDeleteClicked" HorizontalOptions="Fill" />
+                <!-- Botones con icono, no con palabras (constitucion Mobile 7). El texto queda
+                     como ayuda emergente, que es lo que Android lee en voz alta. -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                    <ImageButton Grid.Column="0" x:Name="SaveButton"
+                                 Style="{StaticResource HeaderIconButton}"
+                                 HeightRequest="52"
+                                 BackgroundColor="{StaticResource Primary}"
+                                 Source="ic_check_w.png"
+                                 SemanticProperties.Description="{loc:T Save}"
+                                 Clicked="OnSaveClicked" />
+                    <ImageButton Grid.Column="1" x:Name="DeleteButton"
+                                 Style="{StaticResource HeaderIconButton}"
+                                 HeightRequest="52" WidthRequest="52"
+                                 Source="ic_delete_danger.png"
+                                 SemanticProperties.Description="{loc:T DeleteTask}"
+                                 Clicked="OnDeleteClicked" />
+                </Grid>
 
             </VerticalStackLayout>
         </ScrollView>

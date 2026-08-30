@@ -26,3 +26,9 @@ txtreader-mumu.apk
 socratic.keystore
 *.keystore
 *.log
+
+# Identificadores y secretos de OAuth (solo local, nunca al repositorio)
+oauth.local.props
+
+# Constantes de OAuth generadas al compilar
+*.g.cs

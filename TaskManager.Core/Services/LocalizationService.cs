@@ -1,0 +1,433 @@
+using System.Globalization;
+
+namespace TaskManager.Core.Services;
+
+/// <summary>
+/// Textos de la interfaz en español e inglés.
+/// </summary>
+/// <remarks>
+/// Vive en el nucleo, no en cada aplicacion, porque el movil y el escritorio enseñan los mismos
+/// textos: tenerlos por duplicado acabaria con las dos versiones diciendo cosas distintas.
+///
+/// <para>El idioma sale del ajuste del usuario y, si no ha elegido ninguno, del sistema. Cambiarlo
+/// se nota al momento: las paginas se resuscriben a <see cref="LanguageChanged"/> y vuelven a pedir
+/// sus textos, sin reiniciar la aplicacion.</para>
+///
+/// <para>La clave es el texto en ingles cuando cabe en una palabra o dos; cuando no, un nombre
+/// descriptivo. Si falta una traduccion se devuelve la clave, que es feo pero legible, en vez de
+/// dejar el hueco en blanco.</para>
+/// </remarks>
+public sealed class LocalizationService
+{
+    private readonly SettingsService _settings;
+
+    public LocalizationService(SettingsService settings) => _settings = settings;
+
+    /// <summary>Cambio de idioma en caliente. Cada pantalla se reengancha para repintarse.</summary>
+    public event EventHandler? LanguageChanged;
+
+    /// <summary>Codigo del idioma en uso: <c>es</c> o <c>en</c>.</summary>
+    public string Language
+    {
+        get
+        {
+            var chosen = _settings.Get(SettingsService.KeyLanguage);
+            if (chosen is "es" or "en")
+            {
+                return chosen;
+            }
+
+            // Sin eleccion explicita manda el sistema, con el ingles como red de seguridad.
+            return CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "es" ? "es" : "en";
+        }
+    }
+
+    /// <summary>Cambia el idioma. Cadena vacia = seguir al del sistema.</summary>
+    public async Task SetLanguageAsync(string language)
+    {
+        await _settings.SetAsync(SettingsService.KeyLanguage, language is "es" or "en" ? language : string.Empty)
+                       .ConfigureAwait(false);
+
+        LanguageChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public string this[string key] =>
+        (Language == "es" ? Spanish : English).TryGetValue(key, out var text) ? text : key;
+
+    public string Format(string key, params object[] args) => string.Format(this[key], args);
+
+    // ==================================================================================
+
+    private static readonly Dictionary<string, string> English = new(StringComparer.Ordinal)
+    {
+        // --- Menu y pantallas ---
+        ["AppName"] = "Task Manager",
+        ["MenuMyDay"] = "My Day",
+        ["MenuLists"] = "My private lists",
+        ["MenuGroups"] = "My groups",
+        ["MenuBoard"] = "The Guild Board",
+        ["MenuMail"] = "Mail",
+        ["MenuSettings"] = "Settings",
+        ["MenuAbout"] = "About",
+
+        // --- Mi Dia ---
+        ["MyDayAddPlaceholder"] = "Add a task for today",
+        ["MyDayEmptyTitle"] = "Nothing for today",
+        ["MyDayEmptyMessage"] = "Type above the first thing you want off your plate.",
+        ["NothingToday"] = "Nothing for today",
+        ["AllDone"] = "All done for today",
+        ["OnePending"] = "1 task left",
+        ["ManyPending"] = "{0} tasks left",
+        ["FilterAll"] = "All",
+
+        // --- Listas ---
+        ["ListsEmptyTitle"] = "No private lists yet",
+        ["ListsEmptyMessage"] = "Create one with the button above.",
+        ["NewListTitle"] = "New list",
+        ["ListNamePlaceholder"] = "List name",
+        ["ListNameTitle"] = "List name",
+        ["DeleteListTitle"] = "Delete list",
+        ["DeleteListMessage"] = "«{0}» and all its tasks will be deleted.",
+        ["ListEmpty"] = "Empty",
+        ["ListAllDone"] = "{0} completed",
+        ["ListPending"] = "{0} of {1} left",
+        ["ListDetailEmptyTitle"] = "Empty list",
+        ["ListDetailEmptyMessage"] = "Type the first task above.",
+        ["AddTaskPlaceholder"] = "Add a task",
+
+        // --- Detalle de tarea ---
+        ["TaskTitle"] = "Task",
+        ["TaskWhat"] = "What needs doing",
+        ["Notes"] = "Notes",
+        ["Context"] = "Context",
+        ["ContextHelp"] = "What to keep in mind so it breaks down well: conditions, deadlines, materials, who is involved. It is saved with the task and every breakdown starts from here.",
+        ["ContextNoModel"] = "With no local model available, each condition you write (comma separated) becomes a step; with a model, it is interpreted.",
+        ["ContextPlaceholder"] = "Flat with no lift, two cats, moving in August...",
+        ["Tags"] = "Tags",
+        ["TagsPlaceholder"] = "home, urgent, work",
+        ["TagsHelp"] = "Comma separated. Used for filtering.",
+        ["DueDate"] = "Due date",
+        ["PlannedFor"] = "Planned for",
+        ["PlannedHelp"] = "The day you mean to do it, which need not be the deadline.",
+        ["Recurrence"] = "Repeat",
+        ["Steps"] = "Steps",
+        ["NoSteps"] = "No steps yet. The wand suggests them from the title and the context.",
+        ["Save"] = "Save",
+        ["Cancel"] = "Cancel",
+        ["DeleteTask"] = "Delete task",
+        ["DeleteTaskMessage"] = "«{0}» and its steps will be deleted.",
+        ["Delete"] = "Delete",
+        ["NeedTitleTitle"] = "Title missing",
+        ["NeedTitleMessage"] = "The task needs a title.",
+
+        // --- Repeticion ---
+        ["RepeatNever"] = "Does not repeat",
+        ["RepeatDaily"] = "Every day",
+        ["RepeatDailyN"] = "Every {0} days",
+        ["RepeatWeekly"] = "Every week",
+        ["RepeatWeeklyN"] = "Every {0} weeks",
+        ["RepeatMonthly"] = "Every month",
+        ["RepeatMonthlyN"] = "Every {0} months",
+        ["RepeatYearly"] = "Every year",
+        ["RepeatYearlyN"] = "Every {0} years",
+
+        // --- Pasos Magicos ---
+        ["MagicSteps"] = "Magic Steps",
+        ["MagicNeedGoal"] = "Write the goal you want to break down first.",
+        ["MagicNothing"] = "No steps came out this time.",
+        ["MagicAllPresent"] = "The suggested steps are already in the task.",
+        ["MagicDiscarded"] = "({0} were already there and have been discarded)",
+        ["MagicAdd"] = "Add",
+        ["MagicNotNow"] = "Not now",
+
+        // --- Grupos ---
+        ["GroupsEmptyTitle"] = "No groups yet",
+        ["GroupsEmptyMessage"] = "Create one with its shared key, or join one with its code and key.",
+        ["NewGroupTitle"] = "New group",
+        ["GroupNamePlaceholder"] = "Family, Flatmates, Project...",
+        ["SharedKeyTitle"] = "Shared key",
+        ["SharedKeyMessage"] = "Anyone with this key and the group code can get in. At least 6 characters.",
+        ["SharedKeyPlaceholder"] = "group key",
+        ["KeyTooShortTitle"] = "Key too short",
+        ["KeyTooShortMessage"] = "The shared key needs at least 6 characters.",
+        ["Create"] = "Create",
+        ["Next"] = "Next",
+        ["GroupCreated"] = "Group created",
+        ["GroupCode"] = "Group code: {0}",
+        ["GroupCodeShare"] = "Whoever wants in needs that code and the shared key.",
+        ["GroupCodeLocal"] = "There is no server set up yet, so the group only exists on this device.",
+        ["JoinGroupTitle"] = "Join a group",
+        ["JoinGroupMessage"] = "Group code (6 characters).",
+        ["Join"] = "Join",
+        ["JoinedTitle"] = "You are in",
+        ["NotYetTitle"] = "Not yet",
+        ["LeaveGroupTitle"] = "Leave group",
+        ["LeaveGroupMessage"] = "«{0}» and its lists will be removed from this device.",
+        ["Leave"] = "Leave",
+        ["NewGroupListTitle"] = "New group list",
+        ["GroupListPlaceholder"] = "Shopping, Maintenance, Holidays...",
+        ["GroupCaption"] = "Code {0} · {1} lists",
+
+        // --- Tablon ---
+        ["Level"] = "Level {0}",
+        ["XpTotal"] = "{0} XP",
+        ["ToNextLevel"] = "{0} XP to level {1}",
+        ["NoStreak"] = "No streak yet",
+        ["StreakOne"] = "1 day streak",
+        ["StreakMany"] = "{0} day streak",
+        ["StreakHint"] = "A rest day does not break the streak.",
+        ["Productivity"] = "Productivity",
+        ["Today"] = "Today: {0} tasks completed",
+        ["LastWeek"] = "Last 7 days: {0}",
+        ["LongestStreak"] = "Longest streak: {0} days",
+        ["Unlocked"] = "Unlocked",
+        ["NothingUnlocked"] = "Nothing yet. The first one arrives at level 2.",
+        ["NextUnlock"] = "Next: {0} at level {1}",
+        ["AllUnlocked"] = "Everything unlocked.",
+
+        // --- Ajustes ---
+        ["YourAccount"] = "Your account",
+        ["ThisDevice"] = "This device",
+        ["InstallationId"] = "Installation {0}",
+        ["AccountLocalHint"] = "Your tasks are tied to this installation. If you uninstall the app, they are lost.",
+        ["Reminders"] = "Reminders",
+        ["RemindPending"] = "Remind me what is left",
+        ["ReminderHour"] = "Daily reminder time",
+        ["ReminderHelp"] = "One notification a day with what is left in My Day, plus a reminder for each task with a due date (at 9:00 that day).",
+        ["NoPermissionTitle"] = "No permission",
+        ["NoPermissionMessage"] = "Android will not show notifications until the permission is granted.",
+        ["Celebration"] = "Celebration",
+        ["Vibration"] = "Vibrate on complete",
+        ["Sound"] = "Sound on complete",
+        ["SoundLater"] = "Sound arrives with the unlockable themes.",
+        ["Identity"] = "Identity",
+        ["DisplayNamePlaceholder"] = "How your groups see you",
+        ["LanguageTitle"] = "Language",
+        ["LanguageHint"] = "The language applies right away.",
+
+        // --- Correo ---
+        ["Mailbox"] = "Mailbox",
+        ["MailAddressPlaceholder"] = "you@mail.com",
+        ["AppPasswordPlaceholder"] = "App password",
+        ["SignInGoogle"] = "Sign in with Google",
+        ["SignInMicrosoft"] = "Sign in with Microsoft",
+        ["ReadMailbox"] = "Read mailbox",
+        ["MailEmptyTitle"] = "No mail to show",
+        ["MailEmptyMessage"] = "Fill in the mailbox details and press «Read mailbox».",
+        ["MailNoSubject"] = "(no subject)",
+        ["MailMissingFields"] = "Address or password missing.",
+        ["MailReading"] = "Reading the mailbox...",
+        ["MailNone"] = "No mail in the inbox.",
+        ["MailCount"] = "{0} messages · {1} unread",
+        ["MailTimeout"] = "The server took too long.",
+        ["MailTaskCreated"] = "Task created: {0}",
+        ["MailSessionExpired"] = "The session expired: sign in again.",
+        ["MailSignedIn"] = "Signed in with {0}. Press «Read mailbox».",
+        ["MailSigningIn"] = "Signing in with {0}...",
+        ["MailSessionRestored"] = "{0} session restored.",
+        ["MailHintGmail"] = "Gmail needs an app password (with two-step verification on), not your mail password.",
+        ["MailHintOutlook"] = "Outlook.com no longer takes a password for IMAP: sign in with the account.",
+        ["MailHintGeneric"] = "IMAP with an app password works for Gmail, Yahoo, iCloud, Zoho and any own server.",
+
+        // --- Acerca de ---
+        ["AboutDescription"] = "Daily tasks with lists per group, goal breakdown and a celebration when you finish.",
+        ["SignOut"] = "Sign out",
+        ["Contact"] = "Contact",
+        ["ContinueGoogle"] = "Continue with Google",
+        ["ContinueWithoutAccount"] = "Continue without an account",
+        ["LoginPitch"] = "Sign in with Google to save your user and take your lists to any device.",
+        ["NoAccountHint"] = "Without an account, tasks stay on this device and cannot be shared with any group.",
+        ["WriteAuthor"] = "Write to the author",
+        ["ContactHint"] = "Suggestions, bugs and ideas: all of it gets read.",
+        ["PrivacyText"] = "Tasks are kept on the device itself. They only leave it if you set up syncing, and then they go to your own Supabase project and nowhere else. The AI breakdown uses the local server you point to; if there is none, it is solved inside the app without sending anything.",
+        ["LicenseText"] = "Free software under the MIT licence. Third-party libraries and their licences are in THIRD-PARTY-NOTICES.md.",
+        ["LicenseLine"] = "MIT License \u00b7 Copyright \u00a9 2026 Socratic",
+        ["Publisher"] = "Socratic",
+        ["ImapHostPlaceholder"] = "imap.server.com",
+        ["NotifyOnePending"] = "You have 1 task left for today",
+        ["NotifyManyPending"] = "You have {0} tasks left for today",
+        ["Privacy"] = "Privacy",
+        ["License"] = "License",
+    };
+
+    private static readonly Dictionary<string, string> Spanish = new(StringComparer.Ordinal)
+    {
+        ["AppName"] = "Task Manager",
+        ["MenuMyDay"] = "Mi Día",
+        ["MenuLists"] = "Mis listas privadas",
+        ["MenuGroups"] = "Mis grupos",
+        ["MenuBoard"] = "El Tablón del Gremio",
+        ["MenuMail"] = "Correo",
+        ["MenuSettings"] = "Ajustes",
+        ["MenuAbout"] = "Acerca de",
+
+        ["MyDayAddPlaceholder"] = "Añadir una tarea a hoy",
+        ["MyDayEmptyTitle"] = "Hoy no hay nada en Mi Día",
+        ["MyDayEmptyMessage"] = "Escribe arriba lo primero que quieras sacarte de encima.",
+        ["NothingToday"] = "Nada por hoy",
+        ["AllDone"] = "Todo hecho por hoy",
+        ["OnePending"] = "1 tarea pendiente",
+        ["ManyPending"] = "{0} tareas pendientes",
+        ["FilterAll"] = "Todas",
+
+        ["ListsEmptyTitle"] = "Todavía no hay listas privadas",
+        ["ListsEmptyMessage"] = "Crea una con el botón de arriba.",
+        ["NewListTitle"] = "Nueva lista",
+        ["ListNamePlaceholder"] = "Nombre de la lista",
+        ["ListNameTitle"] = "Nombre de la lista",
+        ["DeleteListTitle"] = "Borrar lista",
+        ["DeleteListMessage"] = "Se borrará «{0}» y todas sus tareas.",
+        ["ListEmpty"] = "Vacía",
+        ["ListAllDone"] = "{0} completadas",
+        ["ListPending"] = "{0} de {1} pendientes",
+        ["ListDetailEmptyTitle"] = "Lista vacía",
+        ["ListDetailEmptyMessage"] = "Escribe arriba la primera tarea.",
+        ["AddTaskPlaceholder"] = "Añadir una tarea",
+
+        ["TaskTitle"] = "Tarea",
+        ["TaskWhat"] = "Qué hay que hacer",
+        ["Notes"] = "Notas",
+        ["Context"] = "Contexto",
+        ["ContextHelp"] = "Lo que hay que tener en cuenta para desglosarla bien: condiciones, plazos, material, quién participa. Se guarda con la tarea y cada desglose parte de aquí.",
+        ["ContextNoModel"] = "Sin un modelo local disponible, cada condición que escribas (separada por comas) se convierte en un paso; con modelo, se interpreta.",
+        ["ContextPlaceholder"] = "Piso sin ascensor, dos gatos, mudanza en agosto...",
+        ["Tags"] = "Etiquetas",
+        ["TagsPlaceholder"] = "casa, urgente, trabajo",
+        ["TagsHelp"] = "Separadas por comas. Sirven para filtrar.",
+        ["DueDate"] = "Fecha de finalización",
+        ["PlannedFor"] = "Planificada para",
+        ["PlannedHelp"] = "El día en que piensas hacerla, que no tiene por qué ser el del plazo.",
+        ["Recurrence"] = "Repetición",
+        ["Steps"] = "Pasos",
+        ["NoSteps"] = "Todavía no hay pasos. La varita los propone a partir del título y del contexto.",
+        ["Save"] = "Guardar",
+        ["Cancel"] = "Cancelar",
+        ["DeleteTask"] = "Borrar tarea",
+        ["DeleteTaskMessage"] = "Se borrará «{0}» y sus pasos.",
+        ["Delete"] = "Borrar",
+        ["NeedTitleTitle"] = "Falta el título",
+        ["NeedTitleMessage"] = "La tarea necesita un título.",
+
+        ["RepeatNever"] = "No se repite",
+        ["RepeatDaily"] = "Cada día",
+        ["RepeatDailyN"] = "Cada {0} días",
+        ["RepeatWeekly"] = "Cada semana",
+        ["RepeatWeeklyN"] = "Cada {0} semanas",
+        ["RepeatMonthly"] = "Cada mes",
+        ["RepeatMonthlyN"] = "Cada {0} meses",
+        ["RepeatYearly"] = "Cada año",
+        ["RepeatYearlyN"] = "Cada {0} años",
+
+        ["MagicSteps"] = "Pasos Mágicos",
+        ["MagicNeedGoal"] = "Escribe primero el objetivo que quieres desglosar.",
+        ["MagicNothing"] = "No ha salido ningún paso esta vez.",
+        ["MagicAllPresent"] = "Los pasos propuestos ya están en la tarea.",
+        ["MagicDiscarded"] = "({0} ya estaban y se han descartado)",
+        ["MagicAdd"] = "Añadir",
+        ["MagicNotNow"] = "Ahora no",
+
+        ["GroupsEmptyTitle"] = "Todavía no hay grupos",
+        ["GroupsEmptyMessage"] = "Crea uno con la clave compartida, o únete a uno con su código y su clave.",
+        ["NewGroupTitle"] = "Nuevo grupo",
+        ["GroupNamePlaceholder"] = "Familia, Piso compartido, Proyecto...",
+        ["SharedKeyTitle"] = "Clave compartida",
+        ["SharedKeyMessage"] = "Quien tenga esta clave y el código del grupo podrá entrar. Mínimo 6 caracteres.",
+        ["SharedKeyPlaceholder"] = "clave del grupo",
+        ["KeyTooShortTitle"] = "Clave demasiado corta",
+        ["KeyTooShortMessage"] = "La clave compartida necesita al menos 6 caracteres.",
+        ["Create"] = "Crear",
+        ["Next"] = "Siguiente",
+        ["GroupCreated"] = "Grupo creado",
+        ["GroupCode"] = "Código del grupo: {0}",
+        ["GroupCodeShare"] = "Quien quiera entrar necesita ese código y la clave compartida.",
+        ["GroupCodeLocal"] = "Todavía no hay servidor configurado, así que el grupo existe solo en este dispositivo.",
+        ["JoinGroupTitle"] = "Unirse a un grupo",
+        ["JoinGroupMessage"] = "Código del grupo (6 caracteres).",
+        ["Join"] = "Entrar",
+        ["JoinedTitle"] = "Ya estás dentro",
+        ["NotYetTitle"] = "Todavía no se puede",
+        ["LeaveGroupTitle"] = "Salir del grupo",
+        ["LeaveGroupMessage"] = "Se quitará «{0}» de este dispositivo, con sus listas.",
+        ["Leave"] = "Salir",
+        ["NewGroupListTitle"] = "Nueva lista del grupo",
+        ["GroupListPlaceholder"] = "Compras, Mantenimiento, Vacaciones...",
+        ["GroupCaption"] = "Código {0} · {1} listas",
+
+        ["Level"] = "Nivel {0}",
+        ["XpTotal"] = "{0} XP",
+        ["ToNextLevel"] = "Faltan {0} XP para el nivel {1}",
+        ["NoStreak"] = "Sin racha todavía",
+        ["StreakOne"] = "1 día de racha",
+        ["StreakMany"] = "{0} días de racha",
+        ["StreakHint"] = "Un día de descanso no rompe la racha.",
+        ["Productivity"] = "Productividad",
+        ["Today"] = "Hoy: {0} tareas completadas",
+        ["LastWeek"] = "Últimos 7 días: {0}",
+        ["LongestStreak"] = "Racha más larga: {0} días",
+        ["Unlocked"] = "Desbloqueado",
+        ["NothingUnlocked"] = "Todavía nada. Al nivel 2 llega el primero.",
+        ["NextUnlock"] = "Siguiente: {0} en el nivel {1}",
+        ["AllUnlocked"] = "Todo desbloqueado.",
+
+        ["YourAccount"] = "Tu cuenta",
+        ["ThisDevice"] = "Este dispositivo",
+        ["InstallationId"] = "Instalación {0}",
+        ["AccountLocalHint"] = "Tus tareas van ligadas a esta instalación. Si desinstalas la aplicación, se pierden.",
+        ["Reminders"] = "Recordatorios",
+        ["RemindPending"] = "Avisarme de lo que queda pendiente",
+        ["ReminderHour"] = "Hora del aviso diario",
+        ["ReminderHelp"] = "Un solo aviso al día con lo que queda en Mi Día, más un recordatorio por cada tarea con fecha de finalización (a las 9:00 de ese día).",
+        ["NoPermissionTitle"] = "Sin permiso",
+        ["NoPermissionMessage"] = "Android no permite mostrar avisos hasta que se conceda el permiso de notificaciones.",
+        ["Celebration"] = "Celebración",
+        ["Vibration"] = "Vibración al completar",
+        ["Sound"] = "Sonido al completar",
+        ["SoundLater"] = "El sonido llegará con los temas desbloqueables.",
+        ["Identity"] = "Identidad",
+        ["DisplayNamePlaceholder"] = "Cómo te ven en los grupos",
+        ["LanguageTitle"] = "Idioma",
+        ["LanguageHint"] = "El idioma se aplica al momento.",
+
+        ["Mailbox"] = "Buzón",
+        ["MailAddressPlaceholder"] = "tu@correo.com",
+        ["AppPasswordPlaceholder"] = "Contraseña de aplicación",
+        ["SignInGoogle"] = "Entrar con Google",
+        ["SignInMicrosoft"] = "Entrar con Microsoft",
+        ["ReadMailbox"] = "Leer buzón",
+        ["MailEmptyTitle"] = "Sin correos que enseñar",
+        ["MailEmptyMessage"] = "Pon los datos del buzón y pulsa «Leer buzón».",
+        ["MailNoSubject"] = "(sin asunto)",
+        ["MailMissingFields"] = "Faltan la dirección o la contraseña.",
+        ["MailReading"] = "Leyendo el buzón...",
+        ["MailNone"] = "No hay correos en la bandeja.",
+        ["MailCount"] = "{0} correos · {1} sin leer",
+        ["MailTimeout"] = "El servidor ha tardado demasiado.",
+        ["MailTaskCreated"] = "Tarea creada: {0}",
+        ["MailSessionExpired"] = "La sesión ha caducado: vuelve a entrar con la cuenta.",
+        ["MailSignedIn"] = "Dentro con {0}. Pulsa «Leer buzón».",
+        ["MailSigningIn"] = "Entrando con {0}...",
+        ["MailSessionRestored"] = "Sesión de {0} recuperada.",
+        ["MailHintGmail"] = "Gmail necesita una contraseña de aplicación (con verificación en dos pasos activada), no la del correo.",
+        ["MailHintOutlook"] = "Outlook.com ya no admite contraseña para IMAP: entra con la cuenta.",
+        ["MailHintGeneric"] = "Con IMAP y contraseña de aplicación funcionan Gmail, Yahoo, iCloud, Zoho y cualquier servidor propio.",
+
+        ["AboutDescription"] = "Tareas diarias con listas por grupo, desglose de objetivos y celebración al completar.",
+        ["SignOut"] = "Cerrar sesi\u00f3n",
+        ["Contact"] = "Contacto",
+        ["ContinueGoogle"] = "Continuar con Google",
+        ["ContinueWithoutAccount"] = "Seguir sin cuenta",
+        ["LoginPitch"] = "Entra con Google para guardar tu usuario y llevarte tus listas a cualquier dispositivo.",
+        ["NoAccountHint"] = "Sin cuenta, las tareas se quedan en este dispositivo y no se pueden compartir con ning\u00fan grupo.",
+        ["WriteAuthor"] = "Escribir al autor",
+        ["ContactHint"] = "Sugerencias, fallos o ideas: todo se lee.",
+        ["PrivacyText"] = "Las tareas se guardan en el propio dispositivo. Solo salen de \u00e9l si configuras la sincronizaci\u00f3n, y entonces van a tu proyecto de Supabase, a ning\u00fan otro sitio. El desglose con IA usa el servidor local que indiques; si no hay ninguno, se resuelve dentro de la aplicaci\u00f3n sin enviar nada.",
+        ["LicenseText"] = "Software libre bajo licencia MIT. Las bibliotecas de terceros y sus licencias est\u00e1n en THIRD-PARTY-NOTICES.md.",
+        ["LicenseLine"] = "MIT License \u00b7 Copyright \u00a9 2026 Socratic",
+        ["Publisher"] = "Socratic",
+        ["ImapHostPlaceholder"] = "imap.servidor.com",
+        ["NotifyOnePending"] = "Te queda 1 tarea para hoy",
+        ["NotifyManyPending"] = "Te quedan {0} tareas para hoy",
+        ["Privacy"] = "Privacidad",
+        ["License"] = "Licencia",
+    };
+}

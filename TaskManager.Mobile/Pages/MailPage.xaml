@@ -1,29 +1,39 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:TaskManager.Mobile.Localization"
              xmlns:pages="clr-namespace:TaskManager.Mobile.Pages"
              x:Class="TaskManager.Mobile.Pages.MailPage"
-             Title="Correo">
+             Title="{loc:T MenuMail}">
 
     <Grid RowDefinitions="Auto,*">
 
         <!-- Cuenta -->
         <Border Grid.Row="0" Style="{StaticResource Card}" Margin="12,12,12,6" x:Name="AccountCard">
             <VerticalStackLayout Padding="16" Spacing="10">
-                <Label Text="Buzón" Style="{StaticResource CardTitle}" />
+                <Label Text="{loc:T Mailbox}" Style="{StaticResource CardTitle}" />
 
                 <Border Style="{StaticResource Card}" Padding="12,0">
-                    <Entry x:Name="AddressEntry" Placeholder="tu@correo.com" Keyboard="Email"
+                    <Entry x:Name="AddressEntry" Placeholder="{loc:T MailAddressPlaceholder}" Keyboard="Email"
                            Completed="OnAddressCompleted" />
                 </Border>
 
+                <!-- Entrada con la cuenta (OAuth2). Es lo unico que aceptan ya Gmail y Microsoft
+                     365 para IMAP; la contraseña de aplicacion sigue valiendo para el resto. -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8" x:Name="OAuthRow">
+                    <Button Grid.Column="0" x:Name="GoogleButton" Text="{loc:T SignInGoogle}"
+                            FontSize="13" Clicked="OnGoogleSignInClicked" />
+                    <Button Grid.Column="1" x:Name="MicrosoftButton" Text="{loc:T SignInMicrosoft}"
+                            FontSize="13" Clicked="OnMicrosoftSignInClicked" />
+                </Grid>
+
                 <Border Style="{StaticResource Card}" Padding="12,0">
-                    <Entry x:Name="PasswordEntry" Placeholder="Contraseña de aplicación" IsPassword="True" />
+                    <Entry x:Name="PasswordEntry" Placeholder="{loc:T AppPasswordPlaceholder}" IsPassword="True" />
                 </Border>
 
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
                     <Border Grid.Column="0" Style="{StaticResource Card}" Padding="12,0">
-                        <Entry x:Name="ImapHostEntry" Placeholder="imap.servidor.com" />
+                        <Entry x:Name="ImapHostEntry" Placeholder="{loc:T ImapHostPlaceholder}" />
                     </Border>
                     <Border Grid.Column="1" Style="{StaticResource Card}" Padding="12,0">
                         <Entry x:Name="ImapPortEntry" Placeholder="993" Keyboard="Numeric" />
@@ -35,9 +45,12 @@
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                     <Label Grid.Column="0" x:Name="StatusLabel" Style="{StaticResource HintText}"
                            VerticalOptions="Center" />
-                    <Button Grid.Column="1" x:Name="ConnectButton" Text="Leer buzón"
-                            ImageSource="ic_refresh_w.png" ContentLayout="Left,8"
-                            Clicked="OnConnectClicked" />
+                    <ImageButton Grid.Column="1" x:Name="ConnectButton"
+                                 Style="{StaticResource HeaderIconButton}"
+                                 BackgroundColor="{StaticResource Primary}"
+                                 Source="ic_refresh_w.png"
+                                 SemanticProperties.Description="{loc:T ReadMailbox}"
+                                 Clicked="OnConnectClicked" />
                 </Grid>
             </VerticalStackLayout>
         </Border>
@@ -48,9 +61,9 @@
 
                 <CollectionView.EmptyView>
                     <VerticalStackLayout Padding="24" Spacing="8">
-                        <Label Text="Sin correos que enseñar" Style="{StaticResource CardTitle}"
+                        <Label Text="{loc:T MailEmptyTitle}" Style="{StaticResource CardTitle}"
                                HorizontalTextAlignment="Center" />
-                        <Label Text="Pon los datos del buzón y pulsa «Leer buzón»."
+                        <Label Text="{loc:T MailEmptyMessage}"
                                Style="{StaticResource HintText}" HorizontalTextAlignment="Center" />
                     </VerticalStackLayout>
                 </CollectionView.EmptyView>

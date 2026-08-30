@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:TaskManager.Mobile.Localization"
              xmlns:pages="clr-namespace:TaskManager.Mobile.Pages"
              x:Class="TaskManager.Mobile.Pages.GroupsPage"
-             Title="Mis grupos">
+             Title="{loc:T MenuGroups}">
 
     <ContentPage.ToolbarItems>
         <ToolbarItem IconImageSource="ic_add_w.png" Clicked="OnNewGroupClicked" />
@@ -14,9 +15,9 @@
 
         <CollectionView.EmptyView>
             <VerticalStackLayout Padding="24" Spacing="8">
-                <Label Text="Todavía no hay grupos" Style="{StaticResource CardTitle}"
+                <Label Text="{loc:T GroupsEmptyTitle}" Style="{StaticResource CardTitle}"
                        HorizontalTextAlignment="Center" />
-                <Label Text="Crea uno con la clave compartida, o únete a uno con su código y su clave."
+                <Label Text="{loc:T GroupsEmptyMessage}"
                        Style="{StaticResource HintText}" HorizontalTextAlignment="Center" />
             </VerticalStackLayout>
         </CollectionView.EmptyView>

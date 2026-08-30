@@ -1,0 +1,19 @@
+<Project>
+  <!--
+    Copia este fichero como oauth.local.props y rellena los valores.
+
+    - TmMicrosoftClientId: identificador de la aplicacion en Entra ID (registro multi-tenant).
+    - TmGoogleAndroidClientId: cliente de Google de tipo Android (sin secreto; se valida por
+      nombre de paquete y huella SHA-1 del certificado de firma).
+    - TmGoogleDesktopClientId / Secret: cliente de Google de tipo aplicacion de escritorio.
+
+    Si se deja vacio, ese proveedor no se ofrece y el correo sigue funcionando por IMAP con
+    contraseña de aplicacion.
+  -->
+  <PropertyGroup>
+    <TmMicrosoftClientId></TmMicrosoftClientId>
+    <TmGoogleAndroidClientId></TmGoogleAndroidClientId>
+    <TmGoogleDesktopClientId></TmGoogleDesktopClientId>
+    <TmGoogleDesktopClientSecret></TmGoogleDesktopClientSecret>
+  </PropertyGroup>
+</Project>
