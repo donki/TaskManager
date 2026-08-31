@@ -86,7 +86,7 @@
                                    VerticalOptions="Center" />
                             <ActivityIndicator Grid.Column="1" x:Name="StepsBusy" IsRunning="False" IsVisible="False"
                                                HeightRequest="20" WidthRequest="20" />
-                            <ImageButton Grid.Column="2" x:Name="WandButton"
+                            <ImageButton Grid.Column="2" x:Name="WandButton" IsVisible="False"
                                          Style="{StaticResource HeaderIconButton}"
                                          Source="ic_magic_w.png" BackgroundColor="{StaticResource Accent}"
                                          Clicked="OnBreakdownClicked" />
