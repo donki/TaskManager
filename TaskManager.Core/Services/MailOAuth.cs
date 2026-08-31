@@ -166,6 +166,73 @@ public sealed class MailOAuthService
     /// organizacion exige aprobacion del administrador, es Entra quien lo lleva por esa pantalla:
     /// la aplicacion no tiene que hacer nada distinto.
     /// </summary>
+    /// <summary>
+    /// Comprueba que el registro sirve ANTES de abrir el navegador.
+    /// </summary>
+    /// <remarks>
+    /// <para>Cuando el registro no existe o esta mal configurado, el proveedor enseña su propia
+    /// pagina de error y <b>no vuelve nunca</b> a la aplicacion. Sin esta comprobacion, lo unico
+    /// que se ve es una pantalla del navegador con un codigo, la aplicacion se queda esperando y no
+    /// hay forma de saber que hay que arreglar.</para>
+    ///
+    /// <para>Para Microsoft se usa el extremo de codigo de dispositivo porque es el unico que
+    /// contesta con JSON de verdad: el de autorizacion devuelve 200 y una pagina de JavaScript
+    /// aunque el registro no exista, asi que consultarlo no demuestra nada.</para>
+    ///
+    /// <para>Devuelve <c>null</c> si todo esta bien, o el motivo si no. Si no se puede comprobar
+    /// —sin red, por ejemplo— devuelve <c>null</c> y se deja continuar: no vamos a impedir entrar
+    /// por no haber podido validar.</para>
+    /// </remarks>
+    public async Task<string?> PreflightAsync(MailOAuthProvider provider,
+        CancellationToken cancellationToken = default)
+    {
+        var clientId = MailOAuthConfig.ClientIdFor(provider);
+        if (clientId.Length == 0)
+        {
+            return "NoClientId";
+        }
+
+        if (provider.Name is not ("Microsoft" or "AzureDevOps"))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["client_id"] = clientId,
+                ["scope"] = "openid",
+            });
+
+            using var response = await _http.PostAsync(
+                "https://login.microsoftonline.com/organizations/oauth2/v2.0/devicecode",
+                content, cancellationToken).ConfigureAwait(false);
+
+            var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+            // AADSTS700016: el registro no existe en ningun directorio. Es lo que pasa cuando el
+            // identificador se ha inventado en vez de crearlo en el portal.
+            if (body.Contains("AADSTS700016", StringComparison.Ordinal))
+            {
+                return "AppNotRegistered";
+            }
+
+            if (body.Contains("AADSTS", StringComparison.Ordinal))
+            {
+                var start = body.IndexOf("AADSTS", StringComparison.Ordinal);
+                var end = body.IndexOf('.', start);
+                return end > start ? body[start..end] : "AADSTS";
+            }
+
+            return null;
+        }
+        catch (Exception)
+        {
+            return null;   // No se ha podido comprobar: que lo intente.
+        }
+    }
+
     public async Task<MailOAuthSession> SignInAsync(
         MailOAuthProvider provider,
         CancellationToken cancellationToken = default)
