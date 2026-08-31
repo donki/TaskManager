@@ -122,12 +122,60 @@ public partial class MailPage : ContentPage
         await SignInAsync(MailOAuthProvider.Microsoft);
 
     /// <summary>
+    /// Explica que ha fallado y, cuando toca, ofrece el consentimiento del administrador.
+    /// </summary>
+    /// <remarks>
+    /// El consentimiento de organizacion es justo el flujo que se pidio: el administrador aprueba
+    /// la aplicacion una vez y queda dada de alta en su directorio para todo el mundo. Solo tiene
+    /// sentido ofrecerlo cuando el registro base existe; si no existe, primero hay que crearlo.
+    /// </remarks>
+    private async Task ShowOAuthProblemAsync(MailOAuthProvider provider, string problem)
+    {
+        var loc = Localization.Loc.Instance;
+
+        var message = problem switch
+        {
+            "NoClientId" => loc["OAuthNoClientId"],
+            "AppNotRegistered" => loc["OAuthAppNotRegistered"],
+            _ => loc.Format("OAuthProviderError", problem),
+        };
+
+        if (problem == "AppNotRegistered" || provider.Name == "Google")
+        {
+            await SocShared.ModernDialog.AlertAsync(this, loc["SignInMicrosoft"], message, "OK");
+            return;
+        }
+
+        // Se juntan en dos variables en vez de anidarlo todo en una interpolacion: con
+        // comillas dentro de comillas no compila y se lee peor.
+        var hint = loc["AdminConsentHint"];
+        var detail = message + Environment.NewLine + Environment.NewLine + hint;
+
+        var consent = await SocShared.ModernDialog.AlertAsync(this,
+            loc["AdminConsent"], detail,
+            loc["AdminConsent"], loc["Cancel"]);
+
+        if (consent)
+        {
+            await Launcher.OpenAsync(new Uri(_oauth.BuildAdminConsentUrl(provider)));
+        }
+    }
+
+    /// <summary>
     /// Abre el navegador para que el usuario entre con su cuenta. Si su organizacion exige
     /// aprobacion, es el propio proveedor quien le enseña la pantalla de consentimiento del
     /// administrador; la aplicacion no hace nada distinto.
     /// </summary>
     private async Task SignInAsync(MailOAuthProvider provider)
     {
+        // Se comprueba el registro ANTES de abrir el navegador: si no existe, el proveedor enseña
+        // su pagina de error y no vuelve nunca, y aqui no habria forma de contar que ha pasado.
+        if (await _oauth.PreflightAsync(provider) is { } problem)
+        {
+            await ShowOAuthProblemAsync(provider, problem);
+            return;
+        }
+
         StatusLabel.Text = $"Entrando con {provider.Name}...";
 
         try
