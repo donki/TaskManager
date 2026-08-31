@@ -75,11 +75,10 @@
                              Background="{DynamicResource Separator}"
                              BorderThickness="0" />
 
-                <!-- Captura rapida: lista destino + texto + anadir + desglosar con IA -->
+                <!-- Captura rapida: lista destino + texto + anadir -->
                 <Grid Grid.Row="2" Margin="0,14,0,10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
@@ -87,7 +86,7 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <ComboBox Grid.Row="0" Grid.ColumnSpan="3" x:Name="ListPicker"
+                    <ComboBox Grid.Row="0" Grid.ColumnSpan="2" x:Name="ListPicker"
                               Height="28" FontSize="12" Margin="0,0,0,8"
                               DisplayMemberPath="Display" SelectedValuePath="Id" />
 
@@ -104,12 +103,9 @@
                     </Border>
 
                     <Button Grid.Row="1" Grid.Column="1" x:Name="AddButton" Style="{StaticResource IconButton}"
-                            Content="&#xE710;" ToolTip="{loc:T AddTaskTooltip}" Margin="0,0,8,0"
+                            Content="&#xE710;" ToolTip="{loc:T AddTaskTooltip}"
                             Click="OnAddClick" />
 
-                    <Button Grid.Row="1" Grid.Column="2" x:Name="BreakdownButton" Style="{StaticResource IconButton}"
-                            Content="&#xE945;" ToolTip="{loc:T BreakdownTooltip}"
-                            Click="OnBreakdownClick" />
                 </Grid>
 
                 <!-- Tareas de hoy -->

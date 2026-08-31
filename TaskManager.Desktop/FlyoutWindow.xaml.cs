@@ -209,58 +209,6 @@ public partial class FlyoutWindow : Window
         return task;
     }
 
-    /// <summary>
-    /// La varita desglosa la tarea seleccionada. Si no hay ninguna pero si texto escrito, primero
-    /// la crea: escribir "Organizar la mudanza" y pulsar la varita es el gesto natural.
-    /// </summary>
-    private async void OnBreakdownClick(object sender, RoutedEventArgs e)
-    {
-        var task = TaskList.SelectedItem is TaskRow row
-            ? await _tasks.Repository.GetTaskAsync(row.Id)
-            : await AddTaskAsync();
-
-        if (task is null)
-        {
-            return;
-        }
-
-        BreakdownButton.IsEnabled = false;
-        try
-        {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-            var proposal = await _tasks.ProposeBreakdownAsync(task, cts.Token);
-
-            if (!proposal.HasSomethingNew)
-            {
-                ShowToast(proposal.AlreadyPresent > 0 ? Localization.Loc.Get("MagicAllPresent") : Localization.Loc.Get("MagicNothing"));
-                return;
-            }
-
-            // Se propone y se pregunta: los pasos no se incorporan sin que el usuario los vea.
-            var detail = "• " + string.Join("\n• ", proposal.Steps);
-            if (proposal.AlreadyPresent > 0)
-                detail += $"\n\n({proposal.AlreadyPresent} ya estaban y se han descartado)";
-
-            var accepted = MessageBox.Show(this, detail, $"{Localization.Loc.Get("MagicSteps")} · {proposal.Source}",
-                MessageBoxButton.OKCancel, MessageBoxImage.Question) == MessageBoxResult.OK;
-
-            if (!accepted)
-                return;
-
-            var (steps, celebration) = await _tasks.ApplyBreakdownAsync(task, proposal.Steps);
-            await ReloadAsync();
-
-            if (celebration is not null)
-                Celebrate(celebration);
-            else
-                ShowToast($"{steps.Count} pasos añadidos");
-        }
-        finally
-        {
-            BreakdownButton.IsEnabled = true;
-        }
-    }
-
     private async void OnTaskChecked(object sender, RoutedEventArgs e)
     {
         if (sender is not CheckBox { Tag: Guid id })

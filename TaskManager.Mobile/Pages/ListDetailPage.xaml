@@ -15,7 +15,7 @@
         <Grid RowDefinitions="Auto,*">
 
             <!-- Captura rapida dentro de la lista -->
-            <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Padding="16,12,16,8">
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="8" Padding="16,12,16,8">
                 <Border Grid.Column="0" Style="{StaticResource Card}" Padding="12,0">
                     <Entry x:Name="QuickAdd"
                            Placeholder="{loc:T AddTaskPlaceholder}"
@@ -25,9 +25,6 @@
                 <ImageButton Grid.Column="1" Style="{StaticResource HeaderIconButton}"
                              Source="ic_add_w.png" BackgroundColor="{StaticResource Primary}"
                              Clicked="OnAddClicked" />
-                <ImageButton Grid.Column="2" x:Name="WandButton" Style="{StaticResource HeaderIconButton}"
-                             Source="ic_magic_w.png" BackgroundColor="{StaticResource Accent}"
-                             Clicked="OnBreakdownClicked" />
             </Grid>
 
             <!-- Se ordena arrastrando: manten pulsada una tarea y subela o bajala. -->
@@ -48,7 +45,7 @@
                         <Border Style="{StaticResource Card}" Margin="0,0,0,6">
                             <VerticalStackLayout Padding="6,8,8,8" Spacing="4">
 
-                                <Grid ColumnDefinitions="44,*,Auto,Auto" ColumnSpacing="2">
+                                <Grid ColumnDefinitions="44,*,Auto" ColumnSpacing="2">
                                     <ImageButton Grid.Column="0"
                                                  Style="{StaticResource RowIconButton}"
                                                  Source="{Binding StateIcon}"
@@ -81,11 +78,6 @@
                                                  CommandParameter="{Binding Id}"
                                                  Clicked="OnToggleMyDayClicked" />
 
-                                    <ImageButton Grid.Column="3"
-                                                 Style="{StaticResource RowIconButton}"
-                                                 Source="ic_magic.png"
-                                                 CommandParameter="{Binding Id}"
-                                                 Clicked="OnRowBreakdownClicked" />
                                 </Grid>
 
                                 <!-- Micro-pasos: cada uno suma su parte de XP al marcarse -->

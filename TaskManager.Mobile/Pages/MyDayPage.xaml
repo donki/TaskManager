@@ -16,8 +16,8 @@
                 <Label x:Name="SummaryLabel" Style="{StaticResource CardTitle}" />
             </VerticalStackLayout>
 
-            <!-- Captura rapida: escribir y anadir, o desglosar el objetivo con IA -->
-            <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Padding="16,8">
+            <!-- Captura rapida: escribir y anadir. -->
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8" Padding="16,8">
                 <Border Grid.Column="0" Style="{StaticResource Card}" Padding="12,0">
                     <Entry x:Name="QuickAdd"
                            Placeholder="{loc:T MyDayAddPlaceholder}"
@@ -27,9 +27,6 @@
                 <ImageButton Grid.Column="1" Style="{StaticResource HeaderIconButton}"
                              Source="ic_add_w.png" BackgroundColor="{StaticResource Primary}"
                              Clicked="OnAddClicked" />
-                <ImageButton Grid.Column="2" x:Name="WandButton" Style="{StaticResource HeaderIconButton}"
-                             Source="ic_magic_w.png" BackgroundColor="{StaticResource Accent}"
-                             Clicked="OnBreakdownClicked" />
             </Grid>
 
             <!-- Filtro por etiqueta: se pinta con las etiquetas que hay en uso. -->
@@ -85,11 +82,6 @@
                                                IsVisible="{Binding ShowListName}" />
                                     </VerticalStackLayout>
 
-                                    <ImageButton Grid.Column="2"
-                                                 Style="{StaticResource RowIconButton}"
-                                                 Source="ic_magic.png"
-                                                 CommandParameter="{Binding Id}"
-                                                 Clicked="OnRowBreakdownClicked" />
                                 </Grid>
                             </Border>
                         </DataTemplate>
