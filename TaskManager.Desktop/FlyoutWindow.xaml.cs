@@ -18,6 +18,9 @@ public partial class FlyoutWindow : Window
 {
     private readonly TaskService _tasks;
     private readonly SettingsService _settings;
+
+    /// <summary>Quien habla con el servidor. Puede faltar: sin Supabase configurado no hay ninguno.</summary>
+    private readonly SyncCoordinator? _syncing;
     private readonly ObservableCollection<TaskRow> _rows = [];
 
     /// <summary>Etiqueta por la que se esta acotando, o null si se ven todas.</summary>
@@ -27,12 +30,13 @@ public partial class FlyoutWindow : Window
 
     private bool _closingForReal;
 
-    public FlyoutWindow(TaskService tasks, SettingsService settings)
+    public FlyoutWindow(TaskService tasks, SettingsService settings, SyncCoordinator? syncing = null)
     {
         InitializeComponent();
 
         _tasks = tasks;
         _settings = settings;
+        _syncing = syncing;
         TaskList.ItemsSource = _rows;
 
         // La fecha va en el idioma elegido: en ingles «de» sobra y el dia de la semana cambia.
@@ -40,6 +44,33 @@ public partial class FlyoutWindow : Window
             Localization.Loc.Get("DatePattern"),
             System.Globalization.CultureInfo.GetCultureInfo(Localization.Loc.Language));
         QuickAdd.Text = string.Empty;
+    }
+
+    /// <summary>
+    /// Refrescar: habla con el servidor y vuelve a pintar.
+    /// </summary>
+    /// <remarks>
+    /// El panel rapido es donde mas se mira y era el unico sitio sin este boton: para saber si habia
+    /// algo nuevo del movil habia que abrir la ventana grande. Es el mismo de «Mis tareas», y espera
+    /// a que la sincronizacion termine de verdad antes de repintar.
+    /// </remarks>
+    private async void OnRefreshClick(object sender, RoutedEventArgs e)
+    {
+        RefreshButton.IsEnabled = false;
+
+        try
+        {
+            if (_syncing is not null)
+            {
+                await _syncing.RefreshNowAsync();
+            }
+
+            await ReloadAsync();
+        }
+        finally
+        {
+            RefreshButton.IsEnabled = true;
+        }
     }
 
     /// <summary>Numero de tareas pendientes de hoy; lo consume el icono de la bandeja.</summary>

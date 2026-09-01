@@ -91,7 +91,7 @@ public partial class App : Application
 
         _syncing = new SyncCoordinator(_sync, _auth, repository, _settings);
 
-        _flyout = new FlyoutWindow(_tasks, _settings) { Icon = TrayIconHost.CreateWindowIcon() };
+        _flyout = new FlyoutWindow(_tasks, _settings, _syncing) { Icon = TrayIconHost.CreateWindowIcon() };
         _flyout.PendingChanged += (_, pending) => _tray.SetPending(pending);
         _flyout.SettingsRequested += (_, _) => OpenSettings();
         _flyout.CalendarRequested += (_, _) => OpenCalendar();
@@ -182,7 +182,7 @@ public partial class App : Application
         var pending = _tray.Pending;
 
         _flyout.CloseForReal();
-        _flyout = new FlyoutWindow(_tasks, _settings) { Icon = TrayIconHost.CreateWindowIcon() };
+        _flyout = new FlyoutWindow(_tasks, _settings, _syncing) { Icon = TrayIconHost.CreateWindowIcon() };
         _flyout.PendingChanged += (_, count) => _tray.SetPending(count);
         _flyout.SettingsRequested += (_, _) => OpenSettings();
         _flyout.CalendarRequested += (_, _) => OpenCalendar();
