@@ -14,9 +14,9 @@
     <RootNamespace>TaskManager.Desktop</RootNamespace>
     <AssemblyName>TaskManager</AssemblyName>
     <ApplicationTitle>Task Manager</ApplicationTitle>
-    <Version>2026.9.1.12</Version>
-    <AssemblyVersion>2026.9.1.12</AssemblyVersion>
-    <FileVersion>2026.9.1.12</FileVersion>
+    <Version>2026.9.1.13</Version>
+    <AssemblyVersion>2026.9.1.13</AssemblyVersion>
+    <FileVersion>2026.9.1.13</FileVersion>
     <Product>Task Manager</Product>
     <Company>Socratic</Company>
     <Copyright>Copyright © 2026 Socratic</Copyright>
@@ -29,6 +29,20 @@
       aviso de editor desconocido— antes de que corra ninguna linea nuestra.
     -->
     <ApplicationIcon>appicon.ico</ApplicationIcon>
+
+    <!--
+      Las DLL nativas van DENTRO del ejecutable.
+
+      Sin esto, `PublishSingleFile` empaqueta solo lo administrado y deja al lado seis ficheros
+      nativos (wpfgfx_cor3, PresentationNative_cor3, D3DCompiler_47_cor3, PenImc_cor3,
+      vcruntime140_cor3 y e_sqlite3). El .exe parece autocontenido —pesa 170 MB— pero al copiarlo
+      solo a otra carpeta arranca y se muere con `DllNotFoundException` dentro de WindowsBase, sin
+      ventana ni aviso: parece que no hace nada. Y la entrega es exactamente eso, copiar el .exe a
+      una carpeta compartida.
+
+      El coste es que la primera ejecucion extrae esos nativos a una carpeta temporal.
+    -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
 
   <ItemGroup>
