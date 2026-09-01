@@ -101,8 +101,15 @@ public partial class GroupsPage : ContentPage
             return;
         }
 
-        var code = await _sync.CreateGroupAsync(name.Trim(), key.Trim());
-        var group = await _tasks.Repository.SaveGroupAsync(new TaskGroup { Name = name.Trim(), JoinCode = code });
+        // El grupo se crea aqui primero para tener su identificador: es la clave con la que se
+        // cifra su nombre, y es el mismo que se usa arriba (antes el local y el del servidor eran
+        // dos identificadores distintos).
+        var group = await _tasks.Repository.SaveGroupAsync(new TaskGroup { Name = name.Trim() });
+
+        var code = await _sync.CreateGroupAsync(group.Id, name.Trim(), key.Trim());
+
+        group.JoinCode = code;
+        await _tasks.Repository.SaveGroupAsync(group);
 
         // Un grupo sin lista no sirve de nada: se crea la primera con el nombre del grupo.
         await _tasks.Repository.CreateListAsync("General", group.Id);

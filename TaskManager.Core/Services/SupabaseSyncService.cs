@@ -35,6 +35,9 @@ public sealed class SupabaseSyncService : ISyncService
     /// </summary>
     private const string KeyLastPull = "sync.last_pull_v2";
 
+    /// <summary>Huella del perfil que ya se subio, para no repetir la subida en cada vuelta.</summary>
+    private const string KeyProfilePushed = "sync.profile_v1";
+
     /// <remarks>
     /// <para><b>Los nulos se escriben.</b> Antes se omitian (<c>WhenWritingNull</c>) y eso rompia la
     /// subida en cuanto habia mas de una fila: una tarea sin plazo se serializaba sin
@@ -99,6 +102,10 @@ public sealed class SupabaseSyncService : ISyncService
         {
             return 0;
         }
+
+        // Antes de mirar la cola: el perfil no pasa por ella (no lo escribe el usuario, sale de la
+        // cuenta) pero tiene que subir igual, y cifrado.
+        await PushProfileAsync(token, cancellationToken).ConfigureAwait(false);
 
         var pending = await _repository.GetPendingSyncAsync().ConfigureAwait(false);
         if (pending.Count == 0)
@@ -174,6 +181,49 @@ public sealed class SupabaseSyncService : ISyncService
         // en la siguiente vuelta en vez de perderse en silencio.
         await _repository.ClearSyncAsync(done).ConfigureAwait(false);
         return done.Count;
+    }
+
+    /// <summary>
+    /// Sube el nombre, el correo y la foto del usuario a <c>profiles</c>, cifrados.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Lo escribia el servidor.</b> Un disparador sobre <c>auth.users</c>
+    /// (<c>handle_new_user</c>) copiaba esos tres campos de lo que devuelve Google, en claro, y los
+    /// reescribia en cada entrada: cifrarlos desde aqui no habria servido de nada porque la
+    /// siguiente sesion los devolvia a texto plano. Desde <c>09_cifrar_perfil_y_grupos.sql</c> el
+    /// disparador solo crea la fila y el contenido lo pone esto.</para>
+    ///
+    /// <para>Se sube solo cuando cambia. El nombre y la foto de una cuenta no cambian casi nunca, y
+    /// mandarlos en cada sincronizacion seria una peticion de mas cada tres minutos.</para>
+    /// </remarks>
+    private async Task PushProfileAsync(string token, CancellationToken cancellationToken)
+    {
+        var user = _auth.CurrentUser;
+        if (user is null || !Guid.TryParse(CurrentUserId(), out var id))
+        {
+            return;
+        }
+
+        var stamp = $"{user.DisplayName}|{user.Email}|{user.AvatarUrl}";
+        if (_settings.Get(KeyProfilePushed) == stamp)
+        {
+            return;
+        }
+
+        var key = CurrentUserId();
+        var row = new
+        {
+            id,
+            display_name = _cipher.Protect(user.DisplayName, key),
+            email = _cipher.Protect(user.Email, key),
+            avatar_url = _cipher.Protect(user.AvatarUrl, key),
+            updated_at = DateTime.UtcNow,
+        };
+
+        if (await UpsertAsync("profiles", [row], token, cancellationToken).ConfigureAwait(false))
+        {
+            await _settings.SetAsync(KeyProfilePushed, stamp).ConfigureAwait(false);
+        }
     }
 
     private async Task<object?> BuildRowAsync(string entity, string entityId)
@@ -555,16 +605,35 @@ public sealed class SupabaseSyncService : ISyncService
     // Grupos
     // -----------------------------------------------------------------------
 
-    public async Task<string> CreateGroupAsync(string name, string sharedKey,
+    /// <summary>
+    /// Crea el grupo en el servidor. El nombre y el apodo viajan cifrados <b>con el identificador
+    /// del grupo</b>, para que los demas miembros puedan leerlos.
+    /// </summary>
+    /// <param name="id">
+    /// El identificador lo pone quien llama, no el servidor. Hace falta para poder cifrar el nombre
+    /// antes de mandarlo —la clave sale de el—, y de paso arregla que el grupo local y el del
+    /// servidor tuvieran identificadores distintos.
+    /// </param>
+    public async Task<string> CreateGroupAsync(Guid id, string name, string sharedKey,
         CancellationToken cancellationToken = default)
     {
         var token = await _auth.GetAccessTokenAsync(cancellationToken).ConfigureAwait(false)
             ?? throw new AuthException("Hay que entrar con una cuenta para crear un grupo.");
 
+        var key = id.ToString();
+
         using var request = new HttpRequestMessage(HttpMethod.Post,
             $"{SupabaseConfig.Url}/rest/v1/rpc/create_group")
         {
-            Content = JsonContent.Create(new { p_name = name, p_key = sharedKey }, options: Json),
+            Content = JsonContent.Create(
+                new
+                {
+                    p_id = id,
+                    p_name = _cipher.Protect(name, key),
+                    p_key = sharedKey,
+                    p_display_name = _cipher.Protect(_auth.CurrentUser?.DisplayName ?? string.Empty, key),
+                },
+                options: Json),
         };
 
         Authorize(request, token);
@@ -572,8 +641,13 @@ public sealed class SupabaseSyncService : ISyncService
         using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
-        var code = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return code.Trim('"', ' ', '\n', '\r');
+        // La funcion devuelve (group_id, join_code); del identificador ya se sabe, era nuestro.
+        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        using var json = JsonDocument.Parse(body);
+
+        return json.RootElement.ValueKind == JsonValueKind.Array && json.RootElement.GetArrayLength() > 0
+            ? json.RootElement[0].GetProperty("join_code").GetString() ?? string.Empty
+            : string.Empty;
     }
 
     public async Task<Guid> JoinGroupAsync(string joinCode, string sharedKey,
@@ -594,9 +668,55 @@ public sealed class SupabaseSyncService : ISyncService
         response.EnsureSuccessStatusCode();
 
         var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return Guid.TryParse(body.Trim('"', ' ', '\n', '\r'), out var id)
-            ? id
-            : throw new AuthException("El codigo o la clave del grupo no son correctos.");
+        if (!Guid.TryParse(body.Trim('"', ' ', '\n', '\r'), out var id))
+        {
+            throw new AuthException("El codigo o la clave del grupo no son correctos.");
+        }
+
+        // El apodo va en una segunda llamada porque hasta aqui no se sabia a que grupo se entraba, y
+        // la clave con la que se cifra es justo la del grupo. `join_group` deja la fila con el apodo
+        // vacio a proposito.
+        await SetMemberNameAsync(id, token, cancellationToken).ConfigureAwait(false);
+
+        return id;
+    }
+
+    /// <summary>Escribe el apodo de uno mismo dentro de un grupo, cifrado con la clave del grupo.</summary>
+    private async Task SetMemberNameAsync(Guid groupId, string token, CancellationToken cancellationToken)
+    {
+        var me = CurrentUserId();
+        if (me.Length == 0)
+        {
+            return;
+        }
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Patch,
+            $"{SupabaseConfig.Url}/rest/v1/group_members?group_id=eq.{groupId}&user_id=eq.{me}")
+        {
+            Content = JsonContent.Create(
+                new { display_name = _cipher.Protect(_auth.CurrentUser?.DisplayName ?? string.Empty, groupId.ToString()) },
+                options: Json),
+        };
+
+        Authorize(request, token);
+        request.Headers.Add("Prefer", "return=minimal");
+
+        try
+        {
+            using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                await NoteErrorAsync($"group_members: {(int)response.StatusCode} " +
+                    await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            // Quedarse sin apodo no impide estar en el grupo: se arregla la proxima vez que se entre.
+            await NoteErrorAsync($"group_members: {ex.GetType().Name} {ex.Message}").ConfigureAwait(false);
+        }
     }
 
     // -----------------------------------------------------------------------
