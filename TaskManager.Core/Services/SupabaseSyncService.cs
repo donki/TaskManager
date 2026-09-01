@@ -165,6 +165,7 @@ public sealed class SupabaseSyncService : ISyncService
             "tasks" => await _repository.GetTaskAsync(id).ConfigureAwait(false) is { } t ? ToRow(t) : null,
             "task_lists" => await _repository.GetListAsync(id).ConfigureAwait(false) is { } l ? ToRow(l) : null,
             "task_steps" => await _repository.GetStepAsync(id).ConfigureAwait(false) is { } s ? ToRow(s) : null,
+            "task_attachments" => await _repository.GetAttachmentAsync(id).ConfigureAwait(false) is { } a ? ToRow(a) : null,
             _ => null,
         };
     }
@@ -292,8 +293,10 @@ public sealed class SupabaseSyncService : ISyncService
         var lists = await FetchAsync<ListRow>("task_lists", since, token, cancellationToken).ConfigureAwait(false);
         var tasks = await FetchAsync<TaskRowDto>("tasks", since, token, cancellationToken).ConfigureAwait(false);
         var steps = await FetchAsync<StepRow>("task_steps", since, token, cancellationToken).ConfigureAwait(false);
+        var attachments = await FetchAsync<AttachmentRow>("task_attachments", since, token, cancellationToken)
+            .ConfigureAwait(false);
 
-        if (deletions is null || lists is null || tasks is null || steps is null)
+        if (deletions is null || lists is null || tasks is null || steps is null || attachments is null)
         {
             return;   // Fallo de red: no se mueve el corte, se reintenta entero la proxima vez.
         }
@@ -318,6 +321,11 @@ public sealed class SupabaseSyncService : ISyncService
         foreach (var row in steps)
         {
             await MergeStepAsync(row).ConfigureAwait(false);
+        }
+
+        foreach (var row in attachments)
+        {
+            await MergeAttachmentAsync(row).ConfigureAwait(false);
         }
 
         await _settings.SetAsync(KeyLastPull, cutoff.ToString("O", CultureInfo.InvariantCulture))
@@ -384,6 +392,7 @@ public sealed class SupabaseSyncService : ISyncService
         task.ListId = row.ListId;
         task.Title = row.Title;
         task.Notes = row.Notes;
+        task.IsPriority = row.IsPriority;
         task.IsDone = row.IsDone;
         task.DoneAt = row.DoneAt?.UtcDateTime;
         task.MyDayOn = row.MyDayOn?.Date;
@@ -499,6 +508,7 @@ public sealed class SupabaseSyncService : ISyncService
         list_id = t.ListId,
         title = t.Title,
         notes = t.Notes,
+        is_priority = t.IsPriority,
         is_done = t.IsDone,
         done_at = t.DoneAt,
         my_day_on = t.MyDayOn?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -512,6 +522,24 @@ public sealed class SupabaseSyncService : ISyncService
         created_at = t.CreatedAt,
         updated_at = t.UpdatedAt,
         deleted = t.Deleted,
+    };
+
+    /// <remarks>
+    /// Los bytes viajan como texto hexadecimal con prefijo <c>\x</c>, que es la representacion que
+    /// PostgREST entiende para un <c>bytea</c> sin conversiones raras. Un enlace no lleva datos y
+    /// viaja como <c>null</c>.
+    /// </remarks>
+    private object ToRow(TaskAttachment a) => new
+    {
+        id = a.Id,
+        task_id = a.TaskId,
+        kind = a.Kind,
+        name = a.Name,
+        url = a.Url,
+        data = a.Data is { Length: > 0 } bytes ? "\\x" + Convert.ToHexString(bytes).ToLowerInvariant() : null,
+        sort_order = a.SortOrder,
+        updated_at = a.UpdatedAt,
+        deleted = a.Deleted,
     };
 
     private object ToRow(TaskList l) => new
@@ -550,13 +578,66 @@ public sealed class SupabaseSyncService : ISyncService
         return remote.Length > 0 ? remote : _settings.Get(SettingsService.KeyRemoteUserId, string.Empty);
     }
 
+    /// <summary>
+    /// Escribe un adjunto que viene del servidor.
+    /// </summary>
+    /// <remarks>
+    /// El <c>bytea</c> llega como texto hexadecimal con prefijo <c>\x</c>, que es como lo devuelve
+    /// PostgREST; si algun dia cambiara de forma, se prefiere quedarse sin los bytes a reventar la
+    /// bajada entera de las demas filas.
+    /// </remarks>
+    private async Task MergeAttachmentAsync(AttachmentRow row)
+    {
+        var local = await _repository.GetAttachmentAsync(row.Id).ConfigureAwait(false);
+        if (local is not null && local.UpdatedAt >= row.UpdatedAt)
+        {
+            return;
+        }
+
+        var attachment = local ?? new TaskAttachment { Id = row.Id };
+
+        attachment.TaskId = row.TaskId;
+        attachment.Kind = row.Kind;
+        attachment.Name = row.Name;
+        attachment.Url = row.Url;
+        attachment.SortOrder = row.SortOrder;
+        attachment.UpdatedAt = row.UpdatedAt.UtcDateTime;
+        attachment.Deleted = row.Deleted;
+        attachment.Data = FromHex(row.Data);
+
+        await _repository.SaveFromRemoteAsync(attachment, local is null).ConfigureAwait(false);
+        RemoteChanged?.Invoke(this, new RemoteChange("task_attachments", row.Id.ToString()));
+    }
+
+    private static byte[]? FromHex(string? value)
+    {
+        if (value is null || !value.StartsWith("\\x", StringComparison.Ordinal) || value.Length < 4)
+        {
+            return null;
+        }
+
+        try
+        {
+            return Convert.FromHexString(value[2..]);
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Un adjunto tal y como lo devuelve PostgREST.</summary>
+    private sealed record AttachmentRow(
+        Guid Id, Guid TaskId, string Kind, string Name, string Url, string? Data,
+        int SortOrder, DateTimeOffset UpdatedAt, bool Deleted);
+
     /// <summary>Un apunte de baja: que se borro y cuando llego aqui la noticia.</summary>
     private sealed record DeletionRow(string Entity, Guid EntityId, DateTimeOffset DeletedAt);
 
     // Filas tal y como las devuelve PostgREST. Son un tipo aparte a proposito: si el servidor
     // cambia, se ve aqui y no se cuela dentro del modelo de la aplicacion.
     private sealed record TaskRowDto(
-        Guid Id, Guid ListId, string Title, string Notes, bool IsDone,
+        Guid Id, Guid ListId, string Title, string Notes, bool IsPriority, bool IsDone,
         DateTimeOffset? DoneAt, DateTimeOffset? MyDayOn, DateTimeOffset? DueAt, DateTimeOffset? PlannedFor,
         string Tags, string RecurrenceRule, int SortOrder, DateTime UpdatedAt, bool Deleted);
 

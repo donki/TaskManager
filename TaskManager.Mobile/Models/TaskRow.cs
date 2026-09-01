@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using TaskManager.Core.Models;
 
 namespace TaskManager.Mobile.Models;
@@ -6,7 +8,7 @@ namespace TaskManager.Mobile.Models;
 /// Fila de tarea lista para pintar. Se aplana aqui lo que el XAML necesita para no meter logica en
 /// la vista (constitucion 7).
 /// </summary>
-public sealed class TaskRow
+public sealed class TaskRow : INotifyPropertyChanged
 {
     public TaskRow(TaskItem task, string listName = "")
     {
@@ -23,7 +25,12 @@ public sealed class TaskRow
 
     public Guid Id => Task.Id;
 
-    public string Title => Task.Title;
+    /// <summary>
+    /// Con estrella delante si es prioritaria. Delante del texto y no en una columna aparte: la fila
+    /// ya lleva boton de estado y texto, y una columna vacia en casi todas las filas solo estrecha
+    /// el titulo.
+    /// </summary>
+    public string Title => Task.IsPriority ? "★ " + Task.Title : Task.Title;
 
     public bool IsDone => Task.IsDone;
 
@@ -71,6 +78,53 @@ public sealed class TaskRow
     public bool InMyDay => Task.MyDayOn?.Date == DateTime.Now.Date;
 
     public string MyDayIcon => InMyDay ? "ic_day.png" : "ic_star.png";
+
+    // -----------------------------------------------------------------------
+    // Seleccion multiple
+    // -----------------------------------------------------------------------
+    //
+    // Estas dos son las unicas que cambian sin recargar la lista, y por eso avisan. Repintar la
+    // pantalla entera en cada toque perderia el sitio donde estaba el usuario, que es justo lo peor
+    // que puede pasar mientras marca ocho tareas seguidas.
+
+    private bool _selecting;
+    private bool _isSelected;
+
+    /// <summary>Si la lista esta en modo seleccion (entonces cada fila enseña su casilla).</summary>
+    public bool Selecting
+    {
+        get => _selecting;
+        set
+        {
+            if (_selecting == value)
+            {
+                return;
+            }
+
+            _selecting = value;
+            Raise();
+        }
+    }
+
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected == value)
+            {
+                return;
+            }
+
+            _isSelected = value;
+            Raise();
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void Raise([CallerMemberName] string? name = null) =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
 
 /// <summary>Fila de micro-paso ("Paso Magico").</summary>

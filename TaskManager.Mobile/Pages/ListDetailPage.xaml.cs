@@ -13,6 +13,8 @@ namespace TaskManager.Mobile.Pages;
 [QueryProperty(nameof(ListId), "listId")]
 public partial class ListDetailPage : ContentPage
 {
+    private string? _search;
+
     private readonly TaskService _tasks;
     private readonly SettingsService _settings;
 
@@ -55,7 +57,7 @@ public partial class ListDetailPage : ContentPage
         var list = await _tasks.Repository.GetListAsync(_listId);
         Title = list?.Name ?? "Lista";
 
-        var tasks = await _tasks.Repository.GetTasksAsync(_listId);
+        var tasks = await _tasks.Repository.GetTasksAsync(_listId, search: _search);
         var rows = new List<TaskRow>();
 
         foreach (var task in tasks)
@@ -85,6 +87,13 @@ public partial class ListDetailPage : ContentPage
 
 
     // -----------------------------------------------------------------------
+
+    /// <summary>Busca al escribir, en todo el texto de la tarea.</summary>
+    private async void OnSearchChanged(object? sender, TextChangedEventArgs e)
+    {
+        _search = e.NewTextValue;
+        await ReloadAsync();
+    }
 
     private async void OnAddClicked(object? sender, EventArgs e) => await AddTaskAsync();
 

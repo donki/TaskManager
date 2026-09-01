@@ -29,6 +29,8 @@ public partial class CalendarWindow : Window
     public CalendarWindow(TaskService tasks)
     {
         InitializeComponent();
+
+        Services.ThemeManager.StyleTitleBar(this);
         _tasks = tasks;
         DayTasks.ItemsSource = _rows;
     }
@@ -175,7 +177,7 @@ public partial class CalendarWindow : Window
         foreach (var task in _byDay.TryGetValue(date, out var list) ? list : [])
         {
             _rows.Add(new DayTaskRow(
-                task.Title,
+                task.IsPriority ? "★ " + task.Title : task.Title,
                 _listNames.GetValueOrDefault(task.ListId, string.Empty)));
         }
 

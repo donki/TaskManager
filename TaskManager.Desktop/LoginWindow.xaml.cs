@@ -26,6 +26,8 @@ public partial class LoginWindow : Window
         InitializeComponent();
         _auth = auth;
 
+        Services.ThemeManager.StyleTitleBar(this);
+
         StatusLabel.Text = auth.IsConfigured
             ? string.Empty
             : Localization.Loc.Get("OAuthNoClientId");

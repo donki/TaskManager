@@ -47,6 +47,7 @@ public sealed class LocalDatabase
                 typeof(TaskList),
                 typeof(TaskItem),
                 typeof(TaskStep),
+                typeof(TaskAttachment),
                 typeof(XpEvent),
                 typeof(SettingEntry),
                 typeof(SyncOp)).ConfigureAwait(false);

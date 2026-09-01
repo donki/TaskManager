@@ -133,6 +133,121 @@ public sealed class TaskRepository
         await QueueAsync("tasks", task.Id, "upsert").ConfigureAwait(false);
     }
 
+    // -----------------------------------------------------------------------
+    // En bloque (seleccion multiple)
+    // -----------------------------------------------------------------------
+    //
+    // Todo esto se podia hacer ya tarea a tarea, abriendo cada una. La diferencia es el numero de
+    // gestos: poner la misma etiqueta a doce tareas eran doce viajes al detalle. Cada metodo recorre
+    // las tareas y reusa el guardado de siempre, asi que la marca de tiempo y la cola de
+    // sincronizacion salen igual que si se hubieran tocado una por una.
+
+    /// <summary>Añade una etiqueta a varias tareas. Las que ya la tienen se quedan como estan.</summary>
+    public async Task<int> AddTagAsync(IEnumerable<Guid> ids, string tag)
+    {
+        var clean = tag.Trim().Trim(',');
+        if (clean.Length == 0)
+        {
+            return 0;
+        }
+
+        var touched = 0;
+        foreach (var task in await LoadAsync(ids).ConfigureAwait(false))
+        {
+            if (TaskTags.Has(task.Tags, clean))
+            {
+                continue;
+            }
+
+            task.Tags = TaskTags.Join([.. task.TagList, clean]);
+            await UpdateTaskAsync(task).ConfigureAwait(false);
+            touched++;
+        }
+
+        return touched;
+    }
+
+    /// <summary>Quita una etiqueta de varias tareas.</summary>
+    public async Task<int> RemoveTagAsync(IEnumerable<Guid> ids, string tag)
+    {
+        var touched = 0;
+        foreach (var task in await LoadAsync(ids).ConfigureAwait(false))
+        {
+            if (!TaskTags.Has(task.Tags, tag))
+            {
+                continue;
+            }
+
+            task.Tags = TaskTags.Join(
+                task.TagList.Where(t => !string.Equals(t, tag, StringComparison.CurrentCultureIgnoreCase)));
+            await UpdateTaskAsync(task).ConfigureAwait(false);
+            touched++;
+        }
+
+        return touched;
+    }
+
+    public async Task<int> SetPriorityAsync(IEnumerable<Guid> ids, bool priority)
+    {
+        var touched = 0;
+        foreach (var task in await LoadAsync(ids).ConfigureAwait(false))
+        {
+            if (task.IsPriority == priority)
+            {
+                continue;
+            }
+
+            task.IsPriority = priority;
+            await UpdateTaskAsync(task).ConfigureAwait(false);
+            touched++;
+        }
+
+        return touched;
+    }
+
+    public async Task<int> MoveTasksAsync(IEnumerable<Guid> ids, Guid listId)
+    {
+        var touched = 0;
+        foreach (var task in await LoadAsync(ids).ConfigureAwait(false))
+        {
+            if (task.ListId == listId)
+            {
+                continue;
+            }
+
+            await MoveTaskAsync(task, listId).ConfigureAwait(false);
+            touched++;
+        }
+
+        return touched;
+    }
+
+    public async Task<int> DeleteTasksAsync(IEnumerable<Guid> ids)
+    {
+        var tasks = await LoadAsync(ids).ConfigureAwait(false);
+        foreach (var task in tasks)
+        {
+            await DeleteTaskAsync(task).ConfigureAwait(false);
+        }
+
+        return tasks.Count;
+    }
+
+    /// <summary>Las tareas de una seleccion, saltandose las que ya no estan.</summary>
+    private async Task<List<TaskItem>> LoadAsync(IEnumerable<Guid> ids)
+    {
+        var tasks = new List<TaskItem>();
+        foreach (var id in ids.Distinct())
+        {
+            if (await GetTaskAsync(id).ConfigureAwait(false) is { } task)
+            {
+                tasks.Add(task);
+            }
+        }
+
+        return tasks;
+    }
+
     /// <summary>
     /// Quita una fila que ha llegado borrada de otro dispositivo. No encola nada: la baja ya venia
     /// de fuera, y devolverla al servidor seria darle la vuelta a la misma noticia.
@@ -143,7 +258,12 @@ public sealed class TaskRepository
         {
             case "tasks":
                 await Db.ExecuteAsync("DELETE FROM task_steps WHERE TaskId = ?", id).ConfigureAwait(false);
+                await Db.ExecuteAsync("DELETE FROM task_attachments WHERE TaskId = ?", id).ConfigureAwait(false);
                 await Db.ExecuteAsync("DELETE FROM tasks WHERE Id = ?", id).ConfigureAwait(false);
+                break;
+
+            case "task_attachments":
+                await Db.ExecuteAsync("DELETE FROM task_attachments WHERE Id = ?", id).ConfigureAwait(false);
                 break;
 
             case "task_lists":
@@ -164,7 +284,9 @@ public sealed class TaskRepository
     // Tareas
     // -----------------------------------------------------------------------
 
-    public async Task<List<TaskItem>> GetTasksAsync(Guid listId, bool includeDone = true, string? tag = null)
+    /// <param name="search">Texto a buscar en todos los campos, o null para no filtrar.</param>
+    public async Task<List<TaskItem>> GetTasksAsync(
+        Guid listId, bool includeDone = true, string? tag = null, string? search = null)
     {
         var query = Db.Table<TaskItem>().Where(t => t.ListId == listId && !t.Deleted);
         if (!includeDone)
@@ -172,12 +294,16 @@ public sealed class TaskRepository
             query = query.Where(t => !t.IsDone);
         }
 
+        // Mismo criterio que en «Mis tareas»: las prioritarias arriba del todo.
         var tasks = await query.OrderBy(t => t.IsDone)
+                               .ThenByDescending(t => t.IsPriority)
                                .ThenBy(t => t.SortOrder)
                                .ThenByDescending(t => t.CreatedAt)
                                .ToListAsync().ConfigureAwait(false);
 
         tasks = FilterByTag(tasks, tag);
+        tasks = await FilterBySearchAsync(tasks, search).ConfigureAwait(false);
+
         await FillStepCountsAsync(tasks).ConfigureAwait(false);
         return tasks;
     }
@@ -186,10 +312,91 @@ public sealed class TaskRepository
     /// El filtro por etiqueta se aplica en memoria: una lista de tareas cabe de sobra y asi la
     /// comparacion respeta mayusculas y tildes igual que en el resto de la aplicacion.
     /// </summary>
-    private static List<TaskItem> FilterByTag(List<TaskItem> tasks, string? tag) =>
-        string.IsNullOrWhiteSpace(tag)
-            ? tasks
-            : tasks.Where(t => TaskTags.Has(t.Tags, tag)).ToList();
+    /// <summary>
+    /// Deja solo las tareas donde aparezca <paramref name="search"/>, mirando <b>todo el texto</b>:
+    /// el titulo, las notas, las etiquetas, el titulo de sus pasos y el nombre y la direccion de sus
+    /// adjuntos.
+    /// </summary>
+    /// <remarks>
+    /// <para>Los pasos y los adjuntos se buscan con una consulta cada uno en vez de recorrerlos
+    /// tarea por tarea: recorrerlos serian dos consultas <b>por tarea</b>, y con doscientas tareas
+    /// eso se nota al teclear.</para>
+    ///
+    /// <para>Los campos de la propia tarea se comparan en memoria y no con <c>LIKE</c> porque
+    /// <c>LIKE</c> de SQLite solo ignora mayusculas en ASCII: buscar «accion» no encontraria
+    /// «Acción». En los pasos y adjuntos se acepta esa limitacion, que es donde menos duele.</para>
+    /// </remarks>
+    private async Task<List<TaskItem>> FilterBySearchAsync(List<TaskItem> tasks, string? search)
+    {
+        if (string.IsNullOrWhiteSpace(search) || tasks.Count == 0)
+        {
+            return tasks;
+        }
+
+        var needle = search.Trim();
+        var pattern = "%" + needle.Replace("%", "\\%").Replace("_", "\\_") + "%";
+
+        var related = new HashSet<Guid>();
+
+        foreach (var row in await Db.QueryAsync<TaskIdRow>(
+            "SELECT DISTINCT TaskId AS Id FROM task_steps WHERE Deleted = 0 AND Title LIKE ? ESCAPE '\\'",
+            pattern).ConfigureAwait(false))
+        {
+            related.Add(row.Id);
+        }
+
+        foreach (var row in await Db.QueryAsync<TaskIdRow>(
+            "SELECT DISTINCT TaskId AS Id FROM task_attachments " +
+            "WHERE Deleted = 0 AND (Name LIKE ? ESCAPE '\\' OR Url LIKE ? ESCAPE '\\')",
+            pattern, pattern).ConfigureAwait(false))
+        {
+            related.Add(row.Id);
+        }
+
+        return [.. tasks.Where(t =>
+            Has(t.Title, needle) ||
+            Has(t.Notes, needle) ||
+            Has(t.Tags, needle) ||
+            related.Contains(t.Id))];
+    }
+
+    private static bool Has(string? text, string needle) =>
+        !string.IsNullOrEmpty(text) &&
+        text.Contains(needle, StringComparison.CurrentCultureIgnoreCase);
+
+    /// <summary>Solo para leer identificadores sueltos de una consulta escrita a mano.</summary>
+    private sealed class TaskIdRow
+    {
+        public Guid Id { get; set; }
+    }
+
+    /// <summary>
+    /// Valor de <c>tag</c> que significa «las que no tienen ninguna etiqueta».
+    /// </summary>
+    /// <remarks>
+    /// Va como una cadena reservada y no como un parametro aparte para que el filtro siga siendo
+    /// uno solo: las pantallas guardan «la etiqueta puesta», y esto es una etiqueta mas para ellas.
+    /// Empieza por un caracter que no se puede teclear en una etiqueta de verdad, asi que no puede
+    /// chocar con ninguna.
+    /// </remarks>
+    public const string NoTag = "\u0000sin-etiqueta";
+
+    private static List<TaskItem> FilterByTag(List<TaskItem> tasks, string? tag)
+    {
+        if (string.IsNullOrEmpty(tag))
+        {
+            return tasks;
+        }
+
+        // «Sin etiqueta» es lo que hace falta para encontrar lo que se quedo sin clasificar, que es
+        // justo lo que se pierde de vista cuando todo lo demas si tiene etiqueta.
+        if (tag == NoTag)
+        {
+            return [.. tasks.Where(t => t.TagList.Count == 0)];
+        }
+
+        return [.. tasks.Where(t => t.TagList.Contains(tag, StringComparer.CurrentCultureIgnoreCase))];
+    }
 
     /// <summary>Etiquetas en uso, ordenadas, para ofrecerlas como filtro.</summary>
     public async Task<List<string>> GetTagsAsync()
@@ -286,7 +493,9 @@ public sealed class TaskRepository
     ///
     /// <para>El orden es el mismo que en las listas: primero lo que queda por hacer.</para>
     /// </remarks>
-    public async Task<List<TaskItem>> GetAllTasksAsync(TaskFilter filter, string? tag = null)
+    /// <param name="search">Texto a buscar en todos los campos, o null para no filtrar.</param>
+    public async Task<List<TaskItem>> GetAllTasksAsync(
+        TaskFilter filter, string? tag = null, string? search = null)
     {
         var tasks = await Db.Table<TaskItem>()
                             .Where(t => !t.Deleted)
@@ -296,11 +505,23 @@ public sealed class TaskRepository
 
         tasks = FilterByTag(tasks, tag)
             .Where(t => TaskFilters.Matches(t, filter, today))
+            // Las prioritarias, primero y siempre; entre ellas manda el vencimiento y, sin
+            // vencimiento, la mas reciente. Va por delante incluso del orden manual: marcar algo
+            // como prioritario es decir «esto por encima de todo», y tener que ademas arrastrarlo
+            // hasta arriba seria decirlo dos veces.
+            //
+            // Despues, el orden manual ANTES que el plazo: donde se puede arrastrar, lo que el
+            // usuario coloca a mano tiene que quedarse donde lo puso. Con el plazo por delante,
+            // arrastrar parecia funcionar y a la siguiente recarga la fila volvia a su sitio.
             .OrderBy(t => t.IsDone)
-            .ThenBy(t => t.DueAt ?? DateTime.MaxValue)
+            .ThenByDescending(t => t.IsPriority)
+            .ThenBy(t => t.IsPriority ? t.DueAt ?? DateTime.MaxValue : DateTime.MinValue)
             .ThenBy(t => t.SortOrder)
+            .ThenBy(t => t.DueAt ?? DateTime.MaxValue)
             .ThenByDescending(t => t.CreatedAt)
             .ToList();
+
+        tasks = await FilterBySearchAsync(tasks, search).ConfigureAwait(false);
 
         await FillStepCountsAsync(tasks).ConfigureAwait(false);
         return tasks;
@@ -400,6 +621,7 @@ public sealed class TaskRepository
     public async Task DeleteTaskAsync(TaskItem task)
     {
         await Db.ExecuteAsync("DELETE FROM task_steps WHERE TaskId = ?", task.Id).ConfigureAwait(false);
+        await Db.ExecuteAsync("DELETE FROM task_attachments WHERE TaskId = ?", task.Id).ConfigureAwait(false);
         await Db.DeleteAsync(task).ConfigureAwait(false);
         await QueueAsync("tasks", task.Id, "delete").ConfigureAwait(false);
     }
@@ -468,6 +690,82 @@ public sealed class TaskRepository
     /// empates ni huecos que se agoten. En los pasos importa mas todavia que en las tareas: son el
     /// guion de como se hace algo, y un guion desordenado no sirve de nada.
     /// </remarks>
+    // -----------------------------------------------------------------------
+    // Adjuntos
+    // -----------------------------------------------------------------------
+
+    public Task<List<TaskAttachment>> GetAttachmentsAsync(Guid taskId) =>
+        Db.Table<TaskAttachment>()
+          .Where(a => a.TaskId == taskId && !a.Deleted)
+          .OrderBy(a => a.SortOrder)
+          .ToListAsync();
+
+    public async Task<TaskAttachment?> GetAttachmentAsync(Guid id) =>
+        await Db.Table<TaskAttachment>().Where(a => a.Id == id).FirstOrDefaultAsync().ConfigureAwait(false);
+
+    /// <summary>Guarda un enlace en una tarea.</summary>
+    public async Task<TaskAttachment> AddLinkAsync(Guid taskId, string url, string? name = null)
+    {
+        var clean = url.Trim();
+
+        // Sin esquema, el sistema no sabe abrirlo: se asume https, que es lo que la gente pega.
+        if (clean.Length > 0 && !clean.Contains("://", StringComparison.Ordinal))
+        {
+            clean = "https://" + clean;
+        }
+
+        var attachment = new TaskAttachment
+        {
+            TaskId = taskId,
+            Kind = TaskAttachment.KindUrl,
+            Url = clean,
+            Name = string.IsNullOrWhiteSpace(name) ? clean : name.Trim(),
+            SortOrder = await Db.Table<TaskAttachment>().Where(a => a.TaskId == taskId).CountAsync()
+                                .ConfigureAwait(false),
+        };
+
+        await Db.InsertAsync(attachment).ConfigureAwait(false);
+        await QueueAsync("task_attachments", attachment.Id, "upsert").ConfigureAwait(false);
+
+        return attachment;
+    }
+
+    /// <summary>
+    /// Guarda un fichero <b>dentro</b> de la tarea.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// Si pasa de <see cref="TaskAttachment.MaxFileBytes"/>. Se avisa en vez de guardarlo a medias:
+    /// un adjunto enorme no rompe esta pantalla, rompe la sincronizacion de todo lo demas.
+    /// </exception>
+    public async Task<TaskAttachment> AddFileAsync(Guid taskId, string fileName, byte[] data)
+    {
+        if (data.Length > TaskAttachment.MaxFileBytes)
+        {
+            throw new InvalidOperationException("El fichero es demasiado grande.");
+        }
+
+        var attachment = new TaskAttachment
+        {
+            TaskId = taskId,
+            Kind = TaskAttachment.KindFile,
+            Name = Path.GetFileName(fileName),
+            Data = data,
+            SortOrder = await Db.Table<TaskAttachment>().Where(a => a.TaskId == taskId).CountAsync()
+                                .ConfigureAwait(false),
+        };
+
+        await Db.InsertAsync(attachment).ConfigureAwait(false);
+        await QueueAsync("task_attachments", attachment.Id, "upsert").ConfigureAwait(false);
+
+        return attachment;
+    }
+
+    public async Task DeleteAttachmentAsync(TaskAttachment attachment)
+    {
+        await Db.DeleteAsync(attachment).ConfigureAwait(false);
+        await QueueAsync("task_attachments", attachment.Id, "delete").ConfigureAwait(false);
+    }
+
     /// <summary>Cambia el texto de un paso. Vacio no vale: un paso sin texto no dice que hacer.</summary>
     public async Task RenameStepAsync(TaskStep step, string title)
     {
@@ -664,12 +962,14 @@ public sealed class TaskRepository
         var lists = await Db.Table<TaskList>().ToListAsync().ConfigureAwait(false);
         var tasks = await Db.Table<TaskItem>().ToListAsync().ConfigureAwait(false);
         var steps = await Db.Table<TaskStep>().ToListAsync().ConfigureAwait(false);
+        var attachments = await Db.Table<TaskAttachment>().ToListAsync().ConfigureAwait(false);
 
         // Las listas primero: una tarea cuya lista aun no existe arriba no tendria donde colgarse.
         var ops = new List<SyncOp>(lists.Count + tasks.Count + steps.Count);
         ops.AddRange(lists.Select(l => new SyncOp { Entity = "task_lists", EntityId = l.Id.ToString(), Operation = "upsert" }));
         ops.AddRange(tasks.Select(t => new SyncOp { Entity = "tasks", EntityId = t.Id.ToString(), Operation = "upsert" }));
         ops.AddRange(steps.Select(s => new SyncOp { Entity = "task_steps", EntityId = s.Id.ToString(), Operation = "upsert" }));
+        ops.AddRange(attachments.Select(a => new SyncOp { Entity = "task_attachments", EntityId = a.Id.ToString(), Operation = "upsert" }));
 
         if (ops.Count > 0)
         {

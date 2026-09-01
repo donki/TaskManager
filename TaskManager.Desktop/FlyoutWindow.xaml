@@ -28,6 +28,8 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
@@ -108,13 +110,40 @@
 
                 </Grid>
 
+                <!-- Etiquetas en uso: acotar el panel sin salir de el. La fila no aparece si no
+                     hay ninguna, que es lo normal al empezar. -->
+                <!-- Buscador: mira en todo el texto de la tarea. -->
+                <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                    <Border Grid.Column="0"
+                            Background="{DynamicResource CardBackground}"
+                            BorderBrush="{DynamicResource Separator}" BorderThickness="1"
+                            CornerRadius="8" Padding="10,0">
+                        <TextBox x:Name="SearchBox"
+                                 BorderThickness="0" Background="Transparent"
+                                 VerticalContentAlignment="Center" Height="28" FontSize="12"
+                                 Foreground="{DynamicResource TextPrimary}"
+                                 CaretBrush="{DynamicResource TextPrimary}"
+                                 TextChanged="OnSearchChanged" />
+                    </Border>
+                    <Button Grid.Column="1" Style="{StaticResource GhostIconButton}" Content="&#xE711;"
+                            Width="28" Height="28" Margin="6,0,0,0"
+                            ToolTip="{loc:T ClearSearchTooltip}" Click="OnClearSearchClick" />
+                </Grid>
+
+                <ScrollViewer Grid.Row="4" x:Name="TagFilterScroll"
+                              HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                              Margin="0,0,0,8" Visibility="Collapsed">
+                    <StackPanel x:Name="TagFilterBox" Orientation="Horizontal" />
+                </ScrollViewer>
+
                 <!-- Tareas de hoy -->
                 <!-- Se ordena arrastrando, igual que en el movil. -->
-                <ListBox Grid.Row="3" x:Name="TaskList"
+                <ListBox Grid.Row="5" x:Name="TaskList"
                          Background="Transparent" BorderThickness="0"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                          HorizontalContentAlignment="Stretch"
                          AllowDrop="True"
+                         MouseDoubleClick="OnTaskDoubleClick"
                          PreviewMouseLeftButtonDown="OnTaskDragStart"
                          PreviewMouseMove="OnTaskDragMove"
                          DragOver="OnTaskDragOver"
@@ -149,9 +178,19 @@
                                                    Visibility="{Binding StepsVisibility}" />
                                     </StackPanel>
 
-                                    <TextBlock Grid.Column="2" Text="{Binding ListName}" FontSize="11"
-                                               VerticalAlignment="Center" Margin="8,0,0,0"
-                                               Foreground="{DynamicResource TextSecondary}" />
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal"
+                                                VerticalAlignment="Center" Margin="8,0,0,0">
+                                        <TextBlock Text="{Binding ListName}" FontSize="11"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource TextSecondary}" />
+
+                                        <!-- El lapiz, igual que en la ventana principal: aqui el
+                                             doble clic compite con el arrastre para reordenar, y
+                                             hace falta una forma de abrir que no dependa de el. -->
+                                        <Button Style="{StaticResource RowIconButton}" Content="&#xE70F;"
+                                                Margin="6,0,0,0" ToolTip="{loc:T OpenTaskTooltip}"
+                                                Tag="{Binding Id}" Click="OnOpenTaskClick" />
+                                    </StackPanel>
                                 </Grid>
                             </Border>
                         </DataTemplate>
@@ -159,7 +198,7 @@
                 </ListBox>
 
                 <!-- Pie: pendientes y atajo -->
-                <Grid Grid.Row="4" Margin="0,10,0,0">
+                <Grid Grid.Row="6" Margin="0,10,0,0">
                     <TextBlock x:Name="StatusLabel" FontSize="11" HorizontalAlignment="Left"
                                VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" />
                     <TextBlock x:Name="HotkeyLabel" FontSize="11" HorizontalAlignment="Right"

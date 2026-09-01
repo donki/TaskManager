@@ -14,13 +14,21 @@
     <RootNamespace>TaskManager.Desktop</RootNamespace>
     <AssemblyName>TaskManager</AssemblyName>
     <ApplicationTitle>Task Manager</ApplicationTitle>
-    <Version>2026.9.1.2</Version>
-    <AssemblyVersion>2026.9.1.2</AssemblyVersion>
-    <FileVersion>2026.9.1.2</FileVersion>
+    <Version>2026.9.1.10</Version>
+    <AssemblyVersion>2026.9.1.10</AssemblyVersion>
+    <FileVersion>2026.9.1.10</FileVersion>
     <Product>Task Manager</Product>
     <Company>Socratic</Company>
     <Copyright>Copyright © 2026 Socratic</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+
+    <!--
+      Icono del ejecutable: el mismo tick blanco sobre indigo que dibuja TrayIconHost y que lleva la
+      aplicacion de Android (constitucion E.6). Va como fichero .ico y no dibujado en codigo porque
+      esto lo lee Windows del propio ejecutable —en el Explorador, en la barra de tareas y en el
+      aviso de editor desconocido— antes de que corra ninguna linea nuestra.
+    -->
+    <ApplicationIcon>appicon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

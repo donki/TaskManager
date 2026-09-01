@@ -90,6 +90,7 @@ public partial class TaskDetailPage : ContentPage
 
         Title = _task.Title;
         DoneSwitch.IsToggled = _task.IsDone;
+        PrioritySwitch.IsToggled = _task.IsPriority;
         TitleEntry.Text = _task.Title;
         NotesEditor.Text = _task.Notes;
         TagsEntry.Text = TaskTags.ToInput(_task.Tags);
@@ -131,6 +132,7 @@ public partial class TaskDetailPage : ContentPage
         await LoadListsAsync();
         await LoadKnownTagsAsync();
         await LoadStepsAsync();
+        await LoadAttachmentsAsync();
     }
 
     // ==================================================================================
@@ -418,6 +420,180 @@ public partial class TaskDetailPage : ContentPage
         }
     }
 
+    // -----------------------------------------------------------------------
+    // Enlaces y ficheros
+    // -----------------------------------------------------------------------
+
+    private async Task LoadAttachmentsAsync()
+    {
+        if (_task is null)
+        {
+            return;
+        }
+
+        var items = await _tasks.Repository.GetAttachmentsAsync(_task.Id);
+
+        AttachmentsBox.Clear();
+        NoAttachmentsLabel.IsVisible = items.Count == 0;
+
+        foreach (var item in items)
+        {
+            AttachmentsBox.Add(BuildAttachmentRow(item));
+        }
+    }
+
+    /// <summary>Fila de adjunto: icono segun sea enlace o fichero, nombre, detalle y papelera.</summary>
+    private View BuildAttachmentRow(TaskAttachment item)
+    {
+        var icon = new Image
+        {
+            Source = item.IsUrl ? "ic_link.png" : "ic_attach.png",
+            WidthRequest = 20,
+            HeightRequest = 20,
+            VerticalOptions = LayoutOptions.Center,
+        };
+
+        var text = new VerticalStackLayout { VerticalOptions = LayoutOptions.Center, Spacing = 2 };
+        text.Add(new Label { Text = item.Name, Style = (Style)Application.Current!.Resources["ItemTitle"] });
+        text.Add(new Label
+        {
+            Text = item.IsUrl ? item.Url : item.SizeCaption,
+            Style = (Style)Application.Current!.Resources["ItemSubtitle"],
+        });
+
+        var open = new TapGestureRecognizer();
+        open.Tapped += async (_, _) => await OpenAttachmentAsync(item);
+        text.GestureRecognizers.Add(open);
+
+        var remove = new ImageButton
+        {
+            Source = "ic_delete_danger.png",
+            Style = (Style)Application.Current!.Resources["RowIconButton"],
+            HeightRequest = 34,
+            WidthRequest = 34,
+        };
+
+        remove.Clicked += async (_, _) =>
+        {
+            await _tasks.Repository.DeleteAttachmentAsync(item);
+            await LoadAttachmentsAsync();
+        };
+
+        var row = new Grid
+        {
+            ColumnDefinitions =
+            [
+                new ColumnDefinition(GridLength.Auto),
+                new ColumnDefinition(GridLength.Star),
+                new ColumnDefinition(GridLength.Auto),
+            ],
+            ColumnSpacing = 8,
+            Padding = new Thickness(0, 4),
+        };
+
+        row.Add(icon, 0, 0);
+        row.Add(text, 1, 0);
+        row.Add(remove, 2, 0);
+
+        return row;
+    }
+
+    private async void OnAddLinkClicked(object? sender, EventArgs e)
+    {
+        if (_task is null)
+        {
+            return;
+        }
+
+        var url = await SocShared.ModernDialog.PromptAsync(
+            this, Localization.Loc.Instance["AddLinkTooltip"], null,
+            Localization.Loc.Instance["Save"], Localization.Loc.Instance["Cancel"], null,
+            Localization.Loc.Instance["LinkPlaceholder"]);
+
+        if (!string.IsNullOrWhiteSpace(url))
+        {
+            await _tasks.Repository.AddLinkAsync(_task.Id, url);
+            await LoadAttachmentsAsync();
+        }
+    }
+
+    /// <summary>
+    /// Mete un fichero <b>dentro</b> de la tarea.
+    /// </summary>
+    /// <remarks>
+    /// Se guardan los bytes, no la ruta: una ruta de este movil no significa nada en Windows, y el
+    /// adjunto tiene que viajar con la tarea. Por eso hay tope de tamaño, y si se pasa se dice.
+    /// </remarks>
+    private async void OnAddFileClicked(object? sender, EventArgs e)
+    {
+        if (_task is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var picked = await FilePicker.Default.PickAsync();
+            if (picked is null)
+            {
+                return;
+            }
+
+            using var stream = await picked.OpenReadAsync();
+            using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory);
+
+            if (memory.Length > TaskAttachment.MaxFileBytes)
+            {
+                await SocShared.ModernDialog.AlertAsync(this,
+                    Localization.Loc.Instance["AddFileTooltip"],
+                    Localization.Loc.Instance.Format("FileTooBig", TaskAttachment.MaxFileBytes / (1024 * 1024)),
+                    "OK");
+                return;
+            }
+
+            await _tasks.Repository.AddFileAsync(_task.Id, picked.FileName, memory.ToArray());
+            await LoadAttachmentsAsync();
+        }
+        catch (Exception ex)
+        {
+            await SocShared.ModernDialog.AlertAsync(this,
+                Localization.Loc.Instance["AddFileTooltip"], ex.Message, "OK");
+        }
+    }
+
+    /// <summary>
+    /// Abre el adjunto: el enlace en el navegador, el fichero con la aplicacion que le toque.
+    /// </summary>
+    /// <remarks>
+    /// El fichero vive en la base de datos, asi que para abrirlo hay que volcarlo antes a disco. Se
+    /// deja en la carpeta de cache, que es de donde el sistema limpia solo.
+    /// </remarks>
+    private async Task OpenAttachmentAsync(TaskAttachment item)
+    {
+        try
+        {
+            if (item.IsUrl)
+            {
+                await Browser.Default.OpenAsync(item.Url, BrowserLaunchMode.SystemPreferred);
+                return;
+            }
+
+            var folder = Path.Combine(FileSystem.CacheDirectory, "adjuntos", item.Id.ToString("N"));
+            Directory.CreateDirectory(folder);
+
+            var path = Path.Combine(folder, item.Name);
+            await File.WriteAllBytesAsync(path, item.Data ?? []);
+
+            await Launcher.Default.OpenAsync(new OpenFileRequest(item.Name, new ReadOnlyFile(path)));
+        }
+        catch (Exception ex)
+        {
+            await SocShared.ModernDialog.AlertAsync(this,
+                Localization.Loc.Instance["Attachments"], ex.Message, "OK");
+        }
+    }
+
     private async void OnToggleStepClicked(object? sender, EventArgs e)
     {
         if (sender is not ImageButton { CommandParameter: Guid id })
@@ -584,6 +760,7 @@ public partial class TaskDetailPage : ContentPage
 
         var kind = Kinds[Math.Clamp(RecurrencePicker.SelectedIndex, 0, Kinds.Length - 1)];
         _task.RecurrenceRule = new Recurrence(kind, (int)IntervalStepper.Value, _days, _monthDay, _month).Serialize();
+        _task.IsPriority = PrioritySwitch.IsToggled;
 
         if (ListPicker.SelectedIndex >= 0 && ListPicker.SelectedIndex < _lists.Count)
         {

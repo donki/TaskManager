@@ -168,6 +168,154 @@ public static class ModernDialog
         return options[index].Value;
     }
 
+    /// <summary>
+    /// Elegir de una lista, sin salida alternativa. Devuelve <c>null</c> si se cerro sin elegir.
+    /// </summary>
+    public static T? Pick<T>(
+        Window owner,
+        string title,
+        string message,
+        IReadOnlyList<(string Label, T Value)> options,
+        string acceptTooltip)
+        where T : struct
+    {
+        var window = Build(owner, title, message, out var content);
+
+        var list = new ListBox
+        {
+            Style = (Style)owner.FindResource("PickRows"),
+            Margin = new Thickness(0, 14, 0, 0),
+            MaxHeight = 260,
+            ItemsSource = options.Select(o => o.Label).ToList(),
+            SelectedIndex = 0,
+        };
+
+        content.Children.Add(list);
+
+        var accept = IconButton(owner, "", acceptTooltip, "IconButton");
+        accept.HorizontalAlignment = HorizontalAlignment.Right;
+        accept.Margin = new Thickness(0, 16, 0, 0);
+        accept.Click += (_, _) => window.DialogResult = true;
+        content.Children.Add(accept);
+
+        // Doble clic sobre una fila: elegir y cerrar. Es el gesto de siempre en una lista.
+        list.MouseDoubleClick += (_, _) => window.DialogResult = true;
+
+        window.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape)
+            {
+                window.DialogResult = false;
+            }
+        };
+
+        if (window.ShowDialog() != true || list.SelectedIndex < 0)
+        {
+            return null;
+        }
+
+        return options[Math.Clamp(list.SelectedIndex, 0, options.Count - 1)].Value;
+    }
+
+    /// <summary>
+    /// Elegir una de las que ya existen o escribir una nueva, en el mismo cuadro.
+    /// </summary>
+    /// <remarks>
+    /// Para etiquetas. Separarlo en dos cuadros («¿usar una existente o crear una?») obligaria a
+    /// decidir antes de ver la lista, que es justo al reves de como se decide esto: primero se mira
+    /// si ya hay una que sirva y solo si no la hay se escribe.
+    /// </remarks>
+    public static string? PickOrType(
+        Window owner,
+        string title,
+        string message,
+        IReadOnlyList<string> options,
+        string hint,
+        string acceptTooltip)
+    {
+        var window = Build(owner, title, message, out var content);
+
+        var list = new ListBox
+        {
+            Style = (Style)owner.FindResource("PickRows"),
+            Margin = new Thickness(0, 14, 0, 0),
+            MaxHeight = 200,
+            ItemsSource = options.ToList(),
+            SelectedIndex = -1,
+            Visibility = options.Count == 0 ? Visibility.Collapsed : Visibility.Visible,
+        };
+
+        content.Children.Add(list);
+
+        var box = new TextBox
+        {
+            Style = (Style)owner.FindResource("Field"),
+            Margin = new Thickness(0, 12, 0, 0),
+        };
+
+        content.Children.Add(new TextBlock
+        {
+            Text = hint,
+            Margin = new Thickness(0, 12, 0, 0),
+            Style = (Style)owner.FindResource("HintText"),
+        });
+        content.Children.Add(box);
+
+        // Escribir y tener ademas una fila marcada seria ambiguo: lo ultimo que se toca manda.
+        box.TextChanged += (_, _) =>
+        {
+            if (box.Text.Length > 0)
+            {
+                list.SelectedIndex = -1;
+            }
+        };
+        list.SelectionChanged += (_, _) =>
+        {
+            if (list.SelectedIndex >= 0)
+            {
+                box.Clear();
+            }
+        };
+
+        var accept = IconButton(owner, "", acceptTooltip, "IconButton");
+        accept.HorizontalAlignment = HorizontalAlignment.Right;
+        accept.Margin = new Thickness(0, 16, 0, 0);
+        accept.Click += (_, _) => window.DialogResult = true;
+        content.Children.Add(accept);
+
+        list.MouseDoubleClick += (_, _) => window.DialogResult = true;
+        box.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Enter)
+            {
+                window.DialogResult = true;
+            }
+        };
+
+        window.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape)
+            {
+                window.DialogResult = false;
+            }
+        };
+
+        box.Loaded += (_, _) => box.Focus();
+
+        if (window.ShowDialog() != true)
+        {
+            return null;
+        }
+
+        var written = box.Text.Trim();
+        if (written.Length > 0)
+        {
+            return written;
+        }
+
+        return list.SelectedItem as string;
+    }
+
     // -----------------------------------------------------------------------
 
     private static Window Build(Window owner, string title, string message, out StackPanel content)

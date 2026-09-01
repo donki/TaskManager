@@ -18,4 +18,14 @@ public static class FeatureOptions
     /// asomandose a esta aplicacion.</para>
     /// </remarks>
     public const bool MailEnabled = false;
+
+    /// <summary>
+    /// Grupos y gremio (listas compartidas, nivel y rachas). <b>Ocultos</b> (2026-09-01).
+    /// </summary>
+    /// <remarks>
+    /// Se ocultan, no se borran: las tablas, la RLS y las funciones <c>create_group</c> y
+    /// <c>join_group</c> siguen enteras en el servidor, y volver a ofrecerlo es poner esto a
+    /// <c>true</c>. Se apartan mientras la aplicacion se centra en las tareas de uno.
+    /// </remarks>
+    public const bool GroupsEnabled = false;
 }

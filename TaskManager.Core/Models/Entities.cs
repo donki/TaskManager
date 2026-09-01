@@ -85,6 +85,16 @@ public class TaskItem
 
     public string Notes { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Va por delante de todo lo demas, ordenando.
+    /// </summary>
+    /// <remarks>
+    /// Es lo que hace falta cuando la lista es larga y hay dos o tres cosas que de verdad no pueden
+    /// esperar: subirlas a mano funciona hasta que llega la siguiente tarea nueva. Entre varias
+    /// prioritarias manda el vencimiento, y sin vencimiento, la mas reciente.
+    /// </remarks>
+    public bool IsPriority { get; set; }
+
     public bool IsDone { get; set; }
 
     public DateTime? DoneAt { get; set; }
@@ -178,6 +188,63 @@ public class TaskStep
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public bool Deleted { get; set; }
+}
+
+/// <summary>
+/// Algo que acompaña a una tarea: un enlace o un fichero.
+/// </summary>
+/// <remarks>
+/// <para><b>Los ficheros van dentro de la base de datos</b>, en <see cref="Data"/>. Lo normal en una
+/// aplicacion asi seria guardar el fichero aparte y quedarse con la ruta, pero entonces el adjunto
+/// solo existiria en el aparato donde se añadio: la ruta no significa nada en el otro. Guardando los
+/// bytes, el adjunto viaja con la tarea y se abre igual en Windows y en el movil.</para>
+///
+/// <para>Eso obliga a poner un tope (<see cref="MaxFileBytes"/>): cada adjunto viaja entero en cada
+/// sincronizacion, y un fichero de cien megas convertiria una lista de tareas en algo que no se
+/// puede sincronizar. Para documentos, fotos y capturas —que es para lo que se usa— sobra.</para>
+/// </remarks>
+[Table("task_attachments")]
+public class TaskAttachment
+{
+    /// <summary>Lo mas grande que se admite en un adjunto: 5 MB.</summary>
+    public const int MaxFileBytes = 5 * 1024 * 1024;
+
+    public const string KindUrl = "url";
+
+    public const string KindFile = "file";
+
+    [PrimaryKey]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Indexed]
+    public Guid TaskId { get; set; }
+
+    /// <summary><see cref="KindUrl"/> o <see cref="KindFile"/>.</summary>
+    public string Kind { get; set; } = KindUrl;
+
+    /// <summary>Como se llama para quien lo lee: el titulo del enlace o el nombre del fichero.</summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>La direccion, si es un enlace. Vacio en los ficheros.</summary>
+    public string Url { get; set; } = string.Empty;
+
+    /// <summary>El fichero entero. Null en los enlaces.</summary>
+    public byte[]? Data { get; set; }
+
+    public int SortOrder { get; set; }
+
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    public bool Deleted { get; set; }
+
+    public bool IsUrl => Kind == KindUrl;
+
+    /// <summary>Tamaño en texto («340 KB»), para enseñarlo sin hacer cuentas en la vista.</summary>
+    public string SizeCaption => Data is null or { Length: 0 }
+        ? string.Empty
+        : Data.Length >= 1024 * 1024
+            ? $"{Data.Length / (1024.0 * 1024.0):0.#} MB"
+            : $"{Math.Max(1, Data.Length / 1024)} KB";
 }
 
 public enum XpKind

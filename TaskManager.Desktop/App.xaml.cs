@@ -215,7 +215,7 @@ public partial class App : Application
             return;
         }
 
-        _main = new MainWindow(_tasks, _settings)
+        _main = new MainWindow(_tasks, _settings, _syncing)
         {
             Icon = TrayIconHost.CreateWindowIcon(),
         };
