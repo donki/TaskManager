@@ -38,6 +38,9 @@ public sealed class SyncCoordinator : IDisposable
     /// <summary>Ronda de fondo con la aplicacion delante. Ni tan corta que moleste ni tan larga que se note.</summary>
     private static readonly TimeSpan Interval = TimeSpan.FromMinutes(3);
 
+    /// <summary>Lo que espera el boton de refrescar a que termine la sincronizacion que hubiera.</summary>
+    private static readonly TimeSpan GateWait = TimeSpan.FromSeconds(30);
+
     /// <summary>De quien es lo que ya se subio entero. Vacio = todavia de nadie.</summary>
     private const string KeyBackfilledFor = "sync.backfilled_for";
 
@@ -156,6 +159,43 @@ public sealed class SyncCoordinator : IDisposable
             return;
         }
 
+        await RunAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Sincronizacion <b>pedida por el usuario</b> (el boton de refrescar). Espera su turno.
+    /// </summary>
+    /// <remarks>
+    /// <para>La diferencia con <see cref="SyncNowAsync"/> es lo que pasa cuando ya hay una en
+    /// marcha. Ahi se apunta «hay que repetir» y se vuelve <b>en el acto</b>, que esta bien para una
+    /// ronda automatica —da igual quien la haga— pero es justo lo contrario de lo que hace falta
+    /// aqui: la pantalla repintaba los mismos datos de antes y parecia que el boton no hacia nada.
+    /// Y era verdad que no hacia nada.</para>
+    ///
+    /// <para>Ahora espera a que termine la que hay (con un tope, para no dejar el boton colgado si
+    /// algo se atasca) y entonces hace la suya. Al volver, lo que se pinte ya es lo nuevo.</para>
+    /// </remarks>
+    public async Task RefreshNowAsync(CancellationToken cancellationToken = default)
+    {
+        if (_disposed || !_sync.IsConfigured || !_auth.IsSignedIn)
+        {
+            return;
+        }
+
+        if (!await _gate.WaitAsync(GateWait, cancellationToken).ConfigureAwait(false))
+        {
+            // La de antes sigue ahi. Se apunta para que se repita al acabar, que es lo unico que
+            // queda por hacer sin dejar la pantalla esperando mas.
+            _again = true;
+            return;
+        }
+
+        await RunAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Lo que hace una sincronizacion, con el turno ya tomado.</summary>
+    private async Task RunAsync(CancellationToken cancellationToken)
+    {
         try
         {
             do

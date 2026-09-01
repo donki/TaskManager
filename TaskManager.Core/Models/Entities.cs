@@ -86,14 +86,14 @@ public class TaskItem
     public string Notes { get; set; } = string.Empty;
 
     /// <summary>
-    /// Va por delante de todo lo demas, ordenando.
+    /// Anclada: se queda arriba del todo, por encima de cualquier otro orden.
     /// </summary>
     /// <remarks>
-    /// Es lo que hace falta cuando la lista es larga y hay dos o tres cosas que de verdad no pueden
-    /// esperar: subirlas a mano funciona hasta que llega la siguiente tarea nueva. Entre varias
-    /// prioritarias manda el vencimiento, y sin vencimiento, la mas reciente.
+    /// Es lo que hace falta cuando la lista es larga y hay dos o tres cosas que no pueden esperar:
+    /// subirlas a mano funciona hasta que llega la siguiente tarea nueva y las empuja. Entre varias
+    /// ancladas manda el vencimiento y, sin vencimiento, la mas reciente.
     /// </remarks>
-    public bool IsPriority { get; set; }
+    public bool IsPinned { get; set; }
 
     public bool IsDone { get; set; }
 

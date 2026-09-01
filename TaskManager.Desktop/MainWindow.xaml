@@ -86,10 +86,10 @@
                                         ToolTip="{loc:T BulkDone}" Click="OnBulkDoneClick" />
                                 <Button Style="{StaticResource RowIconButton}" Content="&#xE7A7;"
                                         ToolTip="{loc:T BulkPending}" Click="OnBulkPendingClick" />
-                                <Button Style="{StaticResource RowIconButton}" Content="&#xE735;"
-                                        ToolTip="{loc:T BulkPriorityOn}" Click="OnBulkPriorityOnClick" />
-                                <Button Style="{StaticResource RowIconButton}" Content="&#xE734;"
-                                        ToolTip="{loc:T BulkPriorityOff}" Click="OnBulkPriorityOffClick" />
+                                <Button Style="{StaticResource RowIconButton}" Content="&#xE718;"
+                                        ToolTip="{loc:T BulkPinOn}" Click="OnBulkPinOnClick" />
+                                <Button Style="{StaticResource RowIconButton}" Content="&#xE77A;"
+                                        ToolTip="{loc:T BulkPinOff}" Click="OnBulkPinOffClick" />
                                 <Button Style="{StaticResource RowIconButton}" Content="&#xE1CB;"
                                         ToolTip="{loc:T BulkTag}" Click="OnBulkTagClick" />
                                 <Button Style="{StaticResource RowIconButton}" Content="&#xE8DE;"
@@ -116,7 +116,7 @@
                             <DataTemplate>
                                 <Border Style="{StaticResource Card}" Margin="4,0,4,8">
                                     <Grid ColumnDefinitions="Auto,*,Auto">
-                                        <CheckBox Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"
+                                        <CheckBox Style="{StaticResource CheckBoxBaseStyle}" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"
                                                   IsChecked="{Binding IsDone, Mode=OneWay}"
                                                   Tag="{Binding Id}" Click="OnTaskToggled" />
 
@@ -209,10 +209,10 @@
                                             ToolTip="{loc:T BulkDone}" Click="OnBulkDoneClick" />
                                     <Button Style="{StaticResource RowIconButton}" Content="&#xE7A7;"
                                             ToolTip="{loc:T BulkPending}" Click="OnBulkPendingClick" />
-                                    <Button Style="{StaticResource RowIconButton}" Content="&#xE735;"
-                                            ToolTip="{loc:T BulkPriorityOn}" Click="OnBulkPriorityOnClick" />
-                                    <Button Style="{StaticResource RowIconButton}" Content="&#xE734;"
-                                            ToolTip="{loc:T BulkPriorityOff}" Click="OnBulkPriorityOffClick" />
+                                    <Button Style="{StaticResource RowIconButton}" Content="&#xE718;"
+                                            ToolTip="{loc:T BulkPinOn}" Click="OnBulkPinOnClick" />
+                                    <Button Style="{StaticResource RowIconButton}" Content="&#xE77A;"
+                                            ToolTip="{loc:T BulkPinOff}" Click="OnBulkPinOffClick" />
                                     <Button Style="{StaticResource RowIconButton}" Content="&#xE1CB;"
                                             ToolTip="{loc:T BulkTag}" Click="OnBulkTagClick" />
                                     <Button Style="{StaticResource RowIconButton}" Content="&#xE8DE;"
@@ -239,7 +239,7 @@
                                 <DataTemplate>
                                     <Border Style="{StaticResource Card}" Margin="0,0,4,8">
                                         <Grid ColumnDefinitions="Auto,*,Auto">
-                                            <CheckBox Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"
+                                            <CheckBox Style="{StaticResource CheckBoxBaseStyle}" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"
                                                       IsChecked="{Binding IsDone, Mode=OneWay}"
                                                       Tag="{Binding Id}" Click="OnTaskToggled" />
 

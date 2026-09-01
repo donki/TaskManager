@@ -187,17 +187,17 @@ public sealed class TaskRepository
         return touched;
     }
 
-    public async Task<int> SetPriorityAsync(IEnumerable<Guid> ids, bool priority)
+    public async Task<int> SetPinnedAsync(IEnumerable<Guid> ids, bool pinned)
     {
         var touched = 0;
         foreach (var task in await LoadAsync(ids).ConfigureAwait(false))
         {
-            if (task.IsPriority == priority)
+            if (task.IsPinned == pinned)
             {
                 continue;
             }
 
-            task.IsPriority = priority;
+            task.IsPinned = pinned;
             await UpdateTaskAsync(task).ConfigureAwait(false);
             touched++;
         }
@@ -294,9 +294,9 @@ public sealed class TaskRepository
             query = query.Where(t => !t.IsDone);
         }
 
-        // Mismo criterio que en «Mis tareas»: las prioritarias arriba del todo.
+        // Mismo criterio que en «Mis tareas»: las ancladas arriba del todo.
         var tasks = await query.OrderBy(t => t.IsDone)
-                               .ThenByDescending(t => t.IsPriority)
+                               .ThenByDescending(t => t.IsPinned)
                                .ThenBy(t => t.SortOrder)
                                .ThenByDescending(t => t.CreatedAt)
                                .ToListAsync().ConfigureAwait(false);
@@ -505,17 +505,17 @@ public sealed class TaskRepository
 
         tasks = FilterByTag(tasks, tag)
             .Where(t => TaskFilters.Matches(t, filter, today))
-            // Las prioritarias, primero y siempre; entre ellas manda el vencimiento y, sin
-            // vencimiento, la mas reciente. Va por delante incluso del orden manual: marcar algo
-            // como prioritario es decir «esto por encima de todo», y tener que ademas arrastrarlo
-            // hasta arriba seria decirlo dos veces.
+            // Las ancladas, arriba del todo y siempre; entre ellas manda el vencimiento y, sin
+            // vencimiento, la mas reciente. Va por delante incluso del orden manual: anclar algo es
+            // decir «esto arriba», y tener que ademas arrastrarlo hasta arriba seria decirlo dos
+            // veces.
             //
             // Despues, el orden manual ANTES que el plazo: donde se puede arrastrar, lo que el
             // usuario coloca a mano tiene que quedarse donde lo puso. Con el plazo por delante,
             // arrastrar parecia funcionar y a la siguiente recarga la fila volvia a su sitio.
             .OrderBy(t => t.IsDone)
-            .ThenByDescending(t => t.IsPriority)
-            .ThenBy(t => t.IsPriority ? t.DueAt ?? DateTime.MaxValue : DateTime.MinValue)
+            .ThenByDescending(t => t.IsPinned)
+            .ThenBy(t => t.IsPinned ? t.DueAt ?? DateTime.MaxValue : DateTime.MinValue)
             .ThenBy(t => t.SortOrder)
             .ThenBy(t => t.DueAt ?? DateTime.MaxValue)
             .ThenByDescending(t => t.CreatedAt)

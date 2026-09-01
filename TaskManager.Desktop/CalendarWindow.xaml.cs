@@ -177,7 +177,7 @@ public partial class CalendarWindow : Window
         foreach (var task in _byDay.TryGetValue(date, out var list) ? list : [])
         {
             _rows.Add(new DayTaskRow(
-                task.IsPriority ? "★ " + task.Title : task.Title,
+                task.IsPinned ? "📌 " + task.Title : task.Title,
                 _listNames.GetValueOrDefault(task.ListId, string.Empty)));
         }
 

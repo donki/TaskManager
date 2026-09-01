@@ -165,7 +165,7 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
 
-                                    <CheckBox Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"
+                                    <CheckBox Style="{StaticResource CheckBoxBaseStyle}" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"
                                               IsChecked="{Binding IsDone, Mode=OneWay}"
                                               Checked="OnTaskChecked" Unchecked="OnTaskUnchecked"
                                               Tag="{Binding Id}" />

@@ -229,7 +229,7 @@ public partial class MainWindow : Window
         {
             if (_syncing is not null)
             {
-                await _syncing.SyncNowAsync();
+                await _syncing.RefreshNowAsync();
             }
 
             await ReloadAsync();
@@ -694,11 +694,11 @@ public partial class MainWindow : Window
         await ReloadAsync();
     }
 
-    private async void OnBulkPriorityOnClick(object sender, RoutedEventArgs e) => await SetPriorityAsync(true);
+    private async void OnBulkPinOnClick(object sender, RoutedEventArgs e) => await SetPinnedAsync(true);
 
-    private async void OnBulkPriorityOffClick(object sender, RoutedEventArgs e) => await SetPriorityAsync(false);
+    private async void OnBulkPinOffClick(object sender, RoutedEventArgs e) => await SetPinnedAsync(false);
 
-    private async Task SetPriorityAsync(bool priority)
+    private async Task SetPinnedAsync(bool pinned)
     {
         var ids = SelectedIds();
         if (ids.Count == 0)
@@ -706,7 +706,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        await _tasks.Repository.SetPriorityAsync(ids, priority);
+        await _tasks.Repository.SetPinnedAsync(ids, pinned);
         await ReloadAsync();
     }
 
@@ -885,7 +885,7 @@ public partial class MainWindow : Window
 
             // La estrella delante en vez de una columna aparte: la fila ya tiene casilla, texto y
             // lapiz, y una cuarta pieza vacia en casi todas las filas solo estrecharia el titulo.
-            Title = task.IsPriority ? "★ " + task.Title : task.Title;
+            Title = task.IsPinned ? "📌 " + task.Title : task.Title;
             IsDone = task.IsDone;
 
             var parts = new List<string>();
