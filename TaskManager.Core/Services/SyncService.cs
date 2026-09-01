@@ -23,7 +23,7 @@ public interface ISyncService
     Task PullAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Crea el grupo en el servidor y devuelve su codigo de union.</summary>
-    Task<string> CreateGroupAsync(string name, string sharedKey, CancellationToken cancellationToken = default);
+    Task<string> CreateGroupAsync(Guid id, string name, string sharedKey, CancellationToken cancellationToken = default);
 
     /// <summary>Canjea codigo + clave compartida por pertenencia. Devuelve el id del grupo.</summary>
     Task<Guid> JoinGroupAsync(string joinCode, string sharedKey, CancellationToken cancellationToken = default);
@@ -53,7 +53,7 @@ public sealed class LocalOnlySyncService : ISyncService
     /// En local el grupo existe igual (para poder montar listas y probar la interfaz), pero el
     /// codigo lo genera el dispositivo y la clave no protege nada hasta que haya servidor.
     /// </summary>
-    public Task<string> CreateGroupAsync(string name, string sharedKey, CancellationToken cancellationToken = default)
+    public Task<string> CreateGroupAsync(Guid id, string name, string sharedKey, CancellationToken cancellationToken = default)
     {
         const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
         var code = new string(Enumerable.Range(0, 6).Select(_ => alphabet[Random.Shared.Next(alphabet.Length)]).ToArray());
