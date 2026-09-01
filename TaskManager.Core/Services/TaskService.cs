@@ -68,7 +68,14 @@ public sealed class TaskService
     // Completar
     // -----------------------------------------------------------------------
 
-    public async Task<Celebration?> CompleteTaskAsync(TaskItem task)
+    public Task<Celebration?> CompleteTaskAsync(TaskItem task) => CompleteTaskAsync(task, announce: true);
+
+    /// <param name="announce">
+    /// Si se avisa a la pantalla para que celebre. En una seleccion multiple se apaga y se celebra
+    /// una sola vez al final: doce confetis seguidos por doce tareas marcadas de golpe no premian,
+    /// estorban. El XP se suma igual en las doce.
+    /// </param>
+    private async Task<Celebration?> CompleteTaskAsync(TaskItem task, bool announce)
     {
         if (task.IsDone)
         {
@@ -88,8 +95,45 @@ public sealed class TaskService
         await CreateNextOccurrenceAsync(task).ConfigureAwait(false);
 
         var celebration = await AwardAsync(XpRules.Task, XpKind.Task, task).ConfigureAwait(false);
-        Celebrated?.Invoke(this, celebration);
+        if (announce)
+        {
+            Celebrated?.Invoke(this, celebration);
+        }
+
         return celebration;
+    }
+
+    /// <summary>Marca hechas varias tareas de una vez, con una sola celebracion al final.</summary>
+    public async Task<Celebration?> CompleteManyAsync(IEnumerable<Guid> ids)
+    {
+        Celebration? last = null;
+
+        foreach (var id in ids.Distinct())
+        {
+            if (await _repository.GetTaskAsync(id).ConfigureAwait(false) is { IsDone: false } task)
+            {
+                last = await CompleteTaskAsync(task, announce: false).ConfigureAwait(false) ?? last;
+            }
+        }
+
+        if (last is not null)
+        {
+            Celebrated?.Invoke(this, last);
+        }
+
+        return last;
+    }
+
+    /// <summary>Devuelve a pendientes varias tareas. No resta XP, igual que desmarcar una sola.</summary>
+    public async Task UncompleteManyAsync(IEnumerable<Guid> ids)
+    {
+        foreach (var id in ids.Distinct())
+        {
+            if (await _repository.GetTaskAsync(id).ConfigureAwait(false) is { IsDone: true } task)
+            {
+                await UncompleteTaskAsync(task).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <summary>

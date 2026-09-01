@@ -24,6 +24,8 @@ public partial class SettingsWindow : Window
 
         HotkeyBox.Text = settings.Get(SettingsService.KeyHotkey, "Ctrl+Alt+T");
 
+        Services.ThemeManager.StyleTitleBar(this);
+
         FillLanguages();
         NotifyBox.IsChecked = settings.NotificationsEnabled;
         FillSnooze();

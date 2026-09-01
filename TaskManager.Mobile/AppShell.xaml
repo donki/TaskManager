@@ -52,14 +52,15 @@
                     <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnListsTapped" /></Grid.GestureRecognizers>
                 </Grid>
 
-                <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                <!-- Grupos y gremio: ocultos mientras FeatureOptions.GroupsEnabled sea false. -->
+                <Grid x:Name="GroupsMenuRow" ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
                     <Image Grid.Column="0" Source="ic_group.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
                     <Label Grid.Column="1" Text="{loc:T MenuGroups}" VerticalOptions="Center" FontSize="16"
                            TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
                     <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnGroupsTapped" /></Grid.GestureRecognizers>
                 </Grid>
 
-                <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                <Grid x:Name="BoardMenuRow" ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
                     <Image Grid.Column="0" Source="ic_board.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
                     <Label Grid.Column="1" Text="{loc:T MenuBoard}" VerticalOptions="Center" FontSize="16"
                            TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />

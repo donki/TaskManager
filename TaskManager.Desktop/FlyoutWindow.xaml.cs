@@ -19,6 +19,10 @@ public partial class FlyoutWindow : Window
     private readonly TaskService _tasks;
     private readonly SettingsService _settings;
     private readonly ObservableCollection<TaskRow> _rows = [];
+
+    /// <summary>Etiqueta por la que se esta acotando, o null si se ven todas.</summary>
+    private string? _activeTag;
+    private string? _search;
     private readonly Dictionary<Guid, string> _listNames = [];
 
     private bool _closingForReal;
@@ -130,7 +134,11 @@ public partial class FlyoutWindow : Window
 
         // Lo que queda por hacer, de todas las listas. Antes era «Mi Día» —solo lo marcado
         // para hoy—, que ya no existe: obligaba a acordarse de marcar cada tarea para verla.
-        var tasks = await _tasks.Repository.GetAllTasksAsync(TaskManager.Core.Models.TaskFilter.Pending);
+        await RefreshTagFilterAsync();
+
+        // Solo lo pendiente: el panel rapido es para lo que queda por hacer, no un archivo.
+        var tasks = await _tasks.Repository.GetAllTasksAsync(
+            TaskManager.Core.Models.TaskFilter.Pending, _activeTag, _search);
         _rows.Clear();
         foreach (var task in tasks)
         {
@@ -209,6 +217,131 @@ public partial class FlyoutWindow : Window
         QuickAdd.Text = string.Empty;
         await ReloadAsync();
         return task;
+    }
+
+    /// <summary>Busca al escribir, en todo el texto de la tarea.</summary>
+    private async void OnSearchChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        _search = SearchBox.Text;
+        await ReloadAsync();
+    }
+
+    private void OnClearSearchClick(object sender, RoutedEventArgs e) => SearchBox.Clear();
+
+    /// <summary>
+    /// Pinta las etiquetas que hay en uso, para acotar el panel sin salir de el.
+    /// </summary>
+    /// <remarks>
+    /// Se rehace en cada recarga porque la ultima tarea que llevaba una etiqueta puede haberse
+    /// completado, y entonces esa etiqueta ya no tiene nada pendiente detras.
+    /// </remarks>
+    private async Task RefreshTagFilterAsync()
+    {
+        var tags = await _tasks.Repository.GetTagsAsync();
+
+        TagFilterScroll.Visibility = tags.Count == 0
+            ? System.Windows.Visibility.Collapsed
+            : System.Windows.Visibility.Visible;
+
+        TagFilterBox.Children.Clear();
+
+        if (tags.Count == 0)
+        {
+            _activeTag = null;
+            return;
+        }
+
+        if (_activeTag is not null && _activeTag != TaskManager.Core.Data.TaskRepository.NoTag &&
+            !tags.Contains(_activeTag, StringComparer.CurrentCultureIgnoreCase))
+        {
+            _activeTag = null;
+        }
+
+        TagFilterBox.Children.Add(BuildTagChip(Localization.Loc.Get("AllTags"), null));
+        TagFilterBox.Children.Add(BuildTagChip(
+            Localization.Loc.Get("NoTagFilter"), TaskManager.Core.Data.TaskRepository.NoTag));
+        foreach (var tag in tags)
+        {
+            TagFilterBox.Children.Add(BuildTagChip($"#{tag}", tag));
+        }
+    }
+
+    private System.Windows.Controls.Primitives.ToggleButton BuildTagChip(string text, string? tag)
+    {
+        var chip = new System.Windows.Controls.Primitives.ToggleButton
+        {
+            Content = text,
+            Style = (System.Windows.Style)FindResource("Chip"),
+            IsChecked = string.Equals(_activeTag, tag, StringComparison.CurrentCultureIgnoreCase),
+        };
+
+        chip.Click += async (_, _) =>
+        {
+            _activeTag = tag;
+            await ReloadAsync();
+        };
+
+        return chip;
+    }
+
+    /// <summary>
+    /// Abre el detalle de la tarea desde el panel rapido.
+    /// </summary>
+    /// <remarks>
+    /// <para>El panel es para lo rapido —marcar hecho y escribir una tarea nueva—, pero hasta ahora
+    /// no habia forma de <b>abrir</b> nada desde el: para cambiar una fecha o mirar los pasos
+    /// tocaba ir a la ventana principal.</para>
+    ///
+    /// <para>Se abre por el lapiz y por doble clic. El lapiz no sobra: esta lista se reordena
+    /// arrastrando, y el arrastre y el doble clic se pisan con facilidad.</para>
+    /// </remarks>
+    private async void OnOpenTaskClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Button { Tag: Guid id })
+        {
+            await OpenTaskAsync(id);
+        }
+    }
+
+    private async void OnTaskDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        var source = e.OriginalSource as DependencyObject;
+
+        while (source is not null and not System.Windows.Controls.ListBoxItem)
+        {
+            source = System.Windows.Media.VisualTreeHelper.GetParent(source);
+        }
+
+        if (source is System.Windows.Controls.ListBoxItem { Content: { } row }
+            && row.GetType().GetProperty("Id")?.GetValue(row) is Guid id)
+        {
+            await OpenTaskAsync(id);
+        }
+    }
+
+    private async Task OpenTaskAsync(Guid id)
+    {
+        var task = await _tasks.Repository.GetTaskAsync(id);
+        if (task is null)
+        {
+            return;
+        }
+
+        // El panel se esconde al perder el foco: se esconde antes a proposito, para que no
+        // desaparezca por debajo justo cuando se abre el detalle.
+        HideFlyout();
+
+        var window = new TaskDetailWindow(_tasks, task)
+        {
+            Icon = Services.TrayIconHost.CreateWindowIcon(),
+        };
+
+        window.ShowDialog();
+
+        if (window.Changed)
+        {
+            await ReloadAsync();
+        }
     }
 
     private async void OnTaskChecked(object sender, RoutedEventArgs e)
@@ -379,7 +512,7 @@ public partial class FlyoutWindow : Window
         public TaskRow(TaskItem task, string listName)
         {
             Id = task.Id;
-            Title = task.Title;
+            Title = task.IsPriority ? "★ " + task.Title : task.Title;
             IsDone = task.IsDone;
             ListName = listName;
             StepsCaption = task.StepCount > 0 ? $"{task.StepsDone}/{task.StepCount} pasos" : string.Empty;

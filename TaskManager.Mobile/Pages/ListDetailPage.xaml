@@ -12,7 +12,7 @@
     </ContentPage.ToolbarItems>
 
     <Grid>
-        <Grid RowDefinitions="Auto,*">
+        <Grid RowDefinitions="Auto,Auto,*">
 
             <!-- Captura rapida dentro de la lista -->
             <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="8" Padding="16,12,16,8">
@@ -27,8 +27,16 @@
                              Clicked="OnAddClicked" />
             </Grid>
 
+            <!-- Buscador: mira en todo el texto de la tarea. -->
+            <Border Grid.Row="1" Style="{StaticResource Card}" Padding="12,0" Margin="16,0,16,8">
+                <Entry x:Name="SearchEntry"
+                       Placeholder="{loc:T SearchPlaceholder}"
+                       ClearButtonVisibility="WhileEditing"
+                       TextChanged="OnSearchChanged" />
+            </Border>
+
             <!-- Se ordena arrastrando: manten pulsada una tarea y subela o bajala. -->
-            <CollectionView Grid.Row="1" x:Name="TasksView" SelectionMode="None" Margin="8,0,8,8"
+            <CollectionView Grid.Row="2" x:Name="TasksView" SelectionMode="None" Margin="8,0,8,8"
                             CanReorderItems="True" ReorderCompleted="OnReorderCompleted">
 
                 <CollectionView.EmptyView>

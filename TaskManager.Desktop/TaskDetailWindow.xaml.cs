@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using System.Collections.ObjectModel;
@@ -31,7 +32,18 @@ public partial class TaskDetailWindow : Window
     private readonly TaskItem _task;
 
     private readonly ObservableCollection<StepRow> _steps = [];
+    private readonly ObservableCollection<AttachmentRow> _attachments = [];
     private readonly List<TaskList> _lists = [];
+
+    /// <summary>
+    /// Las etiquetas de la tarea. <b>Es la unica fuente de verdad</b>: la interfaz se pinta a partir
+    /// de aqui y nunca al reves. Antes se leian de vuelta del arbol visual, y bastaba con que una
+    /// pastilla no estuviera todavia creada para guardar la lista equivocada.
+    /// </summary>
+    private readonly List<string> _tags = [];
+
+    /// <summary>Las etiquetas que existen en otras tareas, para poder reutilizarlas.</summary>
+    private readonly List<string> _knownTags = [];
 
     private int _interval = 1;
     private byte _days;
@@ -51,11 +63,16 @@ public partial class TaskDetailWindow : Window
             T("RepeatNever"), T("RepeatDaily"), T("RepeatWeekly"), T("RepeatMonthly"), T("RepeatYearly"),
         };
 
+        Services.ThemeManager.StyleTitleBar(this);
+
         StepsBox.ItemsSource = _steps;
+        AttachmentsBox.ItemsSource = _attachments;
 
         Fill();
         _ = LoadListsAsync();
+        _ = LoadKnownTagsAsync();
         _ = ReloadStepsAsync();
+        _ = ReloadAttachmentsAsync();
     }
 
     /// <summary>Si algo cambio, para que quien abrio la ventana sepa si tiene que releer.</summary>
@@ -69,9 +86,12 @@ public partial class TaskDetailWindow : Window
     private void Fill()
     {
         DoneCheck.IsChecked = _task.IsDone;
+        PriorityCheck.IsChecked = _task.IsPriority;
         TitleBox.Text = _task.Title;
         NotesBox.Text = _task.Notes;
-        ShowTags(TaskTags.Split(_task.Tags));
+        _tags.Clear();
+        _tags.AddRange(TaskTags.Split(_task.Tags));
+        ShowTags();
 
         // Fecha y hora por separado: el DatePicker guarda el dia y el TimePicker la hora, y al
         // guardar se juntan. Una tarea que vence "el martes a las 9" no cabe en solo una fecha.
@@ -130,57 +150,125 @@ public partial class TaskDetailWindow : Window
         return d.Date.Add(t.TimeOfDay);
     }
 
-    /// <summary>Las etiquetas que hay ahora mismo en el contenedor.</summary>
-    private List<string> CurrentTags() =>
-        [.. TagsContainer.Items.OfType<HandyControl.Controls.Tag>()
-                               .Select(t => t.Content?.ToString() ?? string.Empty)
-                               .Where(t => t.Length > 0)];
-
     /// <summary>
-    /// Pinta las etiquetas de la tarea como pastillas con aspa.
+    /// Pinta las etiquetas de la tarea y las que existen en otras.
     /// </summary>
     /// <remarks>
-    /// Es el <c>TagContainer</c> de HandyControl (constitucion Anexo B.2). Antes era un campo de
-    /// texto con comas y una fila de pastillas hecha a mano: dos sitios donde mirar y un espacio de
-    /// mas creaba una etiqueta distinta.
+    /// Dos filas con papeles distintos: arriba, las de <b>esta</b> tarea, cada una con su aspa para
+    /// quitarla (<c>TagContainer</c> de HandyControl). Debajo, las que ya existen en <b>otras</b>
+    /// tareas, para ponerlas de un clic sin reescribirlas ni tener que acordarse de como estaban
+    /// escritas — que es lo que evita acabar con «casa», «Casa» y «casaa» como tres etiquetas.
     /// </remarks>
-    private void ShowTags(IEnumerable<string> tags)
+    private void ShowTags()
     {
         TagsContainer.Items.Clear();
 
-        foreach (var tag in tags)
+        foreach (var tag in _tags)
         {
+            // Colores explicitos: el Tag de HandyControl viene con su propio fondo claro, y sobre
+            // el, el texto —que hereda el color del tema oscuro de la aplicacion— quedaba blanco
+            // sobre blanco. Se veia la pastilla y el aspa, pero no lo que ponia.
             var chip = new HandyControl.Controls.Tag
             {
                 Content = tag,
                 ShowCloseButton = true,
                 Margin = new Thickness(0, 0, 6, 6),
+                Background = (System.Windows.Media.Brush)FindResource("Primary"),
+                Foreground = System.Windows.Media.Brushes.White,
+                BorderThickness = new Thickness(0),
             };
 
-            chip.Closed += (sender, _) => TagsContainer.Items.Remove(sender);
+            var captured = tag;
+            chip.Closed += (_, _) =>
+            {
+                _tags.RemoveAll(t => string.Equals(t, captured, StringComparison.CurrentCultureIgnoreCase));
+                ShowTags();
+                PaintKnownTags();
+            };
+
             TagsContainer.Items.Add(chip);
         }
     }
 
-    /// <summary>Enter en la caja da de alta la etiqueta escrita y limpia la caja.</summary>
-    private void OnNewTagKeyDown(object sender, KeyEventArgs e)
+    /// <summary>Añade lo escrito en la caja, si es que hay algo.</summary>
+    private void AddWrittenTags()
     {
-        if (e.Key != Key.Enter)
-        {
-            return;
-        }
-
         var written = TaskTags.Split(TaskTags.FromInput(TagsBox.Text));
         if (written.Count == 0)
         {
             return;
         }
 
-        var all = CurrentTags();
-        all.AddRange(written);
+        foreach (var tag in written)
+        {
+            Toggle(tag, add: true);
+        }
 
-        ShowTags(TaskTags.Split(TaskTags.Join(all)));
         TagsBox.Text = string.Empty;
+        ShowTags();
+        PaintKnownTags();
+    }
+
+    /// <summary>Pone o quita una etiqueta, sin duplicar y sin distinguir mayusculas.</summary>
+    private void Toggle(string tag, bool? add = null)
+    {
+        var has = _tags.Any(t => string.Equals(t, tag, StringComparison.CurrentCultureIgnoreCase));
+        var wanted = add ?? !has;
+
+        if (wanted && !has)
+        {
+            _tags.Add(tag);
+        }
+        else if (!wanted && has)
+        {
+            _tags.RemoveAll(t => string.Equals(t, tag, StringComparison.CurrentCultureIgnoreCase));
+        }
+    }
+
+    private void OnAddTagClick(object sender, RoutedEventArgs e) => AddWrittenTags();
+
+    private void OnNewTagKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            AddWrittenTags();
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>Carga las etiquetas que existen en otras tareas y las pinta como pastillas.</summary>
+    private async Task LoadKnownTagsAsync()
+    {
+        _knownTags.Clear();
+        _knownTags.AddRange(await _tasks.Repository.GetTagsAsync());
+
+        PaintKnownTags();
+    }
+
+    private void PaintKnownTags()
+    {
+        KnownTagsScroll.Visibility = _knownTags.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        KnownTagsBox.Children.Clear();
+
+        foreach (var tag in _knownTags)
+        {
+            var captured = tag;
+            var chip = new System.Windows.Controls.Primitives.ToggleButton
+            {
+                Content = $"#{tag}",
+                Style = (Style)FindResource("Chip"),
+                IsChecked = _tags.Any(t => string.Equals(t, captured, StringComparison.CurrentCultureIgnoreCase)),
+            };
+
+            chip.Click += (_, _) =>
+            {
+                Toggle(captured);
+                ShowTags();
+                PaintKnownTags();
+            };
+
+            KnownTagsBox.Children.Add(chip);
+        }
     }
 
     /// <summary>
@@ -354,6 +442,146 @@ public partial class TaskDetailWindow : Window
     }
 
     // -----------------------------------------------------------------------
+    // Enlaces y ficheros
+    // -----------------------------------------------------------------------
+
+    private async Task ReloadAttachmentsAsync()
+    {
+        var items = await _tasks.Repository.GetAttachmentsAsync(_task.Id);
+
+        _attachments.Clear();
+        foreach (var item in items)
+        {
+            _attachments.Add(new AttachmentRow(item));
+        }
+
+        NoAttachmentsLabel.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private async void OnAddLinkClick(object sender, RoutedEventArgs e)
+    {
+        var url = Prompt.Ask(this, T("AddLinkTooltip"), T("LinkPlaceholder"));
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return;
+        }
+
+        await _tasks.Repository.AddLinkAsync(_task.Id, url);
+        Changed = true;
+        await ReloadAttachmentsAsync();
+    }
+
+    /// <summary>
+    /// Mete un fichero <b>dentro</b> de la tarea.
+    /// </summary>
+    /// <remarks>
+    /// Se guardan los bytes, no la ruta: una ruta de este equipo no significa nada en el movil, y el
+    /// adjunto tiene que viajar con la tarea. Por eso hay tope de tamaño, y si se pasa se dice; a
+    /// medias no se guarda.
+    /// </remarks>
+    private async void OnAddFileClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog { Multiselect = false };
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        try
+        {
+            var info = new FileInfo(dialog.FileName);
+            if (info.Length > TaskAttachment.MaxFileBytes)
+            {
+                Controls.ModernDialog.Alert(this, T("AddFileTooltip"),
+                    Localization.Loc.Format("FileTooBig", TaskAttachment.MaxFileBytes / (1024 * 1024)));
+                return;
+            }
+
+            var bytes = await File.ReadAllBytesAsync(dialog.FileName);
+            await _tasks.Repository.AddFileAsync(_task.Id, dialog.FileName, bytes);
+
+            Changed = true;
+            await ReloadAttachmentsAsync();
+        }
+        catch (Exception ex)
+        {
+            Controls.ModernDialog.Alert(this, T("AddFileTooltip"), ex.Message);
+        }
+    }
+
+    private async void OnDeleteAttachmentClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: Guid id })
+        {
+            return;
+        }
+
+        var item = await _tasks.Repository.GetAttachmentAsync(id);
+        if (item is null)
+        {
+            return;
+        }
+
+        await _tasks.Repository.DeleteAttachmentAsync(item);
+        Changed = true;
+        await ReloadAttachmentsAsync();
+    }
+
+    /// <summary>
+    /// Abre el adjunto: el enlace en el navegador, el fichero con el programa que le toque.
+    /// </summary>
+    /// <remarks>
+    /// El fichero vive en la base de datos, asi que para abrirlo hay que volcarlo antes a disco. Se
+    /// deja en la carpeta temporal del sistema, que es de donde se limpia solo: no es una copia que
+    /// haya que mantener, es lo que hace falta para que el programa de turno pueda leerlo.
+    /// </remarks>
+    private async void OnAttachmentDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        var source = e.OriginalSource as DependencyObject;
+
+        while (source is not null and not System.Windows.Controls.ListBoxItem)
+        {
+            source = System.Windows.Media.VisualTreeHelper.GetParent(source);
+        }
+
+        if (source is not System.Windows.Controls.ListBoxItem { Content: AttachmentRow row })
+        {
+            return;
+        }
+
+        var item = await _tasks.Repository.GetAttachmentAsync(row.Id);
+        if (item is null)
+        {
+            return;
+        }
+
+        try
+        {
+            string target;
+
+            if (item.IsUrl)
+            {
+                target = item.Url;
+            }
+            else
+            {
+                target = Path.Combine(Path.GetTempPath(), "TaskManager", item.Id.ToString("N"), item.Name);
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                await File.WriteAllBytesAsync(target, item.Data ?? []);
+            }
+
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(target)
+            {
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            Controls.ModernDialog.Alert(this, T("Attachments"), ex.Message);
+        }
+    }
+
+    // -----------------------------------------------------------------------
     // Arrastrar para reordenar
     // -----------------------------------------------------------------------
 
@@ -488,7 +716,7 @@ public partial class TaskDetailWindow : Window
             return;
         }
 
-        var written = Prompt.Ask(this, T("EditStepTooltip"), row.Title);
+        var written = Prompt.Ask(this, T("EditStepTooltip"), T("StepPlaceholder"), row.Title);
         if (string.IsNullOrWhiteSpace(written))
         {
             return;
@@ -576,7 +804,8 @@ public partial class TaskDetailWindow : Window
     {
         _task.Title = TitleBox.Text?.Trim() ?? string.Empty;
         _task.Notes = NotesBox.Text?.Trim() ?? string.Empty;
-        _task.Tags = TaskTags.Join(CurrentTags());
+        _task.Tags = TaskTags.Join(_tags);
+        _task.IsPriority = PriorityCheck.IsChecked == true;
 
         _task.DueAt = DueCheck.IsChecked == true ? Combine(DuePicker.SelectedDate, DueTime.SelectedTime) : null;
         _task.PlannedFor = PlannedCheck.IsChecked == true
@@ -623,6 +852,19 @@ public partial class TaskDetailWindow : Window
         Deleted = true;
         Changed = true;
         DialogResult = true;
+    }
+
+    /// <summary>Fila de adjunto lista para pintar, sin logica en el XAML.</summary>
+    private sealed record AttachmentRow(TaskAttachment Item)
+    {
+        public Guid Id => Item.Id;
+
+        public string Name => Item.Name;
+
+        /// <summary>Cadena para el enlace, clip para el fichero: se distinguen de un vistazo.</summary>
+        public string Glyph => Item.IsUrl ? "\uE71B" : "\uE8E5";
+
+        public string Caption => Item.IsUrl ? Item.Url : Item.SizeCaption;
     }
 
     /// <summary>Fila de paso lista para pintar, sin logica en el XAML.</summary>

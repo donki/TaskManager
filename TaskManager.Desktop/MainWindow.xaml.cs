@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using TaskManager.Core.Data;
 using TaskManager.Core.Models;
 using TaskManager.Core.Services;
 
@@ -26,6 +27,9 @@ public partial class MainWindow : Window
     private readonly TaskService _tasks;
     private readonly SettingsService _settings;
 
+    /// <summary>Quien sabe hablar con el servidor. Null si la aplicacion va solo en local.</summary>
+    private readonly SyncCoordinator? _syncing;
+
     private readonly ObservableCollection<ListRow> _lists = [];
     private readonly ObservableCollection<TaskRow> _listTasks = [];
     private readonly ObservableCollection<TaskRow> _allTasks = [];
@@ -33,19 +37,28 @@ public partial class MainWindow : Window
     private readonly Dictionary<Guid, string> _listNames = [];
 
     private TaskFilter _filter = TaskFilters.Default;
+
+    private Point _dragStart;
+    private TaskRow? _dragging;
+    private ListBox? _dragList;
     private string? _activeTag;
+    private string? _search;
+    private string? _listSearch;
     private Guid _selectedList;
 
-    public MainWindow(TaskService tasks, SettingsService settings)
+    public MainWindow(TaskService tasks, SettingsService settings, SyncCoordinator? syncing = null)
     {
         InitializeComponent();
 
         _tasks = tasks;
         _settings = settings;
+        _syncing = syncing;
 
         ListsBox.ItemsSource = _lists;
         ListTasksBox.ItemsSource = _listTasks;
         AllTasksBox.ItemsSource = _allTasks;
+
+        Services.ThemeManager.StyleTitleBar(this);
 
         BuildFilters();
     }
@@ -125,7 +138,7 @@ public partial class MainWindow : Window
     {
         await RefreshTagFilterAsync();
 
-        var tasks = await _tasks.Repository.GetAllTasksAsync(_filter, _activeTag);
+        var tasks = await _tasks.Repository.GetAllTasksAsync(_filter, _activeTag, _search);
 
         _allTasks.Clear();
         foreach (var task in tasks)
@@ -133,10 +146,16 @@ public partial class MainWindow : Window
             _allTasks.Add(new TaskRow(task, _listNames.GetValueOrDefault(task.ListId, string.Empty)));
         }
 
-        FilterLabel.Text = _activeTag is null
-            ? T(TaskFilters.KeyOf(_filter))
-            : $"{T(TaskFilters.KeyOf(_filter))}  ·  #{_activeTag}";
+        FilterLabel.Text = _activeTag switch
+        {
+            null => T(TaskFilters.KeyOf(_filter)),
+            TaskRepository.NoTag => $"{T(TaskFilters.KeyOf(_filter))}  ·  {T("NoTagFilter")}",
+            _ => $"{T(TaskFilters.KeyOf(_filter))}  ·  #{_activeTag}",
+        };
         SummaryLabel.Text = tasks.Count == 1 ? T("TaskCountOne") : F("TaskCount", tasks.Count);
+        NoTasksLabel.Text = string.IsNullOrWhiteSpace(_search)
+            ? T("NoTasksForFilter")
+            : F("NoSearchResults", _search);
         NoTasksLabel.Visibility = tasks.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -157,12 +176,15 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (_activeTag is not null && !tags.Contains(_activeTag, StringComparer.CurrentCultureIgnoreCase))
+        if (_activeTag is not null && _activeTag != TaskRepository.NoTag &&
+            !tags.Contains(_activeTag, StringComparer.CurrentCultureIgnoreCase))
         {
             _activeTag = null;
         }
 
         TagFilterBox.Children.Add(BuildTagChip(T("AllTags"), null));
+        TagFilterBox.Children.Add(BuildTagChip(T("NoTagFilter"), TaskRepository.NoTag));
+
         foreach (var tag in tags)
         {
             TagFilterBox.Children.Add(BuildTagChip($"#{tag}", tag));
@@ -187,6 +209,56 @@ public partial class MainWindow : Window
 
         return chip;
     }
+
+    /// <summary>
+    /// Sincroniza y vuelve a leerlo todo, a peticion.
+    /// </summary>
+    /// <remarks>
+    /// El coordinador ya sincroniza solo —al abrir, al cambiar algo y cada pocos minutos— y la
+    /// ventana se relee cuando eso trae novedades. Pero entre ronda y ronda pueden pasar minutos, y
+    /// quien acaba de escribir una tarea en el movil quiere verla <b>ahora</b>, no cuando toque.
+    /// </remarks>
+    private async void OnRefreshClick(object sender, RoutedEventArgs e)
+    {
+        RefreshButton.IsEnabled = false;
+
+        try
+        {
+            if (_syncing is not null)
+            {
+                await _syncing.SyncNowAsync();
+            }
+
+            await ReloadAsync();
+        }
+        finally
+        {
+            RefreshButton.IsEnabled = true;
+        }
+    }
+
+    /// <summary>
+    /// Busca al escribir, en todo el texto de la tarea (titulo, notas, etiquetas, pasos y adjuntos).
+    /// </summary>
+    /// <remarks>
+    /// Sin boton de buscar y sin esperar a pulsar Enter: la lista es local y la consulta es
+    /// instantanea, asi que hacer pulsar un boton solo añadiria un paso.
+    /// </remarks>
+    private async void OnSearchChanged(object sender, TextChangedEventArgs e)
+    {
+        _search = SearchBox.Text;
+        await ReloadAllTasksAsync();
+    }
+
+    private void OnClearSearchClick(object sender, RoutedEventArgs e) => SearchBox.Clear();
+
+    private async void OnListSearchChanged(object sender, TextChangedEventArgs e)
+    {
+        _listSearch = ListSearchBox.Text;
+        await ReloadListTasksAsync();
+    }
+
+    private void OnClearListSearchClick(object sender, RoutedEventArgs e) => ListSearchBox.Clear();
 
     private async void OnQuickAddClick(object sender, RoutedEventArgs e) => await QuickAddAsync();
 
@@ -273,7 +345,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        foreach (var task in await _tasks.Repository.GetTasksAsync(_selectedList))
+        foreach (var task in await _tasks.Repository.GetTasksAsync(_selectedList, search: _listSearch))
         {
             _listTasks.Add(new TaskRow(task, string.Empty));
         }
@@ -287,6 +359,50 @@ public partial class MainWindow : Window
             await _tasks.Repository.CreateListAsync(name);
             await ReloadListsAsync();
         }
+    }
+
+    /// <summary>
+    /// Cambia el nombre de una lista. Se llega por el lapiz o por doble clic sobre ella.
+    /// </summary>
+    /// <remarks>
+    /// Faltaba: se podian crear y borrar listas, pero no renombrarlas — en el movil si se podia
+    /// desde el detalle de la lista. Una lista mal llamada solo se podia arreglar creando otra y
+    /// mudando las tareas a mano.
+    /// </remarks>
+    private async void OnRenameListClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Button { Tag: Guid id })
+        {
+            await RenameListAsync(id);
+        }
+    }
+
+    private async void OnListDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (ListsBox.SelectedItem is ListRow row)
+        {
+            await RenameListAsync(row.Id);
+        }
+    }
+
+    private async Task RenameListAsync(Guid id)
+    {
+        var list = await _tasks.Repository.GetListAsync(id);
+        if (list is null)
+        {
+            return;
+        }
+
+        var name = Prompt.Ask(this, T("RenameListTitle"), T("ListNamePlaceholder"), list.Name);
+        if (string.IsNullOrWhiteSpace(name) || name.Trim() == list.Name)
+        {
+            return;
+        }
+
+        list.Name = name.Trim();
+        await _tasks.Repository.UpdateListAsync(list);
+
+        await ReloadAsync();
     }
 
     /// <summary>
@@ -413,7 +529,258 @@ public partial class MainWindow : Window
     }
 
     // =======================================================================
+    // Arrastrar para reordenar
+    // =======================================================================
+
+    /// <summary>
+    /// Reordenar arrastrando, igual que en el panel rapido y que en el movil.
+    /// </summary>
+    /// <remarks>
+    /// <para>Las dos listas comparten los mismos manejadores: el que se este usando se sabe por el
+    /// <c>sender</c>, asi que no hacen falta dos juegos identicos.</para>
+    ///
+    /// <para>El arrastre no arranca al pulsar sino cuando el raton se ha movido lo bastante
+    /// (<see cref="SystemParameters.MinimumHorizontalDragDistance"/>). Si arrancara al pulsar,
+    /// marcar una casilla o abrir el detalle se convertiria en un arrastre accidental.</para>
+    /// </remarks>
+    private void OnTaskDragStart(object sender, MouseButtonEventArgs e)
+    {
+        _dragStart = e.GetPosition(null);
+        _dragList = sender as ListBox;
+        _dragging = RowUnder(e.OriginalSource as DependencyObject);
+    }
+
+    private void OnTaskDragMove(object sender, MouseEventArgs e)
+    {
+        if (_dragging is null || _dragList is null || e.LeftButton != MouseButtonState.Pressed)
+        {
+            return;
+        }
+
+        // Con Ctrl o Mayus pulsados no se arrastra: esos son los gestos de marcar varias.
+        if (Keyboard.Modifiers != ModifierKeys.None)
+        {
+            return;
+        }
+
+        var moved = e.GetPosition(null) - _dragStart;
+        if (Math.Abs(moved.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(moved.Y) < SystemParameters.MinimumVerticalDragDistance)
+        {
+            return;
+        }
+
+        DragDrop.DoDragDrop(_dragList, _dragging, DragDropEffects.Move);
+    }
+
+    private void OnTaskDragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent(typeof(TaskRow)) ? DragDropEffects.Move : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private async void OnTaskDrop(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetData(typeof(TaskRow)) is not TaskRow moved || sender is not ListBox list)
+        {
+            return;
+        }
+
+        var rows = ReferenceEquals(list, AllTasksBox) ? _allTasks : _listTasks;
+        var target = RowUnder(e.OriginalSource as DependencyObject);
+
+        var from = rows.IndexOf(moved);
+
+        // Soltar fuera de cualquier fila deja la tarea al final: es lo que se espera al arrastrar
+        // hacia el hueco de abajo.
+        var to = target is null ? rows.Count - 1 : rows.IndexOf(target);
+
+        _dragging = null;
+        _dragList = null;
+
+        if (from < 0 || to < 0 || from == to)
+        {
+            return;
+        }
+
+        rows.Move(from, to);
+
+        // No se recarga: la lista ya esta como el usuario la ha dejado, y repintarla justo al
+        // soltar da un parpadeo.
+        await _tasks.Repository.ReorderTasksAsync([.. rows.Select(r => r.Id)]);
+    }
+
+    /// <summary>La fila sobre la que esta el raton, subiendo desde lo que se pulso.</summary>
+    private static TaskRow? RowUnder(DependencyObject? source)
+    {
+        while (source is not null and not ListBoxItem)
+        {
+            source = System.Windows.Media.VisualTreeHelper.GetParent(source);
+        }
+
+        return (source as ListBoxItem)?.Content as TaskRow;
+    }
+
+    // =======================================================================
     // Acciones sobre una tarea
+    // =======================================================================
+    // Varias tareas a la vez
+    // =======================================================================
+    //
+    // Se marca con Ctrl+clic o Mayus+clic, como en cualquier lista de Windows, y la barra aparece
+    // sola en cuanto hay mas de una. Con una sola marcada no aparece: seleccionar es lo que pasa al
+    // hacer clic en cualquier fila, y una barra saltando en cada clic estorbaria mas de lo que ayuda
+    // — para una tarea suelta ya esta el detalle.
+
+    /// <summary>La lista donde se marco lo ultimo. Hay dos, y las dos comparten esta barra.</summary>
+    private ListBox? _selectionBox;
+
+    private void OnTaskSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is not ListBox box)
+        {
+            return;
+        }
+
+        _selectionBox = box;
+
+        var mine = ReferenceEquals(box, AllTasksBox);
+        var bar = mine ? SelectionBar : ListSelectionBar;
+        var label = mine ? SelectionLabel : ListSelectionLabel;
+
+        var count = box.SelectedItems.Count;
+        bar.Visibility = count > 1 ? Visibility.Visible : Visibility.Collapsed;
+        label.Text = F("SelectionCount", count);
+
+        // Marcar en una lista suelta lo marcado en la otra: si no, dos barras a la vez y ninguna
+        // pista de sobre cual actuarian los botones.
+        var other = mine ? ListTasksBox : AllTasksBox;
+        if (count > 1 && other.SelectedItems.Count > 0)
+        {
+            other.UnselectAll();
+        }
+    }
+
+    private List<Guid> SelectedIds() =>
+        _selectionBox is null
+            ? []
+            : [.. _selectionBox.SelectedItems.OfType<TaskRow>().Select(r => r.Id)];
+
+    private async void OnBulkDoneClick(object sender, RoutedEventArgs e)
+    {
+        var ids = SelectedIds();
+        if (ids.Count == 0)
+        {
+            return;
+        }
+
+        await _tasks.CompleteManyAsync(ids);
+        await ReloadAsync();
+    }
+
+    private async void OnBulkPendingClick(object sender, RoutedEventArgs e)
+    {
+        var ids = SelectedIds();
+        if (ids.Count == 0)
+        {
+            return;
+        }
+
+        await _tasks.UncompleteManyAsync(ids);
+        await ReloadAsync();
+    }
+
+    private async void OnBulkPriorityOnClick(object sender, RoutedEventArgs e) => await SetPriorityAsync(true);
+
+    private async void OnBulkPriorityOffClick(object sender, RoutedEventArgs e) => await SetPriorityAsync(false);
+
+    private async Task SetPriorityAsync(bool priority)
+    {
+        var ids = SelectedIds();
+        if (ids.Count == 0)
+        {
+            return;
+        }
+
+        await _tasks.Repository.SetPriorityAsync(ids, priority);
+        await ReloadAsync();
+    }
+
+    /// <summary>
+    /// Pone una etiqueta a todo lo marcado. Se ofrecen las que ya existen antes que escribir una
+    /// nueva, que es lo que evita acabar con "casa", "Casa" y "casa " como tres etiquetas.
+    /// </summary>
+    private async void OnBulkTagClick(object sender, RoutedEventArgs e)
+    {
+        var ids = SelectedIds();
+        if (ids.Count == 0)
+        {
+            return;
+        }
+
+        var tag = Controls.ModernDialog.PickOrType(
+            this,
+            T("BulkTag"),
+            F("BulkTagMessage", ids.Count),
+            await _tasks.Repository.GetTagsAsync(),
+            T("BulkTagHint"),
+            T("BulkTag"));
+
+        if (string.IsNullOrWhiteSpace(tag))
+        {
+            return;
+        }
+
+        await _tasks.Repository.AddTagAsync(ids, tag);
+        await ReloadAsync();
+    }
+
+    private async void OnBulkMoveClick(object sender, RoutedEventArgs e)
+    {
+        var ids = SelectedIds();
+        if (ids.Count == 0)
+        {
+            return;
+        }
+
+        var lists = _lists.Select(l => (l.Name, l.Id)).ToList();
+        if (lists.Count == 0)
+        {
+            return;
+        }
+
+        var target = Controls.ModernDialog.Pick(
+            this, T("BulkMove"), F("BulkMoveMessage", ids.Count), lists, T("BulkMove"));
+
+        if (target is not { } listId)
+        {
+            return;
+        }
+
+        await _tasks.Repository.MoveTasksAsync(ids, listId);
+        await ReloadAsync();
+    }
+
+    private async void OnBulkDeleteClick(object sender, RoutedEventArgs e)
+    {
+        var ids = SelectedIds();
+        if (ids.Count == 0)
+        {
+            return;
+        }
+
+        if (!Controls.ModernDialog.Confirm(
+                this, T("BulkDelete"), F("BulkDeleteConfirm", ids.Count), danger: true))
+        {
+            return;
+        }
+
+        await _tasks.Repository.DeleteTasksAsync(ids);
+        await ReloadAsync();
+    }
+
+    private void OnClearSelectionClick(object sender, RoutedEventArgs e) => _selectionBox?.UnselectAll();
+
     // =======================================================================
 
     private async void OnTaskToggled(object sender, RoutedEventArgs e)
@@ -511,7 +878,10 @@ public partial class MainWindow : Window
         public TaskRow(TaskItem task, string listName)
         {
             Id = task.Id;
-            Title = task.Title;
+
+            // La estrella delante en vez de una columna aparte: la fila ya tiene casilla, texto y
+            // lapiz, y una cuarta pieza vacia en casi todas las filas solo estrecharia el titulo.
+            Title = task.IsPriority ? "★ " + task.Title : task.Title;
             IsDone = task.IsDone;
 
             var parts = new List<string>();
@@ -565,12 +935,17 @@ public partial class MainWindow : Window
 /// <summary>Cuadro de una sola linea: se usa para pedir el nombre de una lista.</summary>
 public static class Prompt
 {
-    public static string? Ask(Window owner, string title, string hint)
+    /// <param name="initial">
+    /// Lo que aparece ya escrito. Al renombrar algo se pasa el nombre actual: obligar a reescribirlo
+    /// entero para cambiarle una letra es de las cosas que mas cansan de una interfaz.
+    /// </param>
+    public static string? Ask(Window owner, string title, string hint, string? initial = null)
     {
         var box = new TextBox
         {
             Style = (Style)Application.Current.FindResource("Field"),
             Margin = new Thickness(0, 0, 0, 12),
+            Text = initial ?? string.Empty,
         };
 
         var ok = new Button
@@ -605,6 +980,8 @@ public static class Prompt
             Background = (System.Windows.Media.Brush)Application.Current.FindResource("PageBackground"),
         };
 
+        Services.ThemeManager.StyleTitleBar(window);
+
         ok.Click += (_, _) => window.DialogResult = true;
         box.KeyDown += (_, e) =>
         {
@@ -614,7 +991,11 @@ public static class Prompt
             }
         };
 
-        box.Loaded += (_, _) => box.Focus();
+        box.Loaded += (_, _) =>
+        {
+            box.Focus();
+            box.SelectAll();   // Escribir de cero sigue siendo un gesto: teclear encima.
+        };
 
         return window.ShowDialog() == true ? box.Text.Trim() : null;
     }

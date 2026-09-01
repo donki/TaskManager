@@ -25,11 +25,16 @@
             <TabItem Header="{loc:T MenuMyTasks}">
                 <DockPanel Margin="4,12,4,4">
 
-                    <!-- Cuantas hay con el filtro puesto -->
-                    <StackPanel DockPanel.Dock="Top" Margin="6,0,6,8">
-                        <TextBlock x:Name="FilterLabel" Style="{StaticResource HintText}" />
-                        <TextBlock x:Name="SummaryLabel" Style="{StaticResource CardTitle}" />
-                    </StackPanel>
+                    <!-- Cuantas hay con el filtro puesto, y el boton de refrescar. -->
+                    <Grid DockPanel.Dock="Top" Margin="6,0,6,8" ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0">
+                            <TextBlock x:Name="FilterLabel" Style="{StaticResource HintText}" />
+                            <TextBlock x:Name="SummaryLabel" Style="{StaticResource CardTitle}" />
+                        </StackPanel>
+                        <Button Grid.Column="1" x:Name="RefreshButton" Style="{StaticResource GhostIconButton}"
+                                Content="&#xE72C;" ToolTip="{loc:T RefreshTooltip}"
+                                VerticalAlignment="Center" Click="OnRefreshClick" />
+                    </Grid>
 
                     <!-- Captura rapida -->
                     <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="6,0,6,10">
@@ -38,6 +43,17 @@
                                  KeyDown="OnQuickAddKeyDown" />
                         <Button Grid.Column="1" Style="{StaticResource IconButton}" Content="&#xE710;"
                                 Margin="8,0,0,0" ToolTip="{loc:T AddTaskTooltip}" Click="OnQuickAddClick" />
+                    </Grid>
+
+                    <!-- Buscador: mira en el titulo, las notas, las etiquetas, los pasos y los
+                         adjuntos. Busca al escribir, sin boton de buscar. -->
+                    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="6,0,6,10">
+                        <TextBox Grid.Column="0" x:Name="SearchBox" Style="{StaticResource Field}"
+                                 Background="{DynamicResource CardBackground}"
+                                 TextChanged="OnSearchChanged" />
+                        <Button Grid.Column="1" Style="{StaticResource GhostIconButton}" Content="&#xE711;"
+                                Margin="8,0,0,0" ToolTip="{loc:T ClearSearchTooltip}"
+                                Click="OnClearSearchClick" />
                     </Grid>
 
                     <!-- Filtros: las mismas ocho pastillas que en Android, en una fila que se desliza. -->
@@ -58,8 +74,44 @@
                                Text="{loc:T NoTasksForFilter}" Style="{StaticResource HintText}"
                                Visibility="Collapsed" />
 
+                    <!-- Barra de seleccion: aparece sola en cuanto hay mas de una tarea marcada
+                         (Ctrl+clic o Mayus+clic). Solo iconos, como el resto (anexo B.1). -->
+                    <Border x:Name="SelectionBar" DockPanel.Dock="Top" Style="{StaticResource Card}"
+                            Margin="6,0,6,8" Padding="10,6" Visibility="Collapsed">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" x:Name="SelectionLabel" VerticalAlignment="Center"
+                                       Style="{StaticResource ItemTitle}" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <Button Style="{StaticResource RowIconButton}" Content="&#xE73E;"
+                                        ToolTip="{loc:T BulkDone}" Click="OnBulkDoneClick" />
+                                <Button Style="{StaticResource RowIconButton}" Content="&#xE7A7;"
+                                        ToolTip="{loc:T BulkPending}" Click="OnBulkPendingClick" />
+                                <Button Style="{StaticResource RowIconButton}" Content="&#xE735;"
+                                        ToolTip="{loc:T BulkPriorityOn}" Click="OnBulkPriorityOnClick" />
+                                <Button Style="{StaticResource RowIconButton}" Content="&#xE734;"
+                                        ToolTip="{loc:T BulkPriorityOff}" Click="OnBulkPriorityOffClick" />
+                                <Button Style="{StaticResource RowIconButton}" Content="&#xE1CB;"
+                                        ToolTip="{loc:T BulkTag}" Click="OnBulkTagClick" />
+                                <Button Style="{StaticResource RowIconButton}" Content="&#xE8DE;"
+                                        ToolTip="{loc:T BulkMove}" Click="OnBulkMoveClick" />
+                                <Button Style="{StaticResource RowIconButton}" Content="&#xE74D;"
+                                        Foreground="{DynamicResource Danger}"
+                                        ToolTip="{loc:T BulkDelete}" Click="OnBulkDeleteClick" />
+                                <Button Style="{StaticResource RowIconButton}" Content="&#xE711;"
+                                        ToolTip="{loc:T ClearSelection}" Click="OnClearSelectionClick" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
                     <ListBox x:Name="AllTasksBox" Style="{StaticResource Rows}" Margin="2,0"
-                             MouseDoubleClick="OnRowDoubleClick">
+                             SelectionMode="Extended"
+                             SelectionChanged="OnTaskSelectionChanged"
+                             MouseDoubleClick="OnRowDoubleClick"
+                             AllowDrop="True"
+                             PreviewMouseLeftButtonDown="OnTaskDragStart"
+                             PreviewMouseMove="OnTaskDragMove"
+                             DragOver="OnTaskDragOver"
+                             Drop="OnTaskDrop">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border Style="{StaticResource Card}" Margin="4,0,4,8">
@@ -97,6 +149,7 @@
                                 Content="&#xE710;" HorizontalAlignment="Left" Margin="0,10,0,0"
                                 ToolTip="{loc:T NewListTitle}" Click="OnNewListClick" />
                         <ListBox x:Name="ListsBox" Style="{StaticResource PickRows}"
+                                 MouseDoubleClick="OnListDoubleClick"
                                  SelectionChanged="OnListSelected">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
@@ -105,10 +158,16 @@
                                             <TextBlock Text="{Binding Name}" FontSize="13" />
                                             <TextBlock Text="{Binding Caption}" FontSize="11" Opacity="0.75" />
                                         </StackPanel>
-                                        <Button Grid.Column="1" Style="{StaticResource RowIconButton}"
-                                                Content="&#xE74D;" Foreground="{DynamicResource Danger}"
-                                                ToolTip="{loc:T DeleteListTitle}"
-                                                Tag="{Binding Id}" Click="OnDeleteListClick" />
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                            <Button Style="{StaticResource RowIconButton}"
+                                                    Content="&#xE70F;"
+                                                    ToolTip="{loc:T RenameListTitle}"
+                                                    Tag="{Binding Id}" Click="OnRenameListClick" />
+                                            <Button Style="{StaticResource RowIconButton}"
+                                                    Content="&#xE74D;" Foreground="{DynamicResource Danger}"
+                                                    ToolTip="{loc:T DeleteListTitle}"
+                                                    Tag="{Binding Id}" Click="OnDeleteListClick" />
+                                        </StackPanel>
                                     </Grid>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
@@ -124,8 +183,53 @@
                                     Margin="8,0,0,0" ToolTip="{loc:T AddTaskTooltip}" Click="OnAddTaskClick" />
                         </Grid>
 
+                        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+                            <TextBox Grid.Column="0" x:Name="ListSearchBox" Style="{StaticResource Field}"
+                                     Background="{DynamicResource CardBackground}"
+                                     TextChanged="OnListSearchChanged" />
+                            <Button Grid.Column="1" Style="{StaticResource GhostIconButton}" Content="&#xE711;"
+                                    Margin="8,0,0,0" ToolTip="{loc:T ClearSearchTooltip}"
+                                    Click="OnClearListSearchClick" />
+                        </Grid>
+
+                        <!-- Barra de seleccion: aparece sola en cuanto hay mas de una tarea marcada
+                             (Ctrl+clic o Mayus+clic). Solo iconos, como el resto (anexo B.1). -->
+                        <Border x:Name="ListSelectionBar" DockPanel.Dock="Top" Style="{StaticResource Card}"
+                                Margin="0,0,4,8" Padding="10,6" Visibility="Collapsed">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" x:Name="ListSelectionLabel" VerticalAlignment="Center"
+                                           Style="{StaticResource ItemTitle}" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <Button Style="{StaticResource RowIconButton}" Content="&#xE73E;"
+                                            ToolTip="{loc:T BulkDone}" Click="OnBulkDoneClick" />
+                                    <Button Style="{StaticResource RowIconButton}" Content="&#xE7A7;"
+                                            ToolTip="{loc:T BulkPending}" Click="OnBulkPendingClick" />
+                                    <Button Style="{StaticResource RowIconButton}" Content="&#xE735;"
+                                            ToolTip="{loc:T BulkPriorityOn}" Click="OnBulkPriorityOnClick" />
+                                    <Button Style="{StaticResource RowIconButton}" Content="&#xE734;"
+                                            ToolTip="{loc:T BulkPriorityOff}" Click="OnBulkPriorityOffClick" />
+                                    <Button Style="{StaticResource RowIconButton}" Content="&#xE1CB;"
+                                            ToolTip="{loc:T BulkTag}" Click="OnBulkTagClick" />
+                                    <Button Style="{StaticResource RowIconButton}" Content="&#xE8DE;"
+                                            ToolTip="{loc:T BulkMove}" Click="OnBulkMoveClick" />
+                                    <Button Style="{StaticResource RowIconButton}" Content="&#xE74D;"
+                                            Foreground="{DynamicResource Danger}"
+                                            ToolTip="{loc:T BulkDelete}" Click="OnBulkDeleteClick" />
+                                    <Button Style="{StaticResource RowIconButton}" Content="&#xE711;"
+                                            ToolTip="{loc:T ClearSelection}" Click="OnClearSelectionClick" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
                         <ListBox x:Name="ListTasksBox" Style="{StaticResource Rows}"
-                                 MouseDoubleClick="OnRowDoubleClick">
+                                 SelectionMode="Extended"
+                                 SelectionChanged="OnTaskSelectionChanged"
+                                 MouseDoubleClick="OnRowDoubleClick"
+                                 AllowDrop="True"
+                                 PreviewMouseLeftButtonDown="OnTaskDragStart"
+                                 PreviewMouseMove="OnTaskDragMove"
+                                 DragOver="OnTaskDragOver"
+                                 Drop="OnTaskDrop">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <Border Style="{StaticResource Card}" Margin="0,0,4,8">

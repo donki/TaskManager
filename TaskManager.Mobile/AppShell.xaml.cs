@@ -15,6 +15,10 @@ public partial class AppShell : Shell
         // El correo esta oculto: la fila del menu no se enseña y la ruta no se ofrece.
         MailMenuRow.IsVisible = TaskManager.Core.FeatureOptions.MailEnabled;
 
+        // Grupos y gremio: ocultos mientras FeatureOptions.GroupsEnabled sea false.
+        GroupsMenuRow.IsVisible = TaskManager.Core.FeatureOptions.GroupsEnabled;
+        BoardMenuRow.IsVisible = TaskManager.Core.FeatureOptions.GroupsEnabled;
+
         VersionLabel.Text = $"v{AppInfo.Current.VersionString}";
     }
 

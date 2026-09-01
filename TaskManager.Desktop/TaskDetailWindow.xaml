@@ -37,8 +37,12 @@
                     <StackPanel>
                         <!-- Marcar hecha sin salir del detalle: si se ha entrado a repasarla,
                              tener que cerrar para tacharla sobra. -->
-                        <CheckBox x:Name="DoneCheck" Content="{loc:T MarkDone}" Margin="0,0,0,10"
-                                  Click="OnDoneToggled" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <CheckBox x:Name="DoneCheck" Content="{loc:T MarkDone}"
+                                      Click="OnDoneToggled" />
+                            <CheckBox x:Name="PriorityCheck" Content="{loc:T MarkPriority}"
+                                      Margin="20,0,0,0" />
+                        </StackPanel>
 
                         <TextBlock Text="{loc:T TaskTitle}" Style="{StaticResource HintText}" />
                         <TextBox x:Name="TitleBox" Style="{StaticResource Field}" Margin="0,4,0,10" />
@@ -56,13 +60,25 @@
                 <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="{loc:T Tags}" Style="{StaticResource CardTitle}" Margin="0,0,0,6" />
-                        <!-- TagContainer de HandyControl: cada etiqueta es una pastilla con su
-                             aspa, y la caja de abajo da de alta una nueva. Antes era un campo de
-                             texto con comas, donde un espacio de mas creaba una etiqueta distinta. -->
+                        <!-- Las de ESTA tarea: pastilla con aspa para quitarla. -->
                         <hc:TagContainer x:Name="TagsContainer" Margin="0,0,0,6" />
-                        <TextBox x:Name="TagsBox" Style="{StaticResource Field}"
-                                 KeyDown="OnNewTagKeyDown" />
+
+                        <!-- Dar de alta una nueva: escribir y Enter, o el boton. -->
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0" x:Name="TagsBox" Style="{StaticResource Field}"
+                                     KeyDown="OnNewTagKeyDown" />
+                            <Button Grid.Column="1" Style="{StaticResource IconButton}" Content="&#xE710;"
+                                    Margin="8,0,0,0" ToolTip="{loc:T AddTagTooltip}" Click="OnAddTagClick" />
+                        </Grid>
                         <TextBlock Text="{loc:T TagsHelp}" Style="{StaticResource HintText}" Margin="0,4,0,6" />
+
+                        <!-- Las que ya existen en otras tareas: pulsar una la pone o la quita. Sin
+                             esto habria que reescribirlas y acordarse de como estaban escritas. -->
+                        <ScrollViewer x:Name="KnownTagsScroll" HorizontalScrollBarVisibility="Auto"
+                                      VerticalScrollBarVisibility="Disabled" Margin="0,0,0,12"
+                                      Visibility="Collapsed">
+                            <StackPanel x:Name="KnownTagsBox" Orientation="Horizontal" />
+                        </ScrollViewer>
 
                         <Border Height="1" Background="{DynamicResource Separator}" Margin="0,0,0,12" />
 
@@ -125,6 +141,51 @@
                         </Grid>
 
                         <TextBlock x:Name="RecurrenceLabel" Style="{StaticResource HintText}" Margin="0,6,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Enlaces y ficheros -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
+                            <TextBlock Grid.Column="0" Text="{loc:T Attachments}"
+                                       Style="{StaticResource CardTitle}" VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Style="{StaticResource IconButton}" Content="&#xE71B;"
+                                    ToolTip="{loc:T AddLinkTooltip}" Margin="0,0,8,0"
+                                    Click="OnAddLinkClick" />
+                            <Button Grid.Column="2" Style="{StaticResource IconButton}" Content="&#xE8E5;"
+                                    ToolTip="{loc:T AddFileTooltip}" Click="OnAddFileClick" />
+                        </Grid>
+
+                        <TextBlock x:Name="NoAttachmentsLabel" Text="{loc:T NoAttachments}"
+                                   Style="{StaticResource HintText}" />
+
+                        <ListBox x:Name="AttachmentsBox" Style="{StaticResource Rows}"
+                                 MouseDoubleClick="OnAttachmentDoubleClick">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2" Background="Transparent">
+                                        <TextBlock Grid.Column="0" Text="{Binding Glyph}" Margin="0,0,8,0"
+                                                   FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                                   FontSize="14" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Primary}" />
+
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" Style="{StaticResource ItemTitle}"
+                                                       TextWrapping="Wrap"
+                                                       ToolTip="{loc:T OpenAttachmentTooltip}" />
+                                            <TextBlock Text="{Binding Caption}"
+                                                       Style="{StaticResource ItemSubtitle}" />
+                                        </StackPanel>
+
+                                        <Button Grid.Column="2" Style="{StaticResource RowIconButton}"
+                                                Content="&#xE74D;" Foreground="{DynamicResource TextSecondary}"
+                                                ToolTip="{loc:T DeleteAttachmentTooltip}"
+                                                Tag="{Binding Id}" Click="OnDeleteAttachmentClick" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
                     </StackPanel>
                 </Border>
 

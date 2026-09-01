@@ -17,7 +17,7 @@
             </VerticalStackLayout>
 
             <!-- Captura rapida -->
-            <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8" Padding="16,8">
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Padding="16,8">
                 <Border Grid.Column="0" Style="{StaticResource Card}" Padding="12,0">
                     <Entry x:Name="QuickAdd"
                            Placeholder="{loc:T MyDayAddPlaceholder}"
@@ -27,11 +27,29 @@
                 <ImageButton Grid.Column="1" Style="{StaticResource HeaderIconButton}"
                              Source="ic_add_w.png" BackgroundColor="{StaticResource Primary}"
                              Clicked="OnAddClicked" />
+
+                <!-- Modo seleccion. Se enciende con un boton y no con una pulsacion larga: la
+                     pulsacion larga no se ve por ninguna parte y en MAUI hay que reimplementarla
+                     con gestos nativos de Android, asi que sale caro y ademas queda escondido. -->
+                <ImageButton Grid.Column="2" x:Name="SelectModeButton"
+                             Style="{StaticResource HeaderIconButton}"
+                             Source="ic_select.png"
+                             Clicked="OnSelectModeClicked" />
             </Grid>
 
             <!-- Filtros: una fila que se desliza. Son ocho, no caben en pantalla de otra forma,
                  y partirlos en un desplegable esconderia justo lo que se viene a usar. -->
             <VerticalStackLayout Grid.Row="2" Spacing="6">
+
+                <!-- Buscador: mira en el titulo, las notas, las etiquetas, los pasos y los
+                     adjuntos. Busca al escribir. -->
+                <Border Style="{StaticResource Card}" Padding="12,0" Margin="16,0,16,2">
+                    <Entry x:Name="SearchEntry"
+                           Placeholder="{loc:T SearchPlaceholder}"
+                           ClearButtonVisibility="WhileEditing"
+                           TextChanged="OnSearchChanged" />
+                </Border>
+
                 <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never"
                             Padding="16,0,16,0">
                     <HorizontalStackLayout x:Name="FilterBox" Spacing="8" />
@@ -59,15 +77,23 @@
                     <CollectionView.ItemTemplate>
                         <DataTemplate x:DataType="models:TaskRow">
                             <Border Style="{StaticResource Card}" Margin="0,0,0,6">
-                                <Grid ColumnDefinitions="44,*" ColumnSpacing="4" Padding="6,8,8,8">
+                                <Grid ColumnDefinitions="Auto,44,*" ColumnSpacing="4" Padding="6,8,8,8">
 
-                                    <ImageButton Grid.Column="0"
+                                    <!-- Solo mientras se marcan varias. Con IsVisible="False" la
+                                         columna Auto queda a cero y la fila es la de siempre. -->
+                                    <CheckBox Grid.Column="0"
+                                              IsVisible="{Binding Selecting}"
+                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                              CheckedChanged="OnRowCheckChanged"
+                                              VerticalOptions="Center" />
+
+                                    <ImageButton Grid.Column="1"
                                                  Style="{StaticResource RowIconButton}"
                                                  Source="{Binding StateIcon}"
                                                  CommandParameter="{Binding Id}"
                                                  Clicked="OnToggleDoneClicked" />
 
-                                    <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center"
+                                    <VerticalStackLayout Grid.Column="2" Spacing="2" VerticalOptions="Center"
                                                          Opacity="{Binding Opacity}">
                                         <VerticalStackLayout.GestureRecognizers>
                                             <TapGestureRecognizer Tapped="OnTaskTapped" CommandParameter="{Binding Id}" />
@@ -96,6 +122,34 @@
                 </CollectionView>
             </RefreshView>
         </Grid>
+
+        <!-- Barra de acciones de la seleccion. Va abajo y por encima de la lista: es donde llega
+             el pulgar, y asi no empuja la lista hacia arriba al aparecer. -->
+        <Border x:Name="SelectionBar" IsVisible="False"
+                Style="{StaticResource Card}" Margin="8" Padding="8,6"
+                VerticalOptions="End">
+            <VerticalStackLayout Spacing="4">
+                <Label x:Name="SelectionLabel" Style="{StaticResource HintText}" Margin="6,0,0,0" />
+                <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                    <HorizontalStackLayout Spacing="4">
+                        <ImageButton Style="{StaticResource RowIconButton}" Source="ic_check.png"
+                                     Clicked="OnBulkDoneClicked" />
+                        <ImageButton Style="{StaticResource RowIconButton}" Source="ic_undo.png"
+                                     Clicked="OnBulkPendingClicked" />
+                        <ImageButton Style="{StaticResource RowIconButton}" Source="ic_star.png"
+                                     Clicked="OnBulkPriorityClicked" />
+                        <ImageButton Style="{StaticResource RowIconButton}" Source="ic_tag.png"
+                                     Clicked="OnBulkTagClicked" />
+                        <ImageButton Style="{StaticResource RowIconButton}" Source="ic_list.png"
+                                     Clicked="OnBulkMoveClicked" />
+                        <ImageButton Style="{StaticResource RowIconButton}" Source="ic_delete_danger.png"
+                                     Clicked="OnBulkDeleteClicked" />
+                        <ImageButton Style="{StaticResource RowIconButton}" Source="ic_close.png"
+                                     Clicked="OnSelectModeClicked" />
+                    </HorizontalStackLayout>
+                </ScrollView>
+            </VerticalStackLayout>
+        </Border>
 
         <controls:CelebrationView x:Name="Celebration" />
     </Grid>

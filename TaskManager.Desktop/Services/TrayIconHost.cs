@@ -84,8 +84,46 @@ public sealed class TrayIconHost : IDisposable
     /// barra de tareas. Se dibuja aqui en vez de arrastrar un .ico: asi hay un unico sitio donde
     /// esta definido el icono de la aplicacion, y las dos plataformas ensenan lo mismo.
     /// </summary>
+    /// <summary>
+    /// Icono para las ventanas.
+    /// </summary>
+    /// <remarks>
+    /// Se prefiere el <c>appicon.ico</c> del ejecutable: asi la ventana, la barra de tareas y el
+    /// Explorador enseñan exactamente el mismo icono. Si no se pudiera leer —un despliegue raro, un
+    /// recurso que falta— se cae al dibujado en memoria, que es el mismo diseño y nunca falla.
+    /// </remarks>
     public static System.Windows.Media.ImageSource CreateWindowIcon()
     {
+        try
+        {
+            var exe = Environment.ProcessPath;
+            if (exe is not null)
+            {
+                using var embedded = Icon.ExtractAssociatedIcon(exe);
+                if (embedded is not null)
+                {
+                    using var bmp = embedded.ToBitmap();
+                    using var ms = new MemoryStream();
+
+                    bmp.Save(ms, ImageFormat.Png);
+                    ms.Position = 0;
+
+                    var fromExe = new System.Windows.Media.Imaging.BitmapImage();
+                    fromExe.BeginInit();
+                    fromExe.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                    fromExe.StreamSource = ms;
+                    fromExe.EndInit();
+                    fromExe.Freeze();
+
+                    return fromExe;
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Da igual por que: se dibuja el de siempre.
+        }
+
         using var icon = Render(0);
         using var bitmap = icon.ToBitmap();
         using var stream = new MemoryStream();
