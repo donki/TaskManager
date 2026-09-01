@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
-using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using TaskManager.Core.Models;
 using TaskManager.Core.Services;
@@ -9,48 +9,45 @@ using TaskManager.Core.Services;
 namespace TaskManager.Desktop;
 
 /// <summary>
-/// Ventana principal de Windows: listas, correo, Azure DevOps y gremio.
+/// Ventana principal de Windows: «Mis tareas» y «Mis listas».
 /// </summary>
 /// <remarks>
-/// <para>El panel de la bandeja sirve para capturar y completar en dos segundos, y para eso esta
-/// bien. Todo lo demas —revisar listas, convertir correos en tareas, traer elementos de DevOps—
-/// necesita sitio y no cabia en el, asi que Windows se habia quedado corto frente al movil.</para>
+/// <para>Son <b>las mismas dos pantallas que en Android</b>, con los mismos filtros
+/// (<see cref="TaskFilters"/>) y el mismo detalle de tarea
+/// (<see cref="TaskDetailWindow"/>). Antes esto era otra aplicacion: no habia forma de ver todas las
+/// tareas juntas ni de abrir una para editarla, y encima llevaba un gremio y una bandeja de correo
+/// que el movil enseñaba en otro sitio. Cambiar de aparato obligaba a reaprender.</para>
 ///
-/// <para>Va en pestañas y no en cinco ventanas sueltas: son cosas que se miran seguidas y abrir y
-/// cerrar ventanas para pasar de una a otra molesta mas de lo que ordena.</para>
+/// <para>El gremio y los grupos se han quitado, y el correo esta oculto tras
+/// <see cref="FeatureOptions.MailEnabled"/>.</para>
 /// </remarks>
 public partial class MainWindow : Window
 {
     private readonly TaskService _tasks;
     private readonly SettingsService _settings;
-    private readonly IMailReader _mail;
-    private readonly MailOAuthService _mailOAuth;
-    private readonly AzureDevOpsService _devops;
 
     private readonly ObservableCollection<ListRow> _lists = [];
     private readonly ObservableCollection<TaskRow> _listTasks = [];
-    private readonly ObservableCollection<MailRow> _mails = [];
-    private readonly ObservableCollection<DevOpsRow> _devopsItems = [];
+    private readonly ObservableCollection<TaskRow> _allTasks = [];
 
+    private readonly Dictionary<Guid, string> _listNames = [];
+
+    private TaskFilter _filter = TaskFilters.Default;
+    private string? _activeTag;
     private Guid _selectedList;
-    private string? _mailOAuthToken;
-    private string? _devopsToken;
 
-    public MainWindow(TaskService tasks, SettingsService settings, IMailReader mail,
-        MailOAuthService mailOAuth, AzureDevOpsService devops)
+    public MainWindow(TaskService tasks, SettingsService settings)
     {
         InitializeComponent();
 
         _tasks = tasks;
         _settings = settings;
-        _mail = mail;
-        _mailOAuth = mailOAuth;
-        _devops = devops;
 
         ListsBox.ItemsSource = _lists;
         ListTasksBox.ItemsSource = _listTasks;
-        MailBox.ItemsSource = _mails;
-        DevOpsBox.ItemsSource = _devopsItems;
+        AllTasksBox.ItemsSource = _allTasks;
+
+        BuildFilters();
     }
 
     private static string T(string key) => Localization.Loc.Get(key);
@@ -61,16 +58,168 @@ public partial class MainWindow : Window
     {
         base.OnContentRendered(e);
 
-        MailAddressBox.Text = _settings.Get("mail.address", string.Empty);
-        MailPortBox.Text = "993";
-
         await ReloadListsAsync();
+        await ReloadAllTasksAsync();
         await ReloadBoardAsync();
-        await RestoreDevOpsAsync();
+    }
+
+    /// <summary>Vuelve a leerlo todo. Lo llama el arranque cuando la sincronizacion trae algo.</summary>
+    public async Task ReloadAsync()
+    {
+        await ReloadListsAsync();
+        await ReloadListTasksAsync();
+        await ReloadAllTasksAsync();
+        await ReloadBoardAsync();
     }
 
     // =======================================================================
-    // Listas
+    // Mis tareas
+    // =======================================================================
+
+    /// <summary>
+    /// Las pastillas se pintan una vez; elegir una solo cambia cual esta marcada. Se usa
+    /// <see cref="ToggleButton"/> porque el estado «puesto / no puesto» ya viene de serie.
+    /// </summary>
+    private void BuildFilters()
+    {
+        foreach (var filter in TaskFilters.All)
+        {
+            var chip = new ToggleButton
+            {
+                Content = T(TaskFilters.KeyOf(filter)),
+                Style = (Style)FindResource("Chip"),
+                IsChecked = filter == _filter,
+                Tag = filter,
+            };
+
+            chip.Checked += async (s, _) =>
+            {
+                _filter = (TaskFilter)((ToggleButton)s).Tag;
+
+                foreach (var other in FilterBox.Children.OfType<ToggleButton>())
+                {
+                    if (!ReferenceEquals(other, s))
+                    {
+                        other.IsChecked = false;
+                    }
+                }
+
+                await ReloadAllTasksAsync();
+            };
+
+            // Sin esto se podria dejar la fila sin ningun filtro puesto, y entonces la pantalla no
+            // sabria que enseñar. Volver a pulsar el que ya esta no lo apaga.
+            chip.Unchecked += (s, _) =>
+            {
+                if (!FilterBox.Children.OfType<ToggleButton>().Any(c => c.IsChecked == true))
+                {
+                    ((ToggleButton)s).IsChecked = true;
+                }
+            };
+
+            FilterBox.Children.Add(chip);
+        }
+    }
+
+    private async Task ReloadAllTasksAsync()
+    {
+        await RefreshTagFilterAsync();
+
+        var tasks = await _tasks.Repository.GetAllTasksAsync(_filter, _activeTag);
+
+        _allTasks.Clear();
+        foreach (var task in tasks)
+        {
+            _allTasks.Add(new TaskRow(task, _listNames.GetValueOrDefault(task.ListId, string.Empty)));
+        }
+
+        FilterLabel.Text = _activeTag is null
+            ? T(TaskFilters.KeyOf(_filter))
+            : $"{T(TaskFilters.KeyOf(_filter))}  ·  #{_activeTag}";
+        SummaryLabel.Text = tasks.Count == 1 ? T("TaskCountOne") : F("TaskCount", tasks.Count);
+        NoTasksLabel.Visibility = tasks.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// Pinta las etiquetas que hay en uso. Se rehace en cada recarga porque la ultima tarea que
+    /// llevaba una etiqueta puede haberse borrado, y entonces esa etiqueta ya no existe.
+    /// </summary>
+    private async Task RefreshTagFilterAsync()
+    {
+        var tags = await _tasks.Repository.GetTagsAsync();
+
+        TagFilterScroll.Visibility = tags.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        TagFilterBox.Children.Clear();
+
+        if (tags.Count == 0)
+        {
+            _activeTag = null;
+            return;
+        }
+
+        if (_activeTag is not null && !tags.Contains(_activeTag, StringComparer.CurrentCultureIgnoreCase))
+        {
+            _activeTag = null;
+        }
+
+        TagFilterBox.Children.Add(BuildTagChip(T("AllTags"), null));
+        foreach (var tag in tags)
+        {
+            TagFilterBox.Children.Add(BuildTagChip($"#{tag}", tag));
+        }
+    }
+
+    private ToggleButton BuildTagChip(string text, string? tag)
+    {
+        var chip = new ToggleButton
+        {
+            Content = text,
+            Style = (Style)FindResource("Chip"),
+            IsChecked = string.Equals(_activeTag, tag, StringComparison.CurrentCultureIgnoreCase),
+            Tag = tag,
+        };
+
+        chip.Click += async (_, _) =>
+        {
+            _activeTag = tag;
+            await ReloadAllTasksAsync();
+        };
+
+        return chip;
+    }
+
+    private async void OnQuickAddClick(object sender, RoutedEventArgs e) => await QuickAddAsync();
+
+    private async void OnQuickAddKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            await QuickAddAsync();
+        }
+    }
+
+    private async Task QuickAddAsync()
+    {
+        var title = QuickAddBox.Text.Trim();
+        if (title.Length == 0)
+        {
+            return;
+        }
+
+        // Sin ninguna lista todavia, se crea la de siempre en vez de pedirla: escribir una tarea no
+        // puede acabar en un formulario.
+        var listId = _lists.FirstOrDefault()?.Id
+            ?? (await _tasks.Repository.GetOrCreateDefaultListAsync(T("DefaultListName"))).Id;
+
+        await _tasks.Repository.AddTaskAsync(listId, title);
+        QuickAddBox.Text = string.Empty;
+
+        await ReloadListsAsync();
+        await ReloadAllTasksAsync();
+    }
+
+    // =======================================================================
+    // Mis listas
     // =======================================================================
 
     private async Task ReloadListsAsync()
@@ -78,23 +227,32 @@ public partial class MainWindow : Window
         var selected = _selectedList;
 
         _lists.Clear();
+        _listNames.Clear();
 
         foreach (var list in await _tasks.Repository.GetPrivateListsAsync())
         {
             var tasks = await _tasks.Repository.GetTasksAsync(list.Id);
             var pending = tasks.Count(t => !t.IsDone);
 
-            _lists.Add(new ListRow(list.Id, list.Name, tasks.Count == 0
-                ? T("ListEmpty")
-                : pending == 0
-                    ? F("ListAllDone", tasks.Count)
-                    : F("ListPending", pending, tasks.Count)));
+            _listNames[list.Id] = list.Name;
+            _lists.Add(new ListRow(list.Id, list.Name,
+                pending == 1 ? T("OnePending") : F("ManyPending", pending)));
         }
 
-        // Se conserva la lista que estuviera abierta: recargar no deberia devolverte al principio
-        // cada vez que marcas una tarea.
-        var row = _lists.FirstOrDefault(l => l.Id == selected) ?? _lists.FirstOrDefault();
-        ListsBox.SelectedItem = row;
+        if (_lists.Count == 0)
+        {
+            _selectedList = Guid.Empty;
+            _listTasks.Clear();
+            return;
+        }
+
+        // Se conserva la lista elegida al recargar: perderla en cada refresco saca al usuario de
+        // donde estaba trabajando.
+        var keep = _lists.FirstOrDefault(l => l.Id == selected) ?? _lists[0];
+        ListsBox.SelectedItem = keep;
+        _selectedList = keep.Id;
+
+        await ReloadListTasksAsync();
     }
 
     private async void OnListSelected(object sender, SelectionChangedEventArgs e)
@@ -117,7 +275,7 @@ public partial class MainWindow : Window
 
         foreach (var task in await _tasks.Repository.GetTasksAsync(_selectedList))
         {
-            _listTasks.Add(new TaskRow(task.Id, task.Title, task.IsDone));
+            _listTasks.Add(new TaskRow(task, string.Empty));
         }
     }
 
@@ -129,6 +287,75 @@ public partial class MainWindow : Window
             await _tasks.Repository.CreateListAsync(name);
             await ReloadListsAsync();
         }
+    }
+
+    /// <summary>
+    /// Borra la lista y todo lo que hay dentro, preguntando antes. El aviso dice cuantas tareas se
+    /// lleva por delante: «se borrara la lista» a secas esconde justo lo que importa.
+    /// </summary>
+    private async void OnDeleteListClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: Guid id })
+        {
+            return;
+        }
+
+        var list = await _tasks.Repository.GetListAsync(id);
+        if (list is null)
+        {
+            return;
+        }
+
+        var tasks = await _tasks.Repository.GetTasksAsync(list.Id);
+        Guid? moveTo = null;
+
+        if (tasks.Count > 0)
+        {
+            // Con tareas dentro no se pregunta si borrar, sino a donde van: borrarlas de calle
+            // seria llevarse por delante trabajo que el usuario no ha dicho de tirar.
+            var others = _lists.Where(l => l.Id != id).Select(l => (l.Name, l.Id)).ToList();
+            if (others.Count == 0)
+            {
+                // No hay otra lista a la que mandarlas: solo cabe borrarlas con ella.
+                if (!Controls.ModernDialog.Confirm(
+                        this, T("DeleteListTitle"), F("DeleteListMessage", list.Name), danger: true))
+                {
+                    return;
+                }
+            }
+            else
+            {
+                moveTo = Controls.ModernDialog.Choose(
+                    this,
+                    T("MoveTasksTitle"),
+                    tasks.Count == 1
+                        ? F("MoveTasksOne", list.Name)
+                        : F("MoveTasksMessage", list.Name, tasks.Count),
+                    others,
+                    T("DeleteWithList"),
+                    out var cancelled);
+
+                if (cancelled)
+                {
+                    return;
+                }
+            }
+        }
+        else if (!Controls.ModernDialog.Confirm(
+                     this, T("DeleteListTitle"), F("DeleteListMessage", list.Name), danger: true))
+        {
+            return;
+        }
+
+        await _tasks.Repository.DeleteListAsync(list, moveTo);
+
+        // La lista borrada era la que estaba puesta: se suelta para que la recarga elija otra.
+        if (_selectedList == id)
+        {
+            _selectedList = Guid.Empty;
+        }
+
+        await ReloadAsync();
     }
 
     private async void OnAddTaskClick(object sender, RoutedEventArgs e) => await AddTaskAsync();
@@ -154,7 +381,40 @@ public partial class MainWindow : Window
 
         await ReloadListTasksAsync();
         await ReloadListsAsync();
+        await ReloadAllTasksAsync();
     }
+
+    // =======================================================================
+    // Gremio
+    // =======================================================================
+
+    /// <summary>
+    /// Nivel, experiencia y racha. Es la misma pantalla que en Android, con los mismos textos.
+    /// </summary>
+    private async Task ReloadBoardAsync()
+    {
+        var board = await _tasks.GetBoardAsync();
+
+        BoardLevel.Text = F("Level", board.Level);
+        BoardProgress.Value = board.ProgressInLevel;
+        BoardToNext.Text = F("ToNextLevel", board.XpToNextLevel, board.Level + 1);
+        BoardXp.Text = F("XpTotal", board.TotalXp);
+
+        BoardStreak.Text = board.CurrentStreak switch
+        {
+            0 => T("NoStreak"),
+            1 => T("StreakOne"),
+            _ => F("StreakMany", board.CurrentStreak),
+        };
+
+        BoardNextUnlock.Text = board.NextUnlock is { } next
+            ? F("NextUnlock", next.Name, next.Level)
+            : T("AllUnlocked");
+    }
+
+    // =======================================================================
+    // Acciones sobre una tarea
+    // =======================================================================
 
     private async void OnTaskToggled(object sender, RoutedEventArgs e)
     {
@@ -179,328 +439,183 @@ public partial class MainWindow : Window
             await _tasks.CompleteTaskAsync(task);
         }
 
-        await ReloadListTasksAsync();
-        await ReloadListsAsync();
-        await ReloadBoardAsync();
+        await ReloadAsync();
     }
-
-    // =======================================================================
-    // Correo
-    // =======================================================================
-
-    private async void OnMailGoogleClick(object sender, RoutedEventArgs e) =>
-        await MailSignInAsync(MailOAuthProvider.Google);
-
-    private async void OnMailMicrosoftClick(object sender, RoutedEventArgs e) =>
-        await MailSignInAsync(MailOAuthProvider.Microsoft);
-
-    private async Task MailSignInAsync(MailOAuthProvider provider)
-    {
-        MailStatus.Text = T("MailSigningIn");
-
-        try
-        {
-            var session = await _mailOAuth.SignInAsync(provider);
-            _mailOAuthToken = session.AccessToken;
-            MailStatus.Text = T("MailSignedIn");
-
-            await ReadMailAsync(provider);
-        }
-        catch (TaskCanceledException)
-        {
-            MailStatus.Text = T("SignInCancelled");
-        }
-        catch (Exception ex)
-        {
-            MailStatus.Text = ex.Message;
-        }
-    }
-
-    private async void OnMailReadClick(object sender, RoutedEventArgs e) => await ReadMailAsync(null);
-
-    private async Task ReadMailAsync(MailOAuthProvider? provider)
-    {
-        var address = MailAddressBox.Text.Trim();
-        if (address.Length == 0)
-        {
-            MailStatus.Text = T("MailMissingFields");
-            return;
-        }
-
-        // El preajuste sale del dominio; lo que se escriba a mano manda sobre el.
-        var account = MailProviders.ForAddress(address);
-
-        if (MailHostBox.Text.Trim() is { Length: > 0 } host)
-        {
-            account = account with { ImapHost = host };
-        }
-
-        if (int.TryParse(MailPortBox.Text.Trim(), out var port) && port > 0)
-        {
-            account = account with { ImapPort = port };
-        }
-
-        var useOAuth = _mailOAuthToken is not null && provider is not null;
-        var secret = useOAuth ? _mailOAuthToken! : MailPasswordBox.Password;
-
-        if (secret.Length == 0)
-        {
-            MailStatus.Text = T("MailMissingFields");
-            return;
-        }
-
-        MailReadButton.IsEnabled = false;
-        MailStatus.Text = T("MailReading");
-
-        try
-        {
-            var messages = await _mail.FetchAsync(account, secret, useOAuth: useOAuth);
-
-            _mails.Clear();
-            foreach (var message in messages)
-            {
-                _mails.Add(new MailRow(
-                    message.Uid,
-                    message.Subject.Length > 0 ? message.Subject : T("MailNoSubject"),
-                    $"{message.From} · {message.Date.LocalDateTime:g}",
-                    message));
-            }
-
-            MailStatus.Text = _mails.Count == 0 ? T("MailNone") : F("MailCount", _mails.Count);
-
-            await _settings.SetAsync("mail.address", address);
-        }
-        catch (Exception ex)
-        {
-            MailStatus.Text = ex.Message;
-        }
-        finally
-        {
-            MailReadButton.IsEnabled = true;
-        }
-    }
-
-    private async void OnMailToTaskClick(object sender, RoutedEventArgs e)
-    {
-        if (sender is not Button { Tag: uint uid })
-        {
-            return;
-        }
-
-        var row = _mails.FirstOrDefault(m => m.Uid == uid);
-        if (row is null)
-        {
-            return;
-        }
-
-        var task = await CreateTaskAsync(row.Message.ToTaskTitle(), "correo");
-        task.Context = row.Message.ToTaskContext();
-        await _tasks.Repository.UpdateTaskAsync(task);
-
-        MailStatus.Text = F("TaskCreated", task.Title);
-        await ReloadListsAsync();
-    }
-
-    // =======================================================================
-    // Azure DevOps
-    // =======================================================================
-
-    private async Task RestoreDevOpsAsync()
-    {
-        if (!AzureDevOpsService.IsConfigured)
-        {
-            DevOpsSignInButton.IsEnabled = false;
-            DevOpsRefreshButton.IsEnabled = false;
-            DevOpsStatus.Text = T("DevOpsNotConfigured");
-            return;
-        }
-
-        var session = await _devops.RestoreAsync();
-        if (session is not null)
-        {
-            _devopsToken = session.AccessToken;
-            await LoadDevOpsAsync();
-        }
-    }
-
-    private async void OnDevOpsSignInClick(object sender, RoutedEventArgs e)
-    {
-        DevOpsStatus.Text = T("MailSigningIn");
-
-        try
-        {
-            var session = await _devops.SignInAsync();
-            _devopsToken = session.AccessToken;
-            await LoadDevOpsAsync();
-        }
-        catch (TaskCanceledException)
-        {
-            DevOpsStatus.Text = T("SignInCancelled");
-        }
-        catch (Exception ex)
-        {
-            DevOpsStatus.Text = ex.Message;
-        }
-    }
-
-    private async void OnDevOpsRefreshClick(object sender, RoutedEventArgs e) => await LoadDevOpsAsync();
-
-    private async Task LoadDevOpsAsync()
-    {
-        if (_devopsToken is null)
-        {
-            return;
-        }
-
-        DevOpsRefreshButton.IsEnabled = false;
-        DevOpsStatus.Text = T("DevOpsLoading");
-
-        try
-        {
-            var items = await _devops.GetAssignedAsync(_devopsToken);
-
-            _devopsItems.Clear();
-            foreach (var item in items)
-            {
-                _devopsItems.Add(new DevOpsRow(
-                    item.Id,
-                    item.TaskTitle,
-                    string.Join(" · ", new[] { item.Project, item.Type, item.State }.Where(s => s.Length > 0)),
-                    item));
-            }
-
-            DevOpsStatus.Text = _devopsItems.Count == 0
-                ? T("DevOpsNone")
-                : F("DevOpsCount", _devopsItems.Count);
-        }
-        catch (Exception ex)
-        {
-            DevOpsStatus.Text = ex.Message;
-        }
-        finally
-        {
-            DevOpsRefreshButton.IsEnabled = true;
-        }
-    }
-
-    private async void OnDevOpsImportClick(object sender, RoutedEventArgs e)
-    {
-        if (sender is not Button { Tag: int id })
-        {
-            return;
-        }
-
-        var row = _devopsItems.FirstOrDefault(d => d.Id == id);
-        if (row is null)
-        {
-            return;
-        }
-
-        var task = await CreateTaskAsync(row.Title, "devops");
-        task.Context = F("DevOpsContext", row.Item.Organization, row.Item.Project, row.Item.Url);
-        task.DueAt = row.Item.DueDate;
-        await _tasks.Repository.UpdateTaskAsync(task);
-
-        DevOpsStatus.Text = F("TaskCreated", task.Title);
-        await ReloadListsAsync();
-    }
-
-    // =======================================================================
-    // Gremio
-    // =======================================================================
-
-    private async Task ReloadBoardAsync()
-    {
-        var board = await _tasks.GetBoardAsync();
-
-        BoardLevel.Text = F("Level", board.Level);
-        BoardProgress.Value = board.ProgressInLevel;
-        BoardToNext.Text = F("ToNextLevel", board.XpToNextLevel, board.Level + 1);
-        BoardXp.Text = F("XpTotal", board.TotalXp);
-
-        BoardStreak.Text = board.CurrentStreak switch
-        {
-            0 => T("NoStreak"),
-            1 => T("StreakOne"),
-            _ => F("StreakMany", board.CurrentStreak),
-        };
-
-        BoardNextUnlock.Text = board.NextUnlock is { } next
-            ? F("NextUnlock", next.Name, next.Level)
-            : T("AllUnlocked");
-    }
-
-    // =======================================================================
 
     /// <summary>
-    /// Crea la tarea en la primera lista privada, en Mi Dia y con su etiqueta de origen.
+    /// Doble clic en una fila: lo mismo que el lapiz. Es el gesto que espera cualquiera en una lista
+    /// de escritorio, y tener que apuntar a un icono de 30 pixeles para editar sobraba.
     /// </summary>
     /// <remarks>
-    /// Si no hay ninguna lista se crea una: importar un correo no deberia fallar por no haber
-    /// pasado antes por la pantalla de listas.
+    /// <para>Se escucha en la <b>lista</b> y no en cada fila. Se intento con
+    /// <c>MouseLeftButtonDown</c> sobre el borde de cada tarjeta mirando <c>ClickCount</c>, y no
+    /// llegaba a dispararse; <see cref="Control.MouseDoubleClick"/> es el evento que WPF trae para
+    /// esto y no depende de contar pulsaciones a mano.</para>
+    ///
+    /// <para>La fila se averigua subiendo desde lo que se pulso: asi da igual si el doble clic cayo
+    /// sobre el titulo, sobre la fecha o sobre el hueco de la tarjeta.</para>
     /// </remarks>
-    private async Task<TaskItem> CreateTaskAsync(string title, string tag)
+    private async void OnRowDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
-        var lists = await _tasks.Repository.GetPrivateListsAsync();
-        var listId = lists.FirstOrDefault()?.Id
-            ?? (await _tasks.Repository.CreateListAsync(T("DefaultListName"))).Id;
+        var source = e.OriginalSource as DependencyObject;
 
-        var task = await _tasks.Repository.AddTaskAsync(listId, title, inMyDay: true);
-        task.Tags = TaskTags.FromInput(tag);
-        return task;
+        while (source is not null and not ListBoxItem)
+        {
+            source = System.Windows.Media.VisualTreeHelper.GetParent(source);
+        }
+
+        if (source is ListBoxItem { Content: TaskRow row })
+        {
+            await OpenTaskAsync(row.Id);
+        }
     }
 
-    // Filas de cada lista de la ventana.
+    /// <summary>Abre el detalle, que es donde estan las notas, las fechas, la repeticion y los pasos.</summary>
+    private async void OnOpenTaskClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: Guid id })
+        {
+            await OpenTaskAsync(id);
+        }
+    }
+
+    private async Task OpenTaskAsync(Guid id)
+    {
+        var task = await _tasks.Repository.GetTaskAsync(id);
+        if (task is null)
+        {
+            return;
+        }
+
+        var window = new TaskDetailWindow(_tasks, task)
+        {
+            Owner = this,
+            Icon = Services.TrayIconHost.CreateWindowIcon(),
+        };
+
+        window.ShowDialog();
+
+        if (window.Changed)
+        {
+            await ReloadAsync();
+        }
+    }
+
+    // =======================================================================
+
     private sealed record ListRow(Guid Id, string Name, string Caption);
 
-    private sealed record TaskRow(Guid Id, string Title, bool IsDone);
+    /// <summary>Fila de tarea lista para pintar, con el mismo contenido que la del movil.</summary>
+    private sealed record TaskRow
+    {
+        public TaskRow(TaskItem task, string listName)
+        {
+            Id = task.Id;
+            Title = task.Title;
+            IsDone = task.IsDone;
 
-    private sealed record MailRow(uint Uid, string Subject, string Caption, MailMessage Message);
+            var parts = new List<string>();
 
-    private sealed record DevOpsRow(int Id, string Title, string Caption, WorkItem Item);
+            if (task.PlannedFor is { } planned)
+            {
+                parts.Add(Localization.Loc.Format("PlannedShort", planned.ToString("d MMM")));
+            }
+
+            if (task.DueAt is { } due)
+            {
+                parts.Add(Localization.Loc.Format("DueShort", due.ToString("d MMM")));
+            }
+
+            if (task.StepCount > 0)
+            {
+                parts.Add($"{task.StepsDone}/{task.StepCount}");
+            }
+
+            if (task.TagList.Count > 0)
+            {
+                parts.Add("#" + string.Join("  #", task.TagList));
+            }
+
+            if (listName.Length > 0)
+            {
+                parts.Add(listName);
+            }
+
+            Caption = string.Join("  ·  ", parts);
+        }
+
+        public Guid Id { get; }
+
+        public string Title { get; }
+
+        public bool IsDone { get; }
+
+        public string Caption { get; }
+
+        public Visibility CaptionVisibility =>
+            Caption.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        public TextDecorationCollection? Decoration =>
+            IsDone ? TextDecorations.Strikethrough : null;
+
+        public double Opacity => IsDone ? 0.55 : 1.0;
+    }
 }
 
-/// <summary>
-/// Cuadro para pedir un texto. WPF no trae ninguno, y abrir un formulario entero para escribir el
-/// nombre de una lista es desproporcionado.
-/// </summary>
-internal static class Prompt
+/// <summary>Cuadro de una sola linea: se usa para pedir el nombre de una lista.</summary>
+public static class Prompt
 {
     public static string? Ask(Window owner, string title, string hint)
     {
-        var box = new TextBox { Padding = new Thickness(6, 4, 6, 4), FontSize = 13 };
-        var ok = new Button { Content = "OK", Width = 80, IsDefault = true, Margin = new Thickness(0, 12, 0, 0) };
+        var box = new TextBox
+        {
+            Style = (Style)Application.Current.FindResource("Field"),
+            Margin = new Thickness(0, 0, 0, 12),
+        };
+
+        var ok = new Button
+        {
+            Style = (Style)Application.Current.FindResource("IconButton"),
+            Content = "",
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+
+        var panel = new StackPanel { Margin = new Thickness(18) };
+        panel.Children.Add(new TextBlock
+        {
+            Text = hint,
+            Margin = new Thickness(0, 0, 0, 8),
+            Style = (Style)Application.Current.FindResource("HintText"),
+        });
+        panel.Children.Add(box);
+        panel.Children.Add(ok);
 
         var window = new Window
         {
             Title = title,
-            Width = 360,
-            SizeToContent = SizeToContent.Height,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = panel,
             Owner = owner,
+            Width = 340,
+            SizeToContent = SizeToContent.Height,
             ResizeMode = ResizeMode.NoResize,
-            Background = owner.Background,
-            Content = new StackPanel
-            {
-                Margin = new Thickness(16),
-                Children =
-                {
-                    new TextBlock
-                    {
-                        Text = hint,
-                        Margin = new Thickness(0, 0, 0, 6),
-                        Foreground = System.Windows.Media.Brushes.Gray,
-                        FontSize = 11,
-                    },
-                    box,
-                    ok,
-                },
-            },
+            // Fuera de la barra de tareas: es un cuadro de una linea que pertenece a su ventana,
+            // no un sitio al que volver desde la barra.
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = (System.Windows.Media.Brush)Application.Current.FindResource("PageBackground"),
         };
 
         ok.Click += (_, _) => window.DialogResult = true;
+        box.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Enter)
+            {
+                window.DialogResult = true;
+            }
+        };
 
-        box.Focus();
-        return window.ShowDialog() == true && box.Text.Trim().Length > 0 ? box.Text.Trim() : null;
+        box.Loaded += (_, _) => box.Focus();
+
+        return window.ShowDialog() == true ? box.Text.Trim() : null;
     }
 }

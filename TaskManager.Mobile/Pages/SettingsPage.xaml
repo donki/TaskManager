@@ -14,8 +14,20 @@
                     <Label Text="{loc:T YourAccount}" Style="{StaticResource CardTitle}" />
 
                     <Grid ColumnDefinitions="44,*" ColumnSpacing="12">
+                        <!-- La foto de la cuenta, recortada en circulo. Si no hay o no carga, se ve
+                             debajo el icono generico: nunca se queda un hueco. -->
                         <Image Grid.Column="0" Source="ic_account.png" WidthRequest="28" HeightRequest="28"
                                VerticalOptions="Center" />
+                        <Border Grid.Column="0" x:Name="AvatarFrame" IsVisible="False"
+                                WidthRequest="40" HeightRequest="40" Padding="0"
+                                Stroke="Transparent" StrokeThickness="0"
+                                VerticalOptions="Center" HorizontalOptions="Center">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="20" />
+                            </Border.StrokeShape>
+                            <Image x:Name="AvatarImage" Aspect="AspectFill"
+                                   WidthRequest="40" HeightRequest="40" />
+                        </Border>
                         <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
                             <Label x:Name="AccountNameLabel" Style="{StaticResource ItemTitle}" />
                             <Label x:Name="AccountEmailLabel" Style="{StaticResource ItemSubtitle}" />
@@ -49,6 +61,13 @@
                         <Label Grid.Column="0" Text="{loc:T RemindPending}"
                                VerticalOptions="Center" />
                         <Switch Grid.Column="1" x:Name="NotifySwitch" Toggled="OnNotifyToggled" />
+                    </Grid>
+
+                    <!-- Cada cuanto insistir con las pendientes. -->
+                    <Grid ColumnDefinitions="*,Auto" x:Name="SnoozeRow" ColumnSpacing="10">
+                        <Label Grid.Column="0" Text="{loc:T SnoozeLabel}" VerticalOptions="Center" />
+                        <Picker Grid.Column="1" x:Name="SnoozePicker" WidthRequest="150"
+                                SelectedIndexChanged="OnSnoozeChanged" />
                     </Grid>
 
                     <Grid ColumnDefinitions="*,Auto" x:Name="NotifyHourRow">

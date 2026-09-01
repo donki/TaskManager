@@ -41,7 +41,7 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0">
-                        <TextBlock Text="{loc:T MenuMyDay}" FontSize="20" FontWeight="SemiBold"
+                        <TextBlock Text="{loc:T MenuMyTasks}" FontSize="20" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextPrimary}" />
                         <TextBlock x:Name="DateLabel" FontSize="12"
                                    Foreground="{DynamicResource TextSecondary}" />

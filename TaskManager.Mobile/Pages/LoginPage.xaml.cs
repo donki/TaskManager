@@ -31,24 +31,13 @@ public partial class LoginPage : ContentPage
     }
 
     /// <summary>
-    /// Esta pagina es la primera ruta del Shell, asi que hace de puerta. Se aparta sola cuando no
-    /// tiene nada que pedir: sin backend configurado, con una sesion ya guardada, o si el usuario
-    /// ya dijo que sigue sin cuenta.
+    /// Esta pagina es la primera ruta del Shell y hace de puerta. Solo se aparta cuando hay cuenta:
+    /// la entrada es obligatoria (<see cref="AuthOptions"/>), asi que no hay ninguna otra salida.
     /// </summary>
     protected override async void OnAppearing()
     {
         base.OnAppearing();
         await _settings.LoadAsync();
-
-        // Sin entrada con Google (o sin servidor) esta pantalla no tiene nada que pedir: la
-        // identidad es el identificador de instalacion y se entra directo a Mi Dia.
-        if (!AuthOptions.GoogleSignInEnabled
-            || !_settings.IsSupabaseConfigured
-            || _settings.GetBool(SettingsService.KeyAuthSkipped, false))
-        {
-            await Shell.Current.GoToAsync("//MyDayPage");
-            return;
-        }
 
         SetBusy(true);
         var restored = await _auth.RestoreSessionAsync();
@@ -56,21 +45,27 @@ public partial class LoginPage : ContentPage
 
         if (restored is not null)
         {
-            await Shell.Current.GoToAsync("//MyDayPage");
+            await Shell.Current.GoToAsync("//MyTasksPage");
         }
     }
 
-    private async void OnGoogleClicked(object? sender, EventArgs e)
+    private async void OnGoogleClicked(object? sender, EventArgs e) =>
+        await SignInAsync(IdentityProvider.Google);
+
+    private async void OnMicrosoftClicked(object? sender, EventArgs e) =>
+        await SignInAsync(IdentityProvider.Microsoft);
+
+    private async Task SignInAsync(IdentityProvider provider)
     {
         SetBusy(true);
         try
         {
-            var user = await _auth.SignInWithGoogleAsync();
+            var user = await _auth.SignInAsync(provider);
 
             // Lo hecho antes de entrar pasa a la cuenta: el nivel y las rachas no se pierden.
             await _tasks.AdoptAccountAsync(user.Id);
 
-            await Shell.Current.GoToAsync("//MyDayPage");
+            await Shell.Current.GoToAsync("//MyTasksPage");
         }
         catch (TaskCanceledException)
         {
@@ -90,19 +85,16 @@ public partial class LoginPage : ContentPage
         }
     }
 
-    private async void OnSkipClicked(object? sender, EventArgs e)
-    {
-        // Se recuerda la decision: preguntar en cada arranque seria un peaje, no una ayuda.
-        await _settings.SetBoolAsync(SettingsService.KeyAuthSkipped, true);
-        await Shell.Current.GoToAsync("//MyDayPage");
-    }
-
     private void SetBusy(bool busy)
     {
         Busy.IsRunning = busy;
         Busy.IsVisible = busy;
-        GoogleButton.IsEnabled = !busy && _settings.IsSupabaseConfigured;
-        SkipButton.IsEnabled = !busy;
+        GoogleButton.IsEnabled = !busy;
+
+        // Microsoft esta oculto de momento (AuthOptions.MicrosoftSignInEnabled): el flujo esta
+        // escrito y probado, pero no se ofrece hasta que se compruebe de verdad en un dispositivo.
+        MicrosoftButton.IsVisible = TaskManager.Core.AuthOptions.MicrosoftSignInEnabled;
+        MicrosoftButton.IsEnabled = !busy;
     }
 
     private void ShowStatus(string text)

@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using TaskManager.Core.Data;
 using TaskManager.Core.Models;
 
@@ -30,13 +29,26 @@ namespace TaskManager.Core.Services;
 /// </remarks>
 public sealed class SupabaseSyncService : ISyncService
 {
-    /// <summary>Ultima bajada correcta, para pedir solo lo que ha cambiado desde entonces.</summary>
-    private const string KeyLastPull = "sync.last_pull";
+    /// <summary>
+    /// Ultima bajada correcta, para pedir solo lo que ha llegado al servidor desde entonces. Se
+    /// compara contra <c>synced_at</c>, no contra <c>updated_at</c> (ver <see cref="FetchAsync"/>).
+    /// </summary>
+    private const string KeyLastPull = "sync.last_pull_v2";
 
+    /// <remarks>
+    /// <para><b>Los nulos se escriben.</b> Antes se omitian (<c>WhenWritingNull</c>) y eso rompia la
+    /// subida en cuanto habia mas de una fila: una tarea sin plazo se serializaba sin
+    /// <c>due_at</c> y otra con plazo si lo llevaba, asi que el lote iba con objetos de distinta
+    /// forma y PostgREST lo rechazaba entero con
+    /// <c>PGRST102: All object keys must match</c>. Se veia solo con varias tareas —con una sola,
+    /// todas las claves coinciden por definicion—, que es justo el caso que no se prueba.</para>
+    ///
+    /// <para>Ademas es lo correcto para un <c>upsert</c>: quitarle el plazo a una tarea tiene que
+    /// llegar al servidor como <c>due_at = null</c>, no como «de este campo no digo nada».</para>
+    /// </remarks>
     private static readonly JsonSerializerOptions Json = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
     private readonly HttpClient _http;
@@ -91,9 +103,25 @@ public sealed class SupabaseSyncService : ISyncService
 
         var done = new List<SyncOp>();
 
-        foreach (var group in latest.GroupBy(op => op.Entity))
+        // Las bajas van por su camino: borran la fila de verdad y dejan un apunte en `deletions`,
+        // que es lo unico que puede contarle al otro dispositivo que aquello ya no esta.
+        foreach (var op in latest.Where(o => o.Operation == "delete"))
+        {
+            if (!Guid.TryParse(op.EntityId, out var id))
+            {
+                continue;
+            }
+
+            if (await DeleteRemoteAsync(op.Entity, id, token, cancellationToken).ConfigureAwait(false))
+            {
+                done.AddRange(pending.Where(o => o.Entity == op.Entity && o.EntityId == op.EntityId));
+            }
+        }
+
+        foreach (var group in latest.Where(o => o.Operation != "delete").GroupBy(op => op.Entity))
         {
             var rows = new List<object>();
+            var sent = new List<SyncOp>();
 
             foreach (var op in group)
             {
@@ -101,6 +129,7 @@ public sealed class SupabaseSyncService : ISyncService
                 if (row is not null)
                 {
                     rows.Add(row);
+                    sent.Add(op);
                 }
             }
 
@@ -111,7 +140,10 @@ public sealed class SupabaseSyncService : ISyncService
 
             if (await UpsertAsync(group.Key, rows, token, cancellationToken).ConfigureAwait(false))
             {
-                done.AddRange(pending.Where(op => op.Entity == group.Key));
+                // Solo se da por hecho lo que de verdad se ha mandado. Antes se descartaba TODO lo
+                // pendiente de esa entidad, incluidas las filas que no se pudieron construir: se
+                // perdian sin haber subido nunca.
+                done.AddRange(sent);
             }
         }
 
@@ -154,13 +186,81 @@ public sealed class SupabaseSyncService : ISyncService
         try
         {
             using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
-            return response.IsSuccessStatusCode;
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
+            }
+
+            // Antes solo se miraba el codigo de estado, y un rechazo del servidor era
+            // indistinguible de no tener red: la fila se quedaba en la cola reintentandose para
+            // siempre sin que nadie supiera por que. Un 400 de PostgREST dice exactamente que
+            // columna sobra o falta, y esa frase es la diferencia entre un minuto y una tarde.
+            var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            LastError = $"{table}: {(int)response.StatusCode} {body}";
+            System.Diagnostics.Debug.WriteLine($"Sync push rechazado — {LastError}");
+
+            return false;
         }
         catch (HttpRequestException)
         {
-            return false;
+            return false;   // Sin red: la cola espera y se reintenta. No es un error que contar.
         }
         catch (TaskCanceledException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Ultimo rechazo del servidor, para poder enseñarlo. Null si no ha habido ninguno.</summary>
+    public string? LastError { get; private set; }
+
+    /// <summary>
+    /// Borra la fila del servidor y deja constancia de la baja.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>El apunte primero.</b> Si se borrase la fila y luego fallara el apunte, la fila ya
+    /// no estaria y nadie podria enterarse: el otro dispositivo se quedaria con ella para siempre.
+    /// Al reves, un apunte sin borrar solo hace que el otro borre algo que aqui todavia esta, y la
+    /// siguiente vuelta lo arregla.</para>
+    ///
+    /// <para>Las filas que cuelgan —tareas de una lista, pasos de una tarea— las borra el propio
+    /// servidor por las claves ajenas; aqui basta con la de arriba.</para>
+    /// </remarks>
+    private async Task<bool> DeleteRemoteAsync(string entity, Guid id, string token,
+        CancellationToken cancellationToken)
+    {
+        var noted = await UpsertAsync(
+            "deletions",
+            [new { entity, entity_id = id }],
+            token,
+            cancellationToken).ConfigureAwait(false);
+
+        if (!noted)
+        {
+            return false;
+        }
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Delete, $"{SupabaseConfig.Url}/rest/v1/{entity}?id=eq.{id}");
+
+        Authorize(request, token);
+        request.Headers.Add("Prefer", "return=minimal");
+
+        try
+        {
+            using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
+            }
+
+            LastError = $"{entity} (borrado): {(int)response.StatusCode} " +
+                        await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            System.Diagnostics.Debug.WriteLine($"Sync borrado rechazado - {LastError}");
+
+            return false;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             return false;
         }
@@ -184,13 +284,24 @@ public sealed class SupabaseSyncService : ISyncService
         // dura la peticion caeria en el hueco entre las dos bajadas y no llegaria nunca.
         var cutoff = DateTime.UtcNow;
 
+        // Las bajas primero: si llegara antes una tarea que el borrado de su lista, se guardaria
+        // una tarea huerfana que luego habria que volver a limpiar.
+        var deletions = await FetchAsync<DeletionRow>("deletions", since, token, cancellationToken, "deleted_at")
+            .ConfigureAwait(false);
+
         var lists = await FetchAsync<ListRow>("task_lists", since, token, cancellationToken).ConfigureAwait(false);
         var tasks = await FetchAsync<TaskRowDto>("tasks", since, token, cancellationToken).ConfigureAwait(false);
         var steps = await FetchAsync<StepRow>("task_steps", since, token, cancellationToken).ConfigureAwait(false);
 
-        if (lists is null || tasks is null || steps is null)
+        if (deletions is null || lists is null || tasks is null || steps is null)
         {
             return;   // Fallo de red: no se mueve el corte, se reintenta entero la proxima vez.
+        }
+
+        foreach (var row in deletions)
+        {
+            await _repository.ApplyRemoteDeleteAsync(row.Entity, row.EntityId).ConfigureAwait(false);
+            RemoteChanged?.Invoke(this, new RemoteChange(row.Entity, row.EntityId.ToString()));
         }
 
         // Las listas primero: una tarea cuya lista aun no existe se quedaria huerfana en la interfaz.
@@ -214,12 +325,16 @@ public sealed class SupabaseSyncService : ISyncService
     }
 
     private async Task<List<T>?> FetchAsync<T>(string table, string since, string token,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, string sinceColumn = "synced_at")
     {
+        // Se pregunta por synced_at —cuando llego la fila al servidor—, no por updated_at, que es
+        // cuando la toco el usuario. Con updated_at, lo que un dispositivo sube por primera vez
+        // viaja con su fecha original (de hace dias) y cae por detras del corte del otro
+        // dispositivo: se guardaba en el servidor y el otro no lo veia nunca.
         var url = $"{SupabaseConfig.Url}/rest/v1/{table}?select=*";
         if (since.Length > 0)
         {
-            url += $"&updated_at=gt.{Uri.EscapeDataString(since)}";
+            url += $"&{sinceColumn}=gt.{Uri.EscapeDataString(since)}";
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
@@ -269,7 +384,6 @@ public sealed class SupabaseSyncService : ISyncService
         task.ListId = row.ListId;
         task.Title = row.Title;
         task.Notes = row.Notes;
-        task.Context = row.Context;
         task.IsDone = row.IsDone;
         task.DoneAt = row.DoneAt?.UtcDateTime;
         task.MyDayOn = row.MyDayOn?.Date;
@@ -385,7 +499,6 @@ public sealed class SupabaseSyncService : ISyncService
         list_id = t.ListId,
         title = t.Title,
         notes = t.Notes,
-        context = t.Context,
         is_done = t.IsDone,
         done_at = t.DoneAt,
         my_day_on = t.MyDayOn?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -426,17 +539,24 @@ public sealed class SupabaseSyncService : ISyncService
     };
 
     /// <summary>
-    /// Identificador del usuario en el servidor. Las columnas de autoria apuntan a
-    /// <c>auth.users</c>, asi que tiene que ser el del token; el que hubiera guardado localmente
-    /// puede venir de otra cuenta.
+    /// Identificador del usuario <b>en el servidor</b>. Las columnas de autoria apuntan a
+    /// <c>auth.users</c>, asi que tiene que ser el <c>auth.uid()</c> del token, no el de Google:
+    /// dentro de la aplicacion el usuario es el <c>sub</c> de Google, pero la RLS no sabe nada de
+    /// el y rechazaria la fila.
     /// </summary>
-    private string CurrentUserId() =>
-        _auth.CurrentUser?.Id ?? _settings.Get(SettingsService.KeyUserId, string.Empty);
+    private string CurrentUserId()
+    {
+        var remote = _auth.CurrentUser?.RemoteId ?? string.Empty;
+        return remote.Length > 0 ? remote : _settings.Get(SettingsService.KeyRemoteUserId, string.Empty);
+    }
+
+    /// <summary>Un apunte de baja: que se borro y cuando llego aqui la noticia.</summary>
+    private sealed record DeletionRow(string Entity, Guid EntityId, DateTimeOffset DeletedAt);
 
     // Filas tal y como las devuelve PostgREST. Son un tipo aparte a proposito: si el servidor
     // cambia, se ve aqui y no se cuela dentro del modelo de la aplicacion.
     private sealed record TaskRowDto(
-        Guid Id, Guid ListId, string Title, string Notes, string Context, bool IsDone,
+        Guid Id, Guid ListId, string Title, string Notes, bool IsDone,
         DateTimeOffset? DoneAt, DateTimeOffset? MyDayOn, DateTimeOffset? DueAt, DateTimeOffset? PlannedFor,
         string Tags, string RecurrenceRule, int SortOrder, DateTime UpdatedAt, bool Deleted);
 

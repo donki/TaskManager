@@ -23,6 +23,7 @@ public static class ThemeManager
         {
             Set(resources, "PageBackground", "#141318");
             Set(resources, "CardBackground", "#201F27");
+            Set(resources, "SubmenuBackground", "#2A2833");
             Set(resources, "Separator", "#48454F");
             Set(resources, "TextPrimary", "#E6E1E9");
             Set(resources, "TextSecondary", "#C7C4D8");
@@ -31,6 +32,7 @@ public static class ThemeManager
         {
             Set(resources, "PageBackground", "#F8F9FA");
             Set(resources, "CardBackground", "#FFFFFF");
+            Set(resources, "SubmenuBackground", "#EDEEEF");
             Set(resources, "Separator", "#C7C4D8");
             Set(resources, "TextPrimary", "#191C1D");
             Set(resources, "TextSecondary", "#464555");

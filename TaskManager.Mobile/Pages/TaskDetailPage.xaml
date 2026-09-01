@@ -14,29 +14,26 @@
                 <!-- Que hay que hacer -->
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Padding="16" Spacing="10">
-                        <Label Text="{loc:T TaskTitle}" Style="{StaticResource CardTitle}" />
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Grid.Column="0" Text="{loc:T TaskTitle}" Style="{StaticResource CardTitle}"
+                                   VerticalOptions="Center" />
+                            <!-- Marcar hecha sin salir del detalle. -->
+                            <Switch Grid.Column="1" x:Name="DoneSwitch" Toggled="OnDoneToggled" />
+                        </Grid>
                         <Border Style="{StaticResource Card}" Padding="12,0">
                             <Entry x:Name="TitleEntry" Placeholder="{loc:T TaskWhat}" />
+                        </Border>
+
+                        <!-- De que lista cuelga. Sin opcion vacia: ninguna tarea puede quedarse
+                             sin lista, porque es lo que decide donde aparece y quien la ve. -->
+                        <Label Text="{loc:T TaskList}" Style="{StaticResource HintText}" />
+                        <Border Style="{StaticResource Card}" Padding="12,0">
+                            <Picker x:Name="ListPicker" />
                         </Border>
 
                         <Label Text="{loc:T Notes}" Style="{StaticResource HintText}" />
                         <Border Style="{StaticResource Card}" Padding="12,4">
                             <Editor x:Name="NotesEditor" HeightRequest="80" AutoSize="Disabled" />
-                        </Border>
-                    </VerticalStackLayout>
-                </Border>
-
-                <!-- Contexto: lo que precisa el desglose -->
-                <Border Style="{StaticResource Card}">
-                    <VerticalStackLayout Padding="16" Spacing="10">
-                        <Label Text="{loc:T Context}" Style="{StaticResource CardTitle}" />
-                        <Label Style="{StaticResource HintText}"
-                               Text="{loc:T ContextHelp}" />
-                        <Label Style="{StaticResource HintText}" FontSize="11"
-                               Text="{loc:T ContextNoModel}" />
-                        <Border Style="{StaticResource Card}" Padding="12,4">
-                            <Editor x:Name="ContextEditor" HeightRequest="110" AutoSize="Disabled"
-                                    Placeholder="{loc:T ContextPlaceholder}" />
                         </Border>
                     </VerticalStackLayout>
                 </Border>
@@ -49,6 +46,14 @@
                             <Entry x:Name="TagsEntry" Placeholder="{loc:T TagsPlaceholder}" />
                         </Border>
                         <Label Style="{StaticResource HintText}" Text="{loc:T TagsHelp}" />
+
+                        <!-- Las etiquetas que ya existen, para no tener que reescribirlas ni
+                             acordarse de como se escribieron la vez anterior. Tocar una la pone o
+                             la quita. La fila no aparece si todavia no hay ninguna. -->
+                        <ScrollView x:Name="KnownTagsScroll" Orientation="Horizontal"
+                                    HorizontalScrollBarVisibility="Never" IsVisible="False">
+                            <HorizontalStackLayout x:Name="KnownTagsBox" Spacing="8" />
+                        </ScrollView>
 
                         <BoxView Style="{StaticResource Separator}" />
 
@@ -74,6 +79,28 @@
                             <Stepper Grid.Column="1" x:Name="IntervalStepper" Minimum="1" Maximum="30" Increment="1"
                                      ValueChanged="OnIntervalChanged" IsVisible="False" />
                         </Grid>
+                        <!-- Dias de la semana: solo con repeticion diaria o semanal. -->
+                        <ScrollView x:Name="WeekdaysScroll" Orientation="Horizontal"
+                                    HorizontalScrollBarVisibility="Never" IsVisible="False">
+                            <HorizontalStackLayout x:Name="WeekdaysBox" Spacing="6" />
+                        </ScrollView>
+
+                        <!-- Dia del mes: solo con repeticion mensual. -->
+                        <Grid x:Name="MonthDayRow" IsVisible="False" ColumnDefinitions="*,Auto"
+                              ColumnSpacing="10">
+                            <Label Grid.Column="0" Text="{loc:T MonthDayLabel}" VerticalOptions="Center" />
+                            <Picker Grid.Column="1" x:Name="MonthDayPicker" WidthRequest="140"
+                                    SelectedIndexChanged="OnMonthDayChanged" />
+                        </Grid>
+
+                        <!-- El mes solo con repeticion anual: «cada año el 15 de septiembre». -->
+                        <Grid x:Name="MonthRow" IsVisible="False" ColumnDefinitions="*,Auto"
+                              ColumnSpacing="10">
+                            <Label Grid.Column="0" Text="{loc:T MonthLabel}" VerticalOptions="Center" />
+                            <Picker Grid.Column="1" x:Name="MonthPicker" WidthRequest="160"
+                                    SelectedIndexChanged="OnMonthChanged" />
+                        </Grid>
+
                         <Label x:Name="RecurrenceLabel" Style="{StaticResource HintText}" />
                     </VerticalStackLayout>
                 </Border>
@@ -92,10 +119,62 @@
                                          Clicked="OnBreakdownClicked" />
                         </Grid>
 
+                        <!-- Anadir un paso a mano: escribir y Enter, o el boton. -->
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <Border Grid.Column="0" Style="{StaticResource Card}" Padding="12,0">
+                                <Entry x:Name="NewStepEntry"
+                                       Placeholder="{loc:T AddStepTooltip}"
+                                       ReturnType="Done"
+                                       Completed="OnAddStepClicked" />
+                            </Border>
+                            <ImageButton Grid.Column="1" Style="{StaticResource HeaderIconButton}"
+                                         Source="ic_add_w.png" BackgroundColor="{StaticResource Primary}"
+                                         Clicked="OnAddStepClicked" />
+                        </Grid>
+
                         <Label x:Name="NoStepsLabel" Style="{StaticResource HintText}"
                                Text="{loc:T NoSteps}" />
 
-                        <VerticalStackLayout x:Name="StepsBox" Spacing="0" />
+                        <!--
+                            CollectionView y no una pila: es lo unico que trae el arrastre para
+                            reordenar (CanReorderItems). Los pasos son el guion de como se hace algo,
+                            y un guion desordenado no sirve; poder moverlos con el dedo es la forma
+                            natural de arreglarlo.
+
+                            Sin altura fija: va dentro de un ScrollView, y una lista que se
+                            desplaza dentro de otra que se desplaza es una trampa para el dedo.
+                        -->
+                        <CollectionView x:Name="StepsView" SelectionMode="None"
+                                        CanReorderItems="True" ReorderCompleted="OnStepsReordered">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="models:StepRow">
+                                    <Grid ColumnDefinitions="40,*,40,40" ColumnSpacing="2" Padding="0,2">
+                                        <ImageButton Grid.Column="0"
+                                                     Style="{StaticResource RowIconButton}"
+                                                     Source="{Binding StateIcon}"
+                                                     CommandParameter="{Binding Id}"
+                                                     Clicked="OnToggleStepClicked" />
+
+                                        <Label Grid.Column="1" Text="{Binding Title}"
+                                               VerticalOptions="Center"
+                                               Opacity="{Binding Opacity}"
+                                               TextDecorations="{Binding Decoration}" />
+
+                                        <ImageButton Grid.Column="2"
+                                                     Style="{StaticResource RowIconButton}"
+                                                     Source="ic_edit.png"
+                                                     CommandParameter="{Binding Id}"
+                                                     Clicked="OnEditStepClicked" />
+
+                                        <ImageButton Grid.Column="3"
+                                                     Style="{StaticResource RowIconButton}"
+                                                     Source="ic_delete_danger.png"
+                                                     CommandParameter="{Binding Id}"
+                                                     Clicked="OnDeleteStepClicked" />
+                                    </Grid>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
                     </VerticalStackLayout>
                 </Border>
 

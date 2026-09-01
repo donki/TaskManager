@@ -118,7 +118,6 @@ public sealed class TaskService
             ListId = task.ListId,
             Title = task.Title,
             Notes = task.Notes,
-            Context = task.Context,
             Tags = task.Tags,
             RecurrenceRule = task.RecurrenceRule,
             DueAt = next,
@@ -194,7 +193,10 @@ public sealed class TaskService
         TaskItem task,
         CancellationToken cancellationToken = default)
     {
-        var titles = await _breakdown.BreakdownAsync(task.Title, task.Context, cancellationToken).ConfigureAwait(false);
+        // El desglose parte de las notas. Antes habia un campo «contexto» aparte solo para esto:
+        // eran dos cajas de texto libre en la misma pantalla pidiendo casi lo mismo, y quien
+        // escribia en la que no era se quedaba sin pasos utiles.
+        var titles = await _breakdown.BreakdownAsync(task.Title, task.Notes, cancellationToken).ConfigureAwait(false);
         if (titles.Count == 0)
         {
             return new BreakdownProposal([], 0, string.Empty);

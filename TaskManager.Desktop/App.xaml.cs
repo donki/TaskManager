@@ -24,10 +24,10 @@ public partial class App : Application
     private HttpClient? _http;
     private SupabaseAuthService _auth = null!;
     private ISyncService _sync = null!;
+    private SyncCoordinator? _syncing;
     private CalendarWindow? _calendar;
     private MainWindow? _main;
     private MailOAuthService _mailOAuth = null!;
-    private AzureDevOpsService _devops = null!;
     private IMailReader _mail = null!;
     private ReminderScheduler? _reminders;
 
@@ -69,19 +69,27 @@ public partial class App : Application
         _auth = new SupabaseAuthService(_http, _settings, new DpapiTokenStore(folder), new LoopbackOAuthBrowser());
         await _auth.RestoreSessionAsync();
 
-        // Correo y Azure DevOps: el mismo registro de Entra para los dos, y el navegador del
-        // sistema con un servidor local de un solo uso para recoger la respuesta.
+        // La entrada es obligatoria: sin cuenta no se monta la bandeja. Se pregunta aqui, antes de
+        // crear ninguna ventana, porque todo lo que viene detras atribuye lo que pasa a un usuario
+        // y el nombre de la cuenta es el nombre que enseña la aplicacion.
+        if (!await EnsureSignedInAsync())
+        {
+            return;
+        }
+
+        // Correo: registro de Entra, navegador del sistema y un servidor local de un solo uso
+        // para recoger la respuesta.
         _mailOAuth = new MailOAuthService(_http, new LoopbackOAuthBrowser(), new DpapiTokenStore(folder));
         _mail = new MailKitReader();
-        _devops = new AzureDevOpsService(_http, _mailOAuth);
 
-        // Sincronizacion con el movil. Se lanza sin esperarla: si la red va lenta o no hay, el
-        // panel tiene que abrirse igual de rapido; las tareas locales ya estan.
+        // Sincronizacion con el movil. El coordinador decide cuando (al entrar, al volver, tras
+        // cada cambio y cada pocos minutos); aqui solo se le dice que arranque, sin esperarlo: si
+        // la red va lenta o no hay, el panel tiene que abrirse igual de rapido.
         _sync = SupabaseConfig.IsConfigured
             ? new SupabaseSyncService(_http, repository, _settings, _auth)
             : new LocalOnlySyncService(repository);
 
-        _ = SyncInBackgroundAsync();
+        _syncing = new SyncCoordinator(_sync, _auth, repository, _settings);
 
         _flyout = new FlyoutWindow(_tasks, _settings) { Icon = TrayIconHost.CreateWindowIcon() };
         _flyout.PendingChanged += (_, pending) => _tray.SetPending(pending);
@@ -106,7 +114,20 @@ public partial class App : Application
             _tray.Notify("Task Manager", Localization.Loc.Format("HotkeyTaken", combination));
         }
 
-        _tray.SetPending(await repository.CountMyDayPendingAsync());
+        // Una tarea creada en el movil se anuncia aqui en cuanto baja, y el panel se relee solo.
+        _syncing.TaskArrived += (_, task) =>
+            Dispatcher.Invoke(() => _tray.Notify(Localization.Loc.Get("MenuMyTasks"),
+                Localization.Loc.Format("TaskArrivedFromDevice", task.Title)));
+
+        _syncing.Changed += (_, _) => Dispatcher.Invoke(async () =>
+        {
+            await _flyout.ReloadAsync();
+            _tray.SetPending(await repository.CountPendingAsync());
+        });
+
+        _syncing.Start();
+
+        _tray.SetPending(await repository.CountPendingAsync());
 
         // Recordatorios: el aviso diario y el de las tareas que vencen hoy, como globo de bandeja.
         _reminders = new ReminderScheduler(repository, _settings, _tray);
@@ -116,6 +137,35 @@ public partial class App : Application
         // con el clic en el icono o con el atajo global.
         _tray.Notify("Task Manager", Localization.Loc.Format("TrayRunning",
             _settings.Get(SettingsService.KeyHotkey, "Ctrl+Alt+T")));
+    }
+
+    /// <summary>
+    /// Deja pasar solo con cuenta. Devuelve <c>false</c> cuando el usuario cierra la ventana sin
+    /// entrar, en cuyo caso la propia ventana ya ha pedido apagar la aplicacion y el arranque no
+    /// tiene nada mas que hacer.
+    /// </summary>
+    /// <remarks>
+    /// Lo hecho antes de entrar se traspasa a la cuenta (<see cref="TaskService.AdoptAccountAsync"/>):
+    /// una base recien creada no tiene nada que traspasar, pero la que venia de una version sin
+    /// entrada obligatoria si, y perder el nivel y las rachas por actualizar seria un castigo.
+    /// </remarks>
+    private async Task<bool> EnsureSignedInAsync()
+    {
+        if (_auth.IsSignedIn)
+        {
+            return true;
+        }
+
+        var login = new LoginWindow(_auth) { Icon = TrayIconHost.CreateWindowIcon() };
+        login.ShowDialog();
+
+        if (login.User is null)
+        {
+            return false;
+        }
+
+        await _tasks.AdoptAccountAsync(login.User.Id);
+        return true;
     }
 
     /// <summary>
@@ -150,26 +200,6 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Sube lo pendiente y baja lo que haya hecho el movil, y refresca el panel si algo cambio.
-    /// </summary>
-    /// <remarks>
-    /// Se traga los fallos a proposito: quedarse sin conexion no es un error que haya que
-    /// ensenarle a nadie, y la cola de salida no se pierde. Cuando vuelva la red, subira.
-    /// </remarks>
-    private async Task SyncInBackgroundAsync()
-    {
-        try
-        {
-            await _sync.StartAsync();
-            await _flyout.ReloadAsync();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Sync: {ex.Message}");
-        }
-    }
-
-    /// <summary>
     /// Abre el calendario, o trae al frente el que ya estuviera abierto.
     /// </summary>
     /// <remarks>
@@ -185,7 +215,7 @@ public partial class App : Application
             return;
         }
 
-        _main = new MainWindow(_tasks, _settings, _mail, _mailOAuth, _devops)
+        _main = new MainWindow(_tasks, _settings)
         {
             Icon = TrayIconHost.CreateWindowIcon(),
         };
@@ -218,6 +248,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _syncing?.Dispose();
         _reminders?.Dispose();
         _hotkey?.Dispose();
         _tray?.Dispose();

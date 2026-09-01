@@ -49,19 +49,33 @@ public static class MauiProgram
 
         builder.Services.AddSingleton<INotificationService, Platforms.Android.NotificationService>();
         builder.Services.AddSingleton<IMailReader, MailKitReader>();
-        builder.Services.AddSingleton<MailOAuthService>();
-        builder.Services.AddSingleton<AzureDevOpsService>();
+        // El correo (oculto) sigue con el esquema propio: Microsoft si lo admite y no necesita
+        // servidor local.
+        builder.Services.AddSingleton(services => new MailOAuthService(
+            services.GetRequiredService<HttpClient>(),
+            services.GetRequiredService<Services.MauiOAuthBrowser>(),
+            services.GetRequiredService<ITokenStore>()));
         builder.Services.AddSingleton<TaskService>();
 
-        // Entrada con Google a traves de Supabase: navegador del sistema (Custom Tabs) y tokens en
-        // el almacen seguro de Android, con la tabla de ajustes como ultimo recurso.
-        builder.Services.AddSingleton<IOAuthBrowser, Services.MauiOAuthBrowser>();
+        // Entrada con Google: navegador del sistema y un servidor local de un solo uso, igual que
+        // en Windows. No se usa el esquema de identificador invertido porque eso obliga a un cliente
+        // OAuth de tipo Android, que valida paquete y huella SHA-1 y responde
+        // «Error 400: invalid_request» en cuanto una de las dos no cuadra (visto el 2026-08-31).
+        // Con la loopback vale el mismo cliente de escritorio que ya funciona.
+        //
+        // MauiOAuthBrowser (esquema propio) se queda para el correo: Microsoft si lo admite.
+        builder.Services.AddSingleton<IOAuthBrowser, Services.AndroidLoopbackBrowser>();
+        builder.Services.AddSingleton<Services.MauiOAuthBrowser>();
         builder.Services.AddSingleton<ITokenStore>(services =>
             new Services.SecureTokenStore(new SettingsTokenStore(services.GetRequiredService<SettingsService>())));
         builder.Services.AddSingleton<SupabaseAuthService>();
 
+        // Quien decide cuando se sincroniza. Antes en Android no se sincronizaba nunca: por eso el
+        // mismo usuario veia listas distintas en el movil y en Windows.
+        builder.Services.AddSingleton<SyncCoordinator>();
+
         builder.Services.AddTransient<LoginPage>();
-        builder.Services.AddTransient<MyDayPage>();
+        builder.Services.AddTransient<MyTasksPage>();
         builder.Services.AddTransient<ListsPage>();
         builder.Services.AddTransient<ListDetailPage>();
         builder.Services.AddTransient<TaskDetailPage>();

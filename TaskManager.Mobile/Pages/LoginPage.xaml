@@ -29,6 +29,12 @@
                     Clicked="OnGoogleClicked"
                     HorizontalOptions="Fill" />
 
+            <Button x:Name="MicrosoftButton"
+                    Text="{loc:T ContinueMicrosoft}"
+                    Style="{StaticResource OutlineButton}"
+                    Clicked="OnMicrosoftClicked"
+                    HorizontalOptions="Fill" />
+
             <ActivityIndicator x:Name="Busy" IsRunning="False" IsVisible="False" />
 
             <Label x:Name="StatusLabel"
@@ -36,13 +42,8 @@
                    HorizontalTextAlignment="Center"
                    IsVisible="False" />
 
-            <Button x:Name="SkipButton"
-                    Text="{loc:T ContinueWithoutAccount}"
-                    Style="{StaticResource OutlineButton}"
-                    Clicked="OnSkipClicked"
-                    HorizontalOptions="Fill" />
-
-            <Label Text="{loc:T NoAccountHint}"
+            <!-- No hay "seguir sin cuenta": la entrada es obligatoria (AuthOptions). -->
+            <Label Text="{loc:T SignInRequiredHint}"
                    Style="{StaticResource HintText}"
                    FontSize="11"
                    HorizontalTextAlignment="Center" />

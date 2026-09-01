@@ -128,7 +128,9 @@ public partial class FlyoutWindow : Window
     {
         await ReloadListsAsync();
 
-        var tasks = await _tasks.Repository.GetMyDayAsync();
+        // Lo que queda por hacer, de todas las listas. Antes era «Mi Día» —solo lo marcado
+        // para hoy—, que ya no existe: obligaba a acordarse de marcar cada tarea para verla.
+        var tasks = await _tasks.Repository.GetAllTasksAsync(TaskManager.Core.Models.TaskFilter.Pending);
         _rows.Clear();
         foreach (var task in tasks)
         {
@@ -203,7 +205,7 @@ public partial class FlyoutWindow : Window
             return null;
         }
 
-        var task = await _tasks.Repository.AddTaskAsync(listId, title, inMyDay: true);
+        var task = await _tasks.Repository.AddTaskAsync(listId, title);
         QuickAdd.Text = string.Empty;
         await ReloadAsync();
         return task;

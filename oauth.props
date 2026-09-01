@@ -18,6 +18,14 @@
     <TmGoogleAndroidClientId Condition="'$(TmGoogleAndroidClientId)' == ''">$(TM_GOOGLE_ANDROID_ID)</TmGoogleAndroidClientId>
     <TmGoogleDesktopClientId Condition="'$(TmGoogleDesktopClientId)' == ''">$(TM_GOOGLE_DESKTOP_ID)</TmGoogleDesktopClientId>
     <TmGoogleDesktopClientSecret Condition="'$(TmGoogleDesktopClientSecret)' == ''">$(TM_GOOGLE_DESKTOP_SECRET)</TmGoogleDesktopClientSecret>
+
+    <!--
+      Esquema de vuelta de Google en Android: el identificador de cliente invertido. Google no
+      admite un esquema cualquiera con un cliente de tipo Android (Error 400: invalid_request), y
+      el intent-filter que lo recoge necesita el valor en una constante de compilacion, asi que se
+      calcula aqui y viaja como una constante mas.
+    -->
+    <TmGoogleAndroidRedirectScheme>com.googleusercontent.apps.$(TmGoogleAndroidClientId.Replace('.apps.googleusercontent.com', ''))</TmGoogleAndroidRedirectScheme>
   </PropertyGroup>
 
   <Target Name="GenerateOAuthSecrets" BeforeTargets="BeforeCompile;CoreCompile"
@@ -25,12 +33,14 @@
     <ItemGroup>
       <TmOAuthLine Include="// Generado por oauth.props. No editar ni subir al repositorio." />
       <TmOAuthLine Include="namespace TaskManager.Core.Services%3B" />
-      <TmOAuthLine Include="internal static class OAuthSecrets" />
+      <!-- Publica: el intent-filter de Android la necesita desde el proyecto del movil. -->
+      <TmOAuthLine Include="public static class OAuthSecrets" />
       <TmOAuthLine Include="{" />
       <TmOAuthLine Include="    public const string MicrosoftClientId = &quot;$(TmMicrosoftClientId)&quot;%3B" />
       <TmOAuthLine Include="    public const string GoogleAndroidClientId = &quot;$(TmGoogleAndroidClientId)&quot;%3B" />
       <TmOAuthLine Include="    public const string GoogleDesktopClientId = &quot;$(TmGoogleDesktopClientId)&quot;%3B" />
       <TmOAuthLine Include="    public const string GoogleDesktopClientSecret = &quot;$(TmGoogleDesktopClientSecret)&quot;%3B" />
+      <TmOAuthLine Include="    public const string GoogleAndroidRedirectScheme = &quot;$(TmGoogleAndroidRedirectScheme)&quot;%3B" />
       <TmOAuthLine Include="}" />
     </ItemGroup>
     <MakeDir Directories="$(IntermediateOutputPath)" />

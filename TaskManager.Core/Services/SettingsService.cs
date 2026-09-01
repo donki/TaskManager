@@ -12,10 +12,24 @@ public sealed class SettingsService
 {
     public const string KeyUserId = "user.id";
     public const string KeyLocalUserId = "user.local_id";
+    /// <summary>
+    /// La identidad de verdad, la misma en todos los aparatos: el identificador de la cuenta que da
+    /// el proveedor (el <c>sub</c> de Google o el <c>oid</c> de Microsoft).
+    /// </summary>
+    /// <remarks>
+    /// El nombre guardado sigue siendo <c>user.google_sub</c> aunque ya valga tambien para
+    /// Microsoft. <b>Cambiarlo cerraria la sesion de todo el mundo al actualizar</b>: la aplicacion
+    /// buscaria una clave que en su base no existe, no encontraria identidad y volveria a pedir la
+    /// entrada. Un nombre algo viejo cuesta menos que eso.
+    /// </remarks>
+    public const string KeyGoogleSub = "user.google_sub";
+
+    /// <summary>Con que se entro: <c>Google</c> o <c>Microsoft</c>. Hace falta para renovar.</summary>
+    public const string KeyAuthProvider = "user.auth_provider";
+    /// <summary>El <c>auth.uid()</c> de Supabase, que es distinto y solo vale para las filas que suben.</summary>
+    public const string KeyRemoteUserId = "user.remote_id";
     public const string KeyAccountEmail = "user.email";
     public const string KeyAvatarUrl = "user.avatar";
-    /// <summary>El usuario eligio seguir sin cuenta: no se le vuelve a preguntar al arrancar.</summary>
-    public const string KeyAuthSkipped = "auth.skipped";
     public const string KeyDisplayName = "user.display_name";
     /// <summary>Idioma elegido (es/en). Vacio = seguir al del sistema.</summary>
     public const string KeyLanguage = "user.language";
@@ -25,6 +39,12 @@ public sealed class SettingsService
     public const string KeyHaptics = "celebration.haptics";
     public const string KeyNotifyEnabled = "notify.enabled";
     public const string KeyNotifyHour = "notify.hour";
+
+    /// <summary>
+    /// Cada cuantos minutos se repite el aviso de tareas pendientes. <b>Cero = no repetir</b>, que
+    /// es lo de siempre: un solo aviso al dia.
+    /// </summary>
+    public const string KeySnoozeMinutes = "notify.snooze";
     public const string KeyHotkey = "desktop.hotkey";
     public const string KeyStartWithWindows = "desktop.autostart";
 
@@ -94,6 +114,11 @@ public sealed class SettingsService
 
     /// <summary>Recordatorio diario de lo que queda pendiente. Encendido por defecto.</summary>
     public bool NotificationsEnabled => GetBool(KeyNotifyEnabled, true);
+
+    /// <summary>
+    /// Cada cuanto se repite el aviso de pendientes, en minutos. Cero significa no repetir.
+    /// </summary>
+    public int SnoozeMinutes => int.TryParse(Get(KeySnoozeMinutes, "0"), out var m) ? Math.Clamp(m, 0, 720) : 0;
 
     /// <summary>Hora del recordatorio diario (0-23).</summary>
     public int NotifyHour => int.TryParse(Get(KeyNotifyHour, "9"), out var hour) ? Math.Clamp(hour, 0, 23) : 9;

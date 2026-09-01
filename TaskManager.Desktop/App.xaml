@@ -6,20 +6,204 @@
         <ResourceDictionary>
 
             <!--
-                Paleta indigo de las apps sOCratic (constitucion 7). Los valores de tema claro son
-                los de partida; ThemeManager sustituye los mismos nombres si Windows esta en oscuro.
+                HandyControl (MIT), para TagContainer, Growl y TimePicker.
+
+                Se intento importar solo los diccionarios de esos tres controles y NO SE PUEDE: sus
+                estilos dependen del tema base y la libreria solo expone estas dos entradas. Asi que
+                entran las dos, y la coherencia visual se defiende de otra manera: los estilos
+                propios se declaran DIRECTAMENTE aqui abajo, y en WPF una entrada directa de
+                Application.Resources gana a cualquier diccionario combinado. Lo que HandyControl
+                reestiliza de verdad es lo que esta aplicacion no estiliza (barras de desplazamiento
+                y poco mas).
             -->
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/HandyControl;component/Themes/SkinDefault.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/HandyControl;component/Themes/Theme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!--
+                Sistema visual de Windows, calcado del de Android.
+
+                Los nombres son los mismos que los de Resources/Styles/Styles.xaml del movil
+                (Card, CardTitle, HintText, ItemTitle, Chip...) y los colores salen de la misma
+                paleta indigo (constitucion 7 y E.5). No es adorno: las dos aplicaciones son la
+                misma aplicacion, y si cada una inventa su aspecto, cambiar el de una obliga a
+                acordarse de la otra. ThemeManager sustituye los mismos nombres en tema oscuro,
+                asi que ninguna ventana tiene que saber en que tema esta.
+            -->
+
+            <!-- ============================ Paleta ============================ -->
             <Color x:Key="PrimaryColor">#3525CD</Color>
             <SolidColorBrush x:Key="Primary" Color="#3525CD" />
             <SolidColorBrush x:Key="PrimaryLight" Color="#635BF2" />
+            <SolidColorBrush x:Key="Accent" Color="#4F46E5" />
             <SolidColorBrush x:Key="OnPrimary" Color="#FFFFFF" />
             <SolidColorBrush x:Key="PageBackground" Color="#F8F9FA" />
             <SolidColorBrush x:Key="CardBackground" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="SubmenuBackground" Color="#EDEEEF" />
             <SolidColorBrush x:Key="Separator" Color="#C7C4D8" />
             <SolidColorBrush x:Key="TextPrimary" Color="#191C1D" />
             <SolidColorBrush x:Key="TextSecondary" Color="#464555" />
             <SolidColorBrush x:Key="Success" Color="#27AE60" />
+            <SolidColorBrush x:Key="Danger" Color="#BA1A1A" />
             <SolidColorBrush x:Key="Gold" Color="#F5C542" />
+
+            <!-- ============================ Texto ============================ -->
+            <Style x:Key="CardTitle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="17" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{DynamicResource Primary}" />
+            </Style>
+
+            <Style x:Key="ItemTitle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            </Style>
+
+            <Style x:Key="ItemSubtitle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="11" />
+                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+            </Style>
+
+            <Style x:Key="HintText" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="11" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+            </Style>
+
+            <!-- ============================ Superficies ============================ -->
+
+            <!-- Tarjeta: el mismo radio de 16 y la misma sombra suave que en el movil. -->
+            <Style x:Key="Card" TargetType="Border">
+                <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+                <Setter Property="CornerRadius" Value="16" />
+                <Setter Property="Padding" Value="14,12" />
+                <Setter Property="Effect">
+                    <Setter.Value>
+                        <DropShadowEffect BlurRadius="8" ShadowDepth="2" Direction="270"
+                                          Color="#000000" Opacity="0.10" />
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="Rows" TargetType="ListBox">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+                <Setter Property="ItemContainerStyle">
+                    <Setter.Value>
+                        <!-- Sin el rectangulo azul de seleccion de WPF: en el movil no existe, y
+                             aqui competia con la propia tarjeta. -->
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="BorderThickness" Value="0" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <ContentPresenter />
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Lista de un solo nivel donde SI hace falta ver que fila esta elegida. -->
+            <Style x:Key="PickRows" TargetType="ListBox" BasedOn="{StaticResource Rows}">
+                <Setter Property="ItemContainerStyle">
+                    <Setter.Value>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="10,8" />
+                            <Setter Property="Margin" Value="0,0,0,4" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="Bd" CornerRadius="12" Padding="{TemplateBinding Padding}"
+                                                Background="{DynamicResource CardBackground}">
+                                            <ContentPresenter />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="Bd" Property="Background"
+                                                        Value="{DynamicResource Primary}" />
+                                                <Setter Property="TextElement.Foreground" Value="White" />
+                                            </Trigger>
+                                            <MultiTrigger>
+                                                <MultiTrigger.Conditions>
+                                                    <Condition Property="IsSelected" Value="False" />
+                                                    <Condition Property="IsMouseOver" Value="True" />
+                                                </MultiTrigger.Conditions>
+                                                <Setter TargetName="Bd" Property="Background"
+                                                        Value="{DynamicResource SubmenuBackground}" />
+                                            </MultiTrigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- ============================ Entradas ============================ -->
+
+            <!--
+                Caja de texto sin el marco gris de WPF, que rompe el conjunto. El fondo va por
+                TemplateBinding: una caja DENTRO de una tarjeta necesita otro tono, o desaparece.
+                Por eso el valor por defecto es el del fondo de pagina, no el de la tarjeta.
+            -->
+            <Style x:Key="Field" TargetType="TextBox">
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="Padding" Value="10,7" />
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+                <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Background" Value="{DynamicResource PageBackground}" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="TextBox">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="12"
+                                    Padding="{TemplateBinding Padding}">
+                                <ScrollViewer x:Name="PART_ContentHost" />
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="FieldMultiline" TargetType="TextBox" BasedOn="{StaticResource Field}">
+                <Setter Property="AcceptsReturn" Value="True" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="VerticalContentAlignment" Value="Top" />
+                <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+            </Style>
+
+            <Style TargetType="CheckBox">
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            </Style>
+
+            <!--
+                Los desplegables son ahora los de HandyControl (hc:ComboBox), con su propio tema
+                claro/oscuro. Aqui habia una plantilla propia entera porque el de WPF pintaba texto
+                oscuro sobre fondo oscuro; sesenta lineas menos que mantener.
+            -->
+
+            <!--
+                El DatePicker es ahora el de HandyControl (hc:DatePicker), que trae su propio
+                calendario y su propio tema claro/oscuro. El de WPF venia de 2006, pintaba texto
+                oscuro sobre fondo oscuro y hubo que remendarlo a mano; esto lo sustituye entero.
+            -->
+
+            <!-- ============================ Botones ============================ -->
 
             <!-- Botones de accion: solo icono, nunca palabras (constitucion 7). -->
             <Style x:Key="IconButton" TargetType="Button">
@@ -36,7 +220,7 @@
                         <ControlTemplate TargetType="Button">
                             <Border x:Name="Bd"
                                     Background="{TemplateBinding Background}"
-                                    CornerRadius="8">
+                                    CornerRadius="10">
                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
                             <ControlTemplate.Triggers>
@@ -55,6 +239,96 @@
             <Style x:Key="GhostIconButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
                 <Setter Property="Background" Value="Transparent" />
                 <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+            </Style>
+
+            <Style x:Key="DangerIconButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
+                <Setter Property="Background" Value="{DynamicResource Danger}" />
+            </Style>
+
+            <!-- Boton redondo pequeño de una fila: el equivalente del RowIconButton del movil. -->
+            <Style x:Key="RowIconButton" TargetType="Button" BasedOn="{StaticResource GhostIconButton}">
+                <Setter Property="Width" Value="30" />
+                <Setter Property="Height" Value="30" />
+                <Setter Property="FontSize" Value="15" />
+                <Setter Property="Foreground" Value="{DynamicResource Primary}" />
+            </Style>
+
+            <!--
+                Pastilla de filtro. Es el mismo control que en Android: fondo apagado cuando no
+                esta puesto e indigo lleno cuando si. Se marca con Tag="on", que es lo que el
+                codigo cambia al elegir uno.
+            -->
+            <Style x:Key="Chip" TargetType="ToggleButton">
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Padding" Value="14,6" />
+                <Setter Property="Margin" Value="0,0,8,0" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+                <Setter Property="Background" Value="{DynamicResource SubmenuBackground}" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ToggleButton">
+                            <Border x:Name="Bd" CornerRadius="16"
+                                    Background="{TemplateBinding Background}"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Primary}" />
+                                    <Setter Property="Foreground" Value="White" />
+                                </Trigger>
+                                <MultiTrigger>
+                                    <MultiTrigger.Conditions>
+                                        <Condition Property="IsChecked" Value="False" />
+                                        <Condition Property="IsMouseOver" Value="True" />
+                                    </MultiTrigger.Conditions>
+                                    <Setter TargetName="Bd" Property="Opacity" Value="0.8" />
+                                </MultiTrigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Pestañas planas con la barra indigo debajo de la activa, como el movil. -->
+            <Style TargetType="TabItem">
+                <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="TabItem">
+                            <Grid>
+                                <Border x:Name="Bd" Background="Transparent" Padding="16,9">
+                                    <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" />
+                                </Border>
+                                <Border x:Name="Underline" Height="3" VerticalAlignment="Bottom"
+                                        CornerRadius="2" Background="Transparent" Margin="10,0" />
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter TargetName="Underline" Property="Background"
+                                            Value="{DynamicResource Primary}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource Primary}" />
+                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Foreground" Value="{DynamicResource Primary}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style TargetType="TabControl">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+            </Style>
+
+            <Style TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
             </Style>
 
         </ResourceDictionary>

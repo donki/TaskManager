@@ -1,4 +1,5 @@
 using TaskManager.Core;
+using System.Linq;
 using System.Windows;
 using TaskManager.Core.Services;
 using TaskManager.Desktop.Services;
@@ -21,10 +22,12 @@ public partial class SettingsWindow : Window
         _auth = auth;
         _tasks = tasks;
 
-        DisplayNameBox.Text = settings.DisplayName;
         HotkeyBox.Text = settings.Get(SettingsService.KeyHotkey, "Ctrl+Alt+T");
 
         FillLanguages();
+        NotifyBox.IsChecked = settings.NotificationsEnabled;
+        FillSnooze();
+
         AutoStartBox.IsChecked = AutoStart.IsEnabled;
         SoundBox.IsChecked = settings.SoundEnabled;
 
@@ -35,27 +38,91 @@ public partial class SettingsWindow : Window
     // Cuenta
     // -----------------------------------------------------------------------
 
+    /// <summary>
+    /// La cuenta no se elige aqui: la entrada es obligatoria y ya se hizo al arrancar. Lo unico
+    /// que queda es ver quien esta dentro y poder salir, que abre otra vez la puerta.
+    /// </summary>
+    /// <summary>Cada cuanto insiste el aviso de pendientes. Se guarda en minutos.</summary>
+    private static readonly int[] SnoozeChoices = [0, 15, 30, 60, 120, 240];
+
+    /// <summary>
+    /// Rellena las opciones de repeticion del aviso.
+    /// </summary>
+    /// <remarks>
+    /// «No repetir» es la primera y la de siempre: un aviso al dia. Las demas estan para quien
+    /// necesita que le insistan, que es justo el caso en el que un unico aviso a las nueve de la
+    /// mañana no sirve de nada.
+    /// </remarks>
+    private void FillSnooze()
+    {
+        SnoozeBox.ItemsSource = SnoozeChoices.Select(Describe).ToList();
+        SnoozeBox.SelectedIndex = Math.Max(0, Array.IndexOf(SnoozeChoices, _settings.SnoozeMinutes));
+        SnoozeBox.IsEnabled = NotifyBox.IsChecked == true;
+    }
+
+    private static string Describe(int minutes) => minutes switch
+    {
+        0 => Localization.Loc.Get("SnoozeOff"),
+        60 => Localization.Loc.Get("SnoozeHour"),
+        < 60 => Localization.Loc.Format("SnoozeMinutes", minutes),
+        _ => Localization.Loc.Format("SnoozeHours", minutes / 60),
+    };
+
+    private void OnNotifyToggled(object sender, RoutedEventArgs e) =>
+        SnoozeBox.IsEnabled = NotifyBox.IsChecked == true;
+
     private void ShowAccount()
     {
-        if (!AuthOptions.GoogleSignInEnabled)
-        {
-            var id = _settings.InstallationId;
-            AccountLabel.Text = id.Length >= 8
-                ? Localization.Loc.Format("ThisComputerId", id[..8])
-                : Localization.Loc.Get("ThisComputer");
-            SignInButton.IsEnabled = false;
-            SignOutButton.IsEnabled = false;
-            return;
-        }
-
         var user = _auth.CurrentUser;
 
         AccountLabel.Text = user is not null
             ? $"{user.DisplayName} · {user.Email}"
             : Localization.Loc.Get("NoAccountDesktop");
 
-        SignInButton.IsEnabled = user is null && _settings.IsSupabaseConfigured;
+        ShowAvatar(user is null ? string.Empty : _settings.AvatarUrl);
+
+        // El nombre de la aplicacion es el de la cuenta de Google: se enseña, no se edita.
+        DisplayNameBox.Text = user?.DisplayName ?? _settings.DisplayName;
+
+        SignInButton.IsEnabled = user is null && _auth.IsConfigured;
         SignOutButton.IsEnabled = user is not null;
+    }
+
+    /// <summary>
+    /// Pinta la foto de la cuenta dentro de un circulo.
+    /// </summary>
+    /// <remarks>
+    /// Se descarga sin bloquear y <b>se traga los fallos</b>: una foto que no carga —sin red, o el
+    /// enlace caducado— no puede impedir ver los ajustes ni tumbar la ventana. Si falla, el hueco
+    /// sencillamente no se enseña.
+    /// </remarks>
+    private void ShowAvatar(string url)
+    {
+        if (url.Length == 0)
+        {
+            AvatarCircle.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        try
+        {
+            var image = new System.Windows.Media.Imaging.BitmapImage();
+            image.BeginInit();
+            image.UriSource = new Uri(url, UriKind.Absolute);
+            image.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+            image.EndInit();
+
+            AvatarCircle.Fill = new System.Windows.Media.ImageBrush(image)
+            {
+                Stretch = System.Windows.Media.Stretch.UniformToFill,
+            };
+
+            AvatarCircle.Visibility = Visibility.Visible;
+        }
+        catch (Exception)
+        {
+            AvatarCircle.Visibility = Visibility.Collapsed;
+        }
     }
 
     private async void OnSignInClick(object sender, RoutedEventArgs e)
@@ -65,9 +132,9 @@ public partial class SettingsWindow : Window
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
-            var user = await _auth.SignInWithGoogleAsync(cts.Token);
+            var user = await _auth.SignInAsync(IdentityProvider.Google, cts.Token);
 
-            // Lo hecho sin cuenta pasa a la cuenta: el nivel y las rachas no se pierden.
+            // Lo hecho con la cuenta anterior pasa a la nueva: el nivel y las rachas no se pierden.
             await _tasks.AdoptAccountAsync(user.Id);
             StatusLabel.Text = Localization.Loc.Format("SignedInAs", user.Email);
         }
@@ -85,17 +152,34 @@ public partial class SettingsWindow : Window
         }
     }
 
+    /// <summary>
+    /// Salir deja la aplicacion sin usuario, y sin usuario no hay aplicacion: se vuelve a pedir la
+    /// entrada al momento, y si nadie entra, la propia puerta apaga el programa.
+    /// </summary>
     private async void OnSignOutClick(object sender, RoutedEventArgs e)
     {
         await _auth.SignOutAsync();
         StatusLabel.Text = Localization.Loc.Get("SessionClosed");
         ShowAccount();
+
+        var login = new LoginWindow(_auth) { Icon = Services.TrayIconHost.CreateWindowIcon() };
+        login.ShowDialog();
+
+        if (login.User is not null)
+        {
+            await _tasks.AdoptAccountAsync(login.User.Id);
+        }
+
+        ShowAccount();
     }
 
     private async void OnSaveClick(object sender, RoutedEventArgs e)
     {
-        await _settings.SetAsync(SettingsService.KeyDisplayName, DisplayNameBox.Text.Trim());
+        // El nombre no se guarda: viene de la cuenta de Google y se refresca en cada entrada.
         await _settings.SetBoolAsync(SettingsService.KeySound, SoundBox.IsChecked == true);
+        await _settings.SetBoolAsync(SettingsService.KeyNotifyEnabled, NotifyBox.IsChecked == true);
+        await _settings.SetAsync(SettingsService.KeySnoozeMinutes,
+            SnoozeChoices[Math.Clamp(SnoozeBox.SelectedIndex, 0, SnoozeChoices.Length - 1)].ToString());
 
         AutoStart.Set(AutoStartBox.IsChecked == true);
 

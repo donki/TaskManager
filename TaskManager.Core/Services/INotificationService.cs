@@ -29,4 +29,10 @@ public interface INotificationService
     void ScheduleDailySummary(TimeSpan timeOfDay);
 
     void CancelDailySummary();
+
+    /// <summary>
+    /// Avisa <b>ahora</b>, sin programar nada. Es lo que usa la llegada de una tarea creada en otro
+    /// dispositivo del mismo usuario: ya ha pasado, no hay hora futura que esperar.
+    /// </summary>
+    void Notify(string title, string message);
 }
