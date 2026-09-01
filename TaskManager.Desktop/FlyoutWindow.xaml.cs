@@ -512,7 +512,7 @@ public partial class FlyoutWindow : Window
         public TaskRow(TaskItem task, string listName)
         {
             Id = task.Id;
-            Title = task.IsPriority ? "★ " + task.Title : task.Title;
+            Title = task.IsPinned ? "📌 " + task.Title : task.Title;
             IsDone = task.IsDone;
             ListName = listName;
             StepsCaption = task.StepCount > 0 ? $"{task.StepsDone}/{task.StepCount} pasos" : string.Empty;

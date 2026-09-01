@@ -30,7 +30,7 @@ public sealed class TaskRow : INotifyPropertyChanged
     /// ya lleva boton de estado y texto, y una columna vacia en casi todas las filas solo estrecha
     /// el titulo.
     /// </summary>
-    public string Title => Task.IsPriority ? "★ " + Task.Title : Task.Title;
+    public string Title => Task.IsPinned ? "📌 " + Task.Title : Task.Title;
 
     public bool IsDone => Task.IsDone;
 

@@ -38,10 +38,10 @@
                         <!-- Marcar hecha sin salir del detalle: si se ha entrado a repasarla,
                              tener que cerrar para tacharla sobra. -->
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                            <CheckBox x:Name="DoneCheck" Content="{loc:T MarkDone}"
+                            <CheckBox Style="{StaticResource CheckBoxBaseStyle}" x:Name="DoneCheck" Content="{loc:T MarkDone}"
                                       Click="OnDoneToggled" />
-                            <CheckBox x:Name="PriorityCheck" Content="{loc:T MarkPriority}"
-                                      Margin="20,0,0,0" />
+                            <CheckBox Style="{StaticResource CheckBoxBaseStyle}" x:Name="PinCheck" Content="{loc:T MarkPinned}"
+                                      Margin="20,0,0,0" Click="OnPinToggled" />
                         </StackPanel>
 
                         <TextBlock Text="{loc:T TaskTitle}" Style="{StaticResource HintText}" />
@@ -84,7 +84,7 @@
 
                         <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
                             <TextBlock Grid.Column="0" Text="{loc:T DueDate}" VerticalAlignment="Center" />
-                            <CheckBox Grid.Column="1" x:Name="DueCheck" Click="OnDueToggled" />
+                            <CheckBox Style="{StaticResource CheckBoxBaseStyle}" Grid.Column="1" x:Name="DueCheck" Click="OnDueToggled" />
                         </Grid>
                         <Grid x:Name="DueRow" Visibility="Collapsed" Margin="0,0,0,12"
                               ColumnDefinitions="*,Auto">
@@ -95,7 +95,7 @@
 
                         <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
                             <TextBlock Grid.Column="0" Text="{loc:T PlannedFor}" VerticalAlignment="Center" />
-                            <CheckBox Grid.Column="1" x:Name="PlannedCheck" Click="OnPlannedToggled" />
+                            <CheckBox Style="{StaticResource CheckBoxBaseStyle}" Grid.Column="1" x:Name="PlannedCheck" Click="OnPlannedToggled" />
                         </Grid>
                         <Grid x:Name="PlannedRow" Visibility="Collapsed" ColumnDefinitions="*,Auto">
                             <hc:DatePicker Grid.Column="0" x:Name="PlannedPicker" />
@@ -231,7 +231,7 @@
                                                    FontSize="13" VerticalAlignment="Center"
                                                    Foreground="{DynamicResource TextSecondary}"
                                                    ToolTip="{loc:T DragStepTooltip}" />
-                                        <CheckBox Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0"
+                                        <CheckBox Style="{StaticResource CheckBoxBaseStyle}" Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0"
                                                   IsChecked="{Binding IsDone, Mode=OneWay}"
                                                   Tag="{Binding Id}" Click="OnStepToggled" />
                                         <TextBlock Grid.Column="2" Text="{Binding Title}"

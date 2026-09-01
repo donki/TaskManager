@@ -33,7 +33,15 @@ public sealed class SupabaseSyncService : ISyncService
     /// Ultima bajada correcta, para pedir solo lo que ha llegado al servidor desde entonces. Se
     /// compara contra <c>synced_at</c>, no contra <c>updated_at</c> (ver <see cref="FetchAsync"/>).
     /// </summary>
-    private const string KeyLastPull = "sync.last_pull_v2";
+    /// <remarks>
+    /// <b>v3</b>: hasta la v2 el corte lo ponia el reloj del dispositivo, asi que uno adelantado
+    /// podia dejar guardada una marca por delante de la del servidor y no volver a bajar nada nunca
+    /// (ver el final de <see cref="PullAsync"/>). Cambiar de clave hace que cada aparato empiece de
+    /// cero una vez —una bajada completa, que no cambia nada de lo que ya tenga— y a partir de ahi
+    /// el corte sale de las propias filas. Sin esto, un dispositivo ya atascado se quedaba atascado
+    /// con la version nueva tambien.
+    /// </remarks>
+    private const string KeyLastPull = "sync.last_pull_v3";
 
     /// <summary>Huella del perfil que ya se subio, para no repetir la subida en cada vuelta.</summary>
     private const string KeyProfilePushed = "sync.profile_v1";
@@ -429,10 +437,6 @@ public sealed class SupabaseSyncService : ISyncService
 
         var since = _settings.Get(KeyLastPull, string.Empty);
 
-        // El corte se toma ANTES de pedir nada. Si se tomara despues, todo lo que cambie mientras
-        // dura la peticion caeria en el hueco entre las dos bajadas y no llegaria nunca.
-        var cutoff = DateTime.UtcNow;
-
         // Las bajas primero: si llegara antes una tarea que el borrado de su lista, se guardaria
         // una tarea huerfana que luego habria que volver a limpiar.
         var deletions = await FetchAsync<DeletionRow>("deletions", since, token, cancellationToken, "deleted_at")
@@ -479,8 +483,46 @@ public sealed class SupabaseSyncService : ISyncService
             await MergeAttachmentAsync(row).ConfigureAwait(false);
         }
 
-        await _settings.SetAsync(KeyLastPull, cutoff.ToString("O", CultureInfo.InvariantCulture))
-                       .ConfigureAwait(false);
+        // El corte nuevo sale de LO QUE HA LLEGADO, no del reloj de este aparato.
+        //
+        // Antes se tomaba `DateTime.UtcNow` justo antes de preguntar. Parecia lo prudente —asi nada
+        // de lo que cambiara durante la peticion caia en el hueco— pero comparaba dos relojes
+        // distintos: el corte era el del movil y `synced_at` lo pone el servidor. Con el movil unos
+        // segundos adelantado, cada fila nueva nacia ya «por detras» del corte y **no llegaba
+        // nunca**, porque `synced_at` no vuelve a cambiar. Refrescar no traia nada y no habia forma
+        // de saber por que.
+        //
+        // Con el maximo de lo recibido no hay dos relojes: si no ha llegado nada, el corte se queda
+        // donde estaba y se vuelve a preguntar por lo mismo. Como mucho, una fila justo en el borde
+        // se baja dos veces, y fusionarla dos veces no cambia nada.
+        var newest = Newest(
+            deletions.Select(d => d.DeletedAt),
+            lists.Select(l => l.SyncedAt),
+            tasks.Select(t => t.SyncedAt),
+            steps.Select(s => s.SyncedAt),
+            attachments.Select(a => a.SyncedAt));
+
+        if (newest is { } corte)
+        {
+            await _settings.SetAsync(KeyLastPull, corte.UtcDateTime.ToString("O", CultureInfo.InvariantCulture))
+                           .ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>La marca mas alta de todo lo que ha bajado, o <c>null</c> si no ha bajado nada.</summary>
+    private static DateTimeOffset? Newest(params IEnumerable<DateTimeOffset>[] marcas)
+    {
+        DateTimeOffset? mayor = null;
+
+        foreach (var marca in marcas.SelectMany(m => m))
+        {
+            if (mayor is null || marca > mayor)
+            {
+                mayor = marca;
+            }
+        }
+
+        return mayor;
     }
 
     private async Task<List<T>?> FetchAsync<T>(string table, string since, string token,
@@ -543,7 +585,7 @@ public sealed class SupabaseSyncService : ISyncService
         task.ListId = row.ListId;
         task.Title = _cipher.Unprotect(row.Title, _candidateKeys);
         task.Notes = _cipher.Unprotect(row.Notes, _candidateKeys);
-        task.IsPriority = row.IsPriority;
+        task.IsPinned = row.IsPinned;
         task.IsDone = row.IsDone;
         task.DoneAt = row.DoneAt?.UtcDateTime;
         task.MyDayOn = row.MyDayOn?.Date;
@@ -729,7 +771,7 @@ public sealed class SupabaseSyncService : ISyncService
         list_id = t.ListId,
         title = _cipher.Protect(t.Title, keyId),
         notes = _cipher.Protect(t.Notes, keyId),
-        is_priority = t.IsPriority,
+        is_pinned = t.IsPinned,
         is_done = t.IsDone,
         done_at = t.DoneAt,
         my_day_on = t.MyDayOn?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -850,7 +892,7 @@ public sealed class SupabaseSyncService : ISyncService
     /// <summary>Un adjunto tal y como lo devuelve PostgREST.</summary>
     private sealed record AttachmentRow(
         Guid Id, Guid TaskId, string Kind, string Name, string Url, string? Data,
-        int SortOrder, DateTimeOffset UpdatedAt, bool Deleted);
+        int SortOrder, DateTimeOffset UpdatedAt, bool Deleted, DateTimeOffset SyncedAt);
 
     /// <summary>Un apunte de baja: que se borro y cuando llego aqui la noticia.</summary>
     private sealed record DeletionRow(string Entity, Guid EntityId, DateTimeOffset DeletedAt);
@@ -858,15 +900,16 @@ public sealed class SupabaseSyncService : ISyncService
     // Filas tal y como las devuelve PostgREST. Son un tipo aparte a proposito: si el servidor
     // cambia, se ve aqui y no se cuela dentro del modelo de la aplicacion.
     private sealed record TaskRowDto(
-        Guid Id, Guid ListId, string Title, string Notes, bool IsPriority, bool IsDone,
+        Guid Id, Guid ListId, string Title, string Notes, bool IsPinned, bool IsDone,
         DateTimeOffset? DoneAt, DateTimeOffset? MyDayOn, DateTimeOffset? DueAt, DateTimeOffset? PlannedFor,
-        string Tags, string RecurrenceRule, int SortOrder, DateTime UpdatedAt, bool Deleted);
+        string Tags, string RecurrenceRule, int SortOrder, DateTime UpdatedAt, bool Deleted,
+        DateTimeOffset SyncedAt);
 
     private sealed record ListRow(
         Guid Id, Guid? GroupId, Guid? OwnerId, string Name, string Icon, int SortOrder,
-        DateTime UpdatedAt, bool Deleted);
+        DateTime UpdatedAt, bool Deleted, DateTimeOffset SyncedAt);
 
     private sealed record StepRow(
         Guid Id, Guid TaskId, string Title, bool IsDone, int SortOrder, string Source,
-        DateTime UpdatedAt, bool Deleted);
+        DateTime UpdatedAt, bool Deleted, DateTimeOffset SyncedAt);
 }

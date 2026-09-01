@@ -58,7 +58,7 @@ public partial class CalendarPage : ContentPage
     /// </summary>
     private async void OnRefreshClicked(object? sender, EventArgs e)
     {
-        await Helpers.ServiceHelper.GetRequiredService<SyncCoordinator>().SyncNowAsync();
+        await Helpers.ServiceHelper.GetRequiredService<SyncCoordinator>().RefreshNowAsync();
         await ReloadAsync();
     }
 

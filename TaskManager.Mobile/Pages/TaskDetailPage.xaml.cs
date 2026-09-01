@@ -90,7 +90,7 @@ public partial class TaskDetailPage : ContentPage
 
         Title = _task.Title;
         DoneSwitch.IsToggled = _task.IsDone;
-        PrioritySwitch.IsToggled = _task.IsPriority;
+        PinSwitch.IsToggled = _task.IsPinned;
         TitleEntry.Text = _task.Title;
         NotesEditor.Text = _task.Notes;
         TagsEntry.Text = TaskTags.ToInput(_task.Tags);
@@ -371,6 +371,23 @@ public partial class TaskDetailPage : ContentPage
     /// Marca o desmarca la tarea sin salir del detalle. Completar suma XP y celebra; deshacer lo
     /// devuelve sin castigar, igual que en la lista.
     /// </summary>
+    /// <summary>
+    /// Anclar guarda en el acto, igual que en Windows: es un gesto suelto, no un campo que se
+    /// rellena mientras se edita. Ver <c>TaskDetailWindow.OnPinToggled</c>.
+    /// </summary>
+    private async void OnPinToggled(object? sender, ToggledEventArgs e)
+    {
+        // Al cargar la pantalla tambien salta este evento; sin esta guarda se guardaria una vez por
+        // cada vez que se abre la tarea.
+        if (_task is null || _task.IsPinned == e.Value)
+        {
+            return;
+        }
+
+        _task.IsPinned = e.Value;
+        await _tasks.Repository.UpdateTaskAsync(_task);
+    }
+
     private async void OnDoneToggled(object? sender, ToggledEventArgs e)
     {
         if (_task is null || _task.IsDone == e.Value)
@@ -760,7 +777,7 @@ public partial class TaskDetailPage : ContentPage
 
         var kind = Kinds[Math.Clamp(RecurrencePicker.SelectedIndex, 0, Kinds.Length - 1)];
         _task.RecurrenceRule = new Recurrence(kind, (int)IntervalStepper.Value, _days, _monthDay, _month).Serialize();
-        _task.IsPriority = PrioritySwitch.IsToggled;
+        _task.IsPinned = PinSwitch.IsToggled;
 
         if (ListPicker.SelectedIndex >= 0 && ListPicker.SelectedIndex < _lists.Count)
         {

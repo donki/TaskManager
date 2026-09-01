@@ -94,8 +94,16 @@ public partial class MyTasksPage : ContentPage
         }
     }
 
+    /// <summary>
+    /// Tirar hacia abajo hace lo mismo que el boton: hablar con el servidor y luego repintar.
+    /// </summary>
+    /// <remarks>
+    /// Antes solo repintaba lo de este aparato. El gesto de tirar hacia abajo significa «mira a ver
+    /// si hay algo nuevo» en cualquier aplicacion del mundo, y aqui no miraba nada.
+    /// </remarks>
     private async void OnRefreshing(object? sender, EventArgs e)
     {
+        await Helpers.ServiceHelper.GetRequiredService<SyncCoordinator>().RefreshNowAsync();
         await ReloadAsync();
         Refresher.IsRefreshing = false;
     }
@@ -106,7 +114,7 @@ public partial class MyTasksPage : ContentPage
     /// </summary>
     private async void OnRefreshClicked(object? sender, EventArgs e)
     {
-        await Helpers.ServiceHelper.GetRequiredService<SyncCoordinator>().SyncNowAsync();
+        await Helpers.ServiceHelper.GetRequiredService<SyncCoordinator>().RefreshNowAsync();
         await ReloadAsync();
     }
 
@@ -372,7 +380,7 @@ public partial class MyTasksPage : ContentPage
     /// Un solo boton para la prioridad: si ya lo son todas, la quita; si no, la pone. Dos botones
     /// (poner y quitar) en una barra que ya lleva siete es mas donde apuntar sin ganar nada.
     /// </summary>
-    private async void OnBulkPriorityClicked(object? sender, EventArgs e)
+    private async void OnBulkPinClicked(object? sender, EventArgs e)
     {
         var selected = _rows.Where(r => r.IsSelected).ToList();
         if (selected.Count == 0)
@@ -380,8 +388,8 @@ public partial class MyTasksPage : ContentPage
             return;
         }
 
-        var priority = !selected.All(r => r.Task.IsPriority);
-        await _tasks.Repository.SetPriorityAsync(selected.Select(r => r.Id), priority);
+        var pinned = !selected.All(r => r.Task.IsPinned);
+        await _tasks.Repository.SetPinnedAsync(selected.Select(r => r.Id), pinned);
         await ReloadAsync();
     }
 

@@ -61,13 +61,13 @@
         <hc:ComboBox x:Name="LanguageBox" />
 
         <!-- Aviso de tareas pendientes: encenderlo y cada cuanto insistir. -->
-        <CheckBox x:Name="NotifyBox" Content="{loc:T RemindPending}" Click="OnNotifyToggled" />
+        <CheckBox Style="{StaticResource CheckBoxBaseStyle}" x:Name="NotifyBox" Content="{loc:T RemindPending}" Click="OnNotifyToggled" />
 
         <TextBlock Text="{loc:T SnoozeLabel}" />
         <hc:ComboBox x:Name="SnoozeBox" />
 
-        <CheckBox x:Name="AutoStartBox" Content="{loc:T AutoStartLabel}" />
-        <CheckBox x:Name="SoundBox" Content="{loc:T SoundOnComplete}" />
+        <CheckBox Style="{StaticResource CheckBoxBaseStyle}" x:Name="AutoStartBox" Content="{loc:T AutoStartLabel}" />
+        <CheckBox Style="{StaticResource CheckBoxBaseStyle}" x:Name="SoundBox" Content="{loc:T SoundOnComplete}" />
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
             <Button x:Name="CancelButton" Style="{StaticResource GhostIconButton}"

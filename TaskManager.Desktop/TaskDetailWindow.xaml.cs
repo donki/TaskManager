@@ -86,7 +86,7 @@ public partial class TaskDetailWindow : Window
     private void Fill()
     {
         DoneCheck.IsChecked = _task.IsDone;
-        PriorityCheck.IsChecked = _task.IsPriority;
+        PinCheck.IsChecked = _task.IsPinned;
         TitleBox.Text = _task.Title;
         NotesBox.Text = _task.Notes;
         _tags.Clear();
@@ -275,6 +275,23 @@ public partial class TaskDetailWindow : Window
     /// Marca o desmarca la tarea, al momento. Completar suma XP y celebra; deshacer lo devuelve sin
     /// castigar, que es la misma regla que en la lista.
     /// </summary>
+    /// <summary>
+    /// Anclar guarda en el acto, sin esperar al boton de guardar.
+    /// </summary>
+    /// <remarks>
+    /// Es lo mismo que hace la casilla de «hecha», y por la misma razon: anclar es un gesto suelto
+    /// —se marca y se cierra— y no un campo que se rellena mientras se edita. Guardandolo solo al
+    /// final, marcar y cerrar la ventana no dejaba rastro: la tarea seguia sin anclar y parecia que
+    /// anclar no funcionaba.
+    /// </remarks>
+    private async void OnPinToggled(object sender, RoutedEventArgs e)
+    {
+        _task.IsPinned = PinCheck.IsChecked == true;
+        await _tasks.Repository.UpdateTaskAsync(_task);
+
+        Changed = true;
+    }
+
     private async void OnDoneToggled(object sender, RoutedEventArgs e)
     {
         if (DoneCheck.IsChecked == true)
@@ -805,7 +822,7 @@ public partial class TaskDetailWindow : Window
         _task.Title = TitleBox.Text?.Trim() ?? string.Empty;
         _task.Notes = NotesBox.Text?.Trim() ?? string.Empty;
         _task.Tags = TaskTags.Join(_tags);
-        _task.IsPriority = PriorityCheck.IsChecked == true;
+        _task.IsPinned = PinCheck.IsChecked == true;
 
         _task.DueAt = DueCheck.IsChecked == true ? Combine(DuePicker.SelectedDate, DueTime.SelectedTime) : null;
         _task.PlannedFor = PlannedCheck.IsChecked == true

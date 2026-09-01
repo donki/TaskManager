@@ -53,7 +53,7 @@ public partial class ListDetailPage : ContentPage
     /// </summary>
     private async void OnRefreshClicked(object? sender, EventArgs e)
     {
-        await Helpers.ServiceHelper.GetRequiredService<SyncCoordinator>().SyncNowAsync();
+        await Helpers.ServiceHelper.GetRequiredService<SyncCoordinator>().RefreshNowAsync();
         await ReloadAsync();
     }
 

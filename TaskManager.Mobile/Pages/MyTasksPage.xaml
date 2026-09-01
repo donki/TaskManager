@@ -140,8 +140,8 @@
                                      Clicked="OnBulkDoneClicked" />
                         <ImageButton Style="{StaticResource RowIconButton}" Source="ic_undo.png"
                                      Clicked="OnBulkPendingClicked" />
-                        <ImageButton Style="{StaticResource RowIconButton}" Source="ic_star.png"
-                                     Clicked="OnBulkPriorityClicked" />
+                        <ImageButton Style="{StaticResource RowIconButton}" Source="ic_pin.png"
+                                     Clicked="OnBulkPinClicked" />
                         <ImageButton Style="{StaticResource RowIconButton}" Source="ic_tag.png"
                                      Clicked="OnBulkTagClicked" />
                         <ImageButton Style="{StaticResource RowIconButton}" Source="ic_list.png"
