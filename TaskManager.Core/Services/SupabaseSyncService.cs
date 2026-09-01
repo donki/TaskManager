@@ -56,6 +56,18 @@ public sealed class SupabaseSyncService : ISyncService
     private readonly SettingsService _settings;
     private readonly SupabaseAuthService _auth;
 
+    /// <summary>El texto libre se cifra aqui al salir y se descifra al entrar.</summary>
+    private readonly TextCipher _cipher = new();
+
+    /// <summary>
+    /// Claves con las que se intenta descifrar lo que baja: la del usuario y la de cada grupo que
+    /// se conozca. Se rehace en cada bajada porque el usuario puede haber entrado en un grupo nuevo.
+    /// </summary>
+    private IReadOnlyList<string> _candidateKeys = [];
+
+    /// <summary>De que lista cuelga cada tarea, dentro de una misma subida. Evita releerlo.</summary>
+    private readonly Dictionary<Guid, string> _keyOfList = [];
+
     public SupabaseSyncService(HttpClient http, TaskRepository repository,
         SettingsService settings, SupabaseAuthService auth)
     {
@@ -94,6 +106,9 @@ public sealed class SupabaseSyncService : ISyncService
             return 0;
         }
 
+        // Una tarea puede haber cambiado de lista desde la subida anterior.
+        _keyOfList.Clear();
+
         // Una misma tarea puede haberse tocado diez veces sin conexion. Solo interesa como ha
         // quedado, asi que de cada entidad se sube su estado actual una unica vez.
         var latest = pending
@@ -131,6 +146,14 @@ public sealed class SupabaseSyncService : ISyncService
                     rows.Add(row);
                     sent.Add(op);
                 }
+                else
+                {
+                    // No se puede construir la fila —lo que apunta ya no esta aqui, o es una
+                    // entidad que no se sincroniza— y no se va a poder nunca. Se saca de la cola
+                    // en vez de reintentarla en cada vuelta: quedaban ahi para siempre, haciendo
+                    // creer que habia algo pendiente de subir.
+                    done.Add(op);
+                }
             }
 
             if (rows.Count == 0)
@@ -162,12 +185,63 @@ public sealed class SupabaseSyncService : ISyncService
 
         return entity switch
         {
-            "tasks" => await _repository.GetTaskAsync(id).ConfigureAwait(false) is { } t ? ToRow(t) : null,
-            "task_lists" => await _repository.GetListAsync(id).ConfigureAwait(false) is { } l ? ToRow(l) : null,
-            "task_steps" => await _repository.GetStepAsync(id).ConfigureAwait(false) is { } s ? ToRow(s) : null,
-            "task_attachments" => await _repository.GetAttachmentAsync(id).ConfigureAwait(false) is { } a ? ToRow(a) : null,
+            "tasks" => await _repository.GetTaskAsync(id).ConfigureAwait(false) is { } t
+                ? ToRow(t, await KeyOfListAsync(t.ListId).ConfigureAwait(false))
+                : null,
+            "task_lists" => await _repository.GetListAsync(id).ConfigureAwait(false) is { } l
+                ? ToRow(l, KeyOf(l))
+                : null,
+            "task_steps" => await _repository.GetStepAsync(id).ConfigureAwait(false) is { } s
+                ? ToRow(s, await KeyOfTaskAsync(s.TaskId).ConfigureAwait(false))
+                : null,
+            "task_attachments" => await _repository.GetAttachmentAsync(id).ConfigureAwait(false) is { } a
+                ? ToRow(a, await KeyOfTaskAsync(a.TaskId).ConfigureAwait(false))
+                : null,
             _ => null,
         };
+    }
+
+    // -----------------------------------------------------------------------
+    // Con que clave se cifra cada cosa
+    // -----------------------------------------------------------------------
+    //
+    // Lo del usuario, con su identificador; lo de un grupo, con el del grupo. Es lo que hace que
+    // una lista compartida se pueda leer entre los del grupo y solo entre ellos: el resto de la
+    // tabla sigue siendo suya y no la tocan.
+
+    /// <summary>La clave de una lista: la del grupo si cuelga de uno, si no la del usuario.</summary>
+    private string KeyOf(TaskList list) => list.GroupId?.ToString() ?? CurrentUserId();
+
+    private async Task<string> KeyOfListAsync(Guid listId)
+    {
+        if (_keyOfList.TryGetValue(listId, out var cached))
+        {
+            return cached;
+        }
+
+        var list = await _repository.GetListAsync(listId).ConfigureAwait(false);
+        var key = list is null ? CurrentUserId() : KeyOf(list);
+
+        _keyOfList[listId] = key;
+        return key;
+    }
+
+    private async Task<string> KeyOfTaskAsync(Guid taskId)
+    {
+        var task = await _repository.GetTaskAsync(taskId).ConfigureAwait(false);
+        return task is null
+            ? CurrentUserId()
+            : await KeyOfListAsync(task.ListId).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Las claves con las que puede venir cifrado lo que baja. Ver <see cref="TextCipher.Unprotect"/>
+    /// para por que se prueban varias en vez de saber cual toca.
+    /// </summary>
+    private async Task<IReadOnlyList<string>> CandidateKeysAsync()
+    {
+        var groups = await _repository.GetGroupsAsync().ConfigureAwait(false);
+        return [CurrentUserId(), .. groups.Select(g => g.Id.ToString())];
     }
 
     private async Task<bool> UpsertAsync(string table, IReadOnlyList<object> rows, string token,
@@ -197,23 +271,47 @@ public sealed class SupabaseSyncService : ISyncService
             // siempre sin que nadie supiera por que. Un 400 de PostgREST dice exactamente que
             // columna sobra o falta, y esa frase es la diferencia entre un minuto y una tarde.
             var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            LastError = $"{table}: {(int)response.StatusCode} {body}";
-            System.Diagnostics.Debug.WriteLine($"Sync push rechazado — {LastError}");
+            await NoteErrorAsync($"{table}: {(int)response.StatusCode} {body}").ConfigureAwait(false);
 
             return false;
         }
-        catch (HttpRequestException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            return false;   // Sin red: la cola espera y se reintenta. No es un error que contar.
-        }
-        catch (TaskCanceledException)
-        {
+            // Sin red la cola espera y se reintenta, pero queda apuntado: «no sube y no dice nada»
+            // era indistinguible de un rechazo del servidor, y son problemas distintos.
+            await NoteErrorAsync($"{table}: {ex.GetType().Name} {ex.Message}").ConfigureAwait(false);
             return false;
         }
     }
 
     /// <summary>Ultimo rechazo del servidor, para poder enseñarlo. Null si no ha habido ninguno.</summary>
     public string? LastError { get; private set; }
+
+    /// <summary>Donde queda apuntado el ultimo rechazo, para poder leerlo despues.</summary>
+    public const string KeyLastError = "sync.last_error";
+
+    /// <summary>
+    /// Apunta el rechazo del servidor donde se pueda encontrar.
+    /// </summary>
+    /// <remarks>
+    /// Solo estaba en una propiedad y en <c>Debug.WriteLine</c>, que en una version publicada no lo
+    /// lee nadie: la cola se quedaba creciendo sin que hubiera forma de saber por que. Guardarlo en
+    /// los ajustes cuesta una fila y convierte «no sincroniza» en una frase concreta.
+    /// </remarks>
+    private async Task NoteErrorAsync(string message)
+    {
+        LastError = message;
+        System.Diagnostics.Debug.WriteLine($"Sync rechazado — {message}");
+
+        try
+        {
+            await _settings.SetAsync(KeyLastError, $"{DateTime.Now:HH:mm:ss}  {message}").ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Sync: no se pudo apuntar el error — {ex.Message}");
+        }
+    }
 
     /// <summary>
     /// Borra la fila del servidor y deja constancia de la baja.
@@ -255,9 +353,9 @@ public sealed class SupabaseSyncService : ISyncService
                 return true;
             }
 
-            LastError = $"{entity} (borrado): {(int)response.StatusCode} " +
-                        await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            System.Diagnostics.Debug.WriteLine($"Sync borrado rechazado - {LastError}");
+            await NoteErrorAsync($"{entity} (borrado): {(int)response.StatusCode} " +
+                await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false))
+                .ConfigureAwait(false);
 
             return false;
         }
@@ -300,6 +398,9 @@ public sealed class SupabaseSyncService : ISyncService
         {
             return;   // Fallo de red: no se mueve el corte, se reintenta entero la proxima vez.
         }
+
+        // Antes de fusionar nada: con que claves se va a intentar descifrar.
+        _candidateKeys = await CandidateKeysAsync().ConfigureAwait(false);
 
         foreach (var row in deletions)
         {
@@ -390,15 +491,15 @@ public sealed class SupabaseSyncService : ISyncService
         var task = local ?? new TaskItem { Id = row.Id };
 
         task.ListId = row.ListId;
-        task.Title = row.Title;
-        task.Notes = row.Notes;
+        task.Title = _cipher.Unprotect(row.Title, _candidateKeys);
+        task.Notes = _cipher.Unprotect(row.Notes, _candidateKeys);
         task.IsPriority = row.IsPriority;
         task.IsDone = row.IsDone;
         task.DoneAt = row.DoneAt?.UtcDateTime;
         task.MyDayOn = row.MyDayOn?.Date;
         task.DueAt = row.DueAt?.UtcDateTime;
         task.PlannedFor = row.PlannedFor?.Date;
-        task.Tags = row.Tags;
+        task.Tags = _cipher.Unprotect(row.Tags, _candidateKeys);
         task.RecurrenceRule = row.RecurrenceRule;
         task.SortOrder = row.SortOrder;
         task.UpdatedAt = row.UpdatedAt;
@@ -420,7 +521,7 @@ public sealed class SupabaseSyncService : ISyncService
 
         list.GroupId = row.GroupId;
         list.OwnerId = row.OwnerId?.ToString() ?? string.Empty;
-        list.Name = row.Name;
+        list.Name = _cipher.Unprotect(row.Name, _candidateKeys);
         list.Icon = row.Icon;
         list.SortOrder = row.SortOrder;
         list.UpdatedAt = row.UpdatedAt;
@@ -440,7 +541,7 @@ public sealed class SupabaseSyncService : ISyncService
         var step = local ?? new TaskStep { Id = row.Id };
 
         step.TaskId = row.TaskId;
-        step.Title = row.Title;
+        step.Title = _cipher.Unprotect(row.Title, _candidateKeys);
         step.IsDone = row.IsDone;
         step.SortOrder = row.SortOrder;
         step.Source = row.Source;
@@ -502,19 +603,19 @@ public sealed class SupabaseSyncService : ISyncService
     // Correspondencia con las columnas del servidor
     // -----------------------------------------------------------------------
 
-    private object ToRow(TaskItem t) => new
+    private object ToRow(TaskItem t, string keyId) => new
     {
         id = t.Id,
         list_id = t.ListId,
-        title = t.Title,
-        notes = t.Notes,
+        title = _cipher.Protect(t.Title, keyId),
+        notes = _cipher.Protect(t.Notes, keyId),
         is_priority = t.IsPriority,
         is_done = t.IsDone,
         done_at = t.DoneAt,
         my_day_on = t.MyDayOn?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         due_at = t.DueAt,
         planned_for = t.PlannedFor?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-        tags = t.Tags,
+        tags = _cipher.Protect(t.Tags, keyId),
         recurrence_rule = t.RecurrenceRule,
         sort_order = t.SortOrder,
         breakdown_rewarded = t.BreakdownRewarded,
@@ -529,36 +630,36 @@ public sealed class SupabaseSyncService : ISyncService
     /// PostgREST entiende para un <c>bytea</c> sin conversiones raras. Un enlace no lleva datos y
     /// viaja como <c>null</c>.
     /// </remarks>
-    private object ToRow(TaskAttachment a) => new
+    private object ToRow(TaskAttachment a, string keyId) => new
     {
         id = a.Id,
         task_id = a.TaskId,
         kind = a.Kind,
-        name = a.Name,
-        url = a.Url,
+        name = _cipher.Protect(a.Name, keyId),
+        url = _cipher.Protect(a.Url, keyId),
         data = a.Data is { Length: > 0 } bytes ? "\\x" + Convert.ToHexString(bytes).ToLowerInvariant() : null,
         sort_order = a.SortOrder,
         updated_at = a.UpdatedAt,
         deleted = a.Deleted,
     };
 
-    private object ToRow(TaskList l) => new
+    private object ToRow(TaskList l, string keyId) => new
     {
         id = l.Id,
         group_id = l.GroupId,
         owner_id = CurrentUserId(),
-        name = l.Name,
+        name = _cipher.Protect(l.Name, keyId),
         icon = l.Icon,
         sort_order = l.SortOrder,
         updated_at = l.UpdatedAt,
         deleted = l.Deleted,
     };
 
-    private static object ToRow(TaskStep s) => new
+    private object ToRow(TaskStep s, string keyId) => new
     {
         id = s.Id,
         task_id = s.TaskId,
-        title = s.Title,
+        title = _cipher.Protect(s.Title, keyId),
         is_done = s.IsDone,
         sort_order = s.SortOrder,
         source = s.Source,
@@ -598,8 +699,8 @@ public sealed class SupabaseSyncService : ISyncService
 
         attachment.TaskId = row.TaskId;
         attachment.Kind = row.Kind;
-        attachment.Name = row.Name;
-        attachment.Url = row.Url;
+        attachment.Name = _cipher.Unprotect(row.Name, _candidateKeys);
+        attachment.Url = _cipher.Unprotect(row.Url, _candidateKeys);
         attachment.SortOrder = row.SortOrder;
         attachment.UpdatedAt = row.UpdatedAt.UtcDateTime;
         attachment.Deleted = row.Deleted;

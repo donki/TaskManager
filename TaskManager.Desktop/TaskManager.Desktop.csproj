@@ -14,9 +14,9 @@
     <RootNamespace>TaskManager.Desktop</RootNamespace>
     <AssemblyName>TaskManager</AssemblyName>
     <ApplicationTitle>Task Manager</ApplicationTitle>
-    <Version>2026.9.1.10</Version>
-    <AssemblyVersion>2026.9.1.10</AssemblyVersion>
-    <FileVersion>2026.9.1.10</FileVersion>
+    <Version>2026.9.1.12</Version>
+    <AssemblyVersion>2026.9.1.12</AssemblyVersion>
+    <FileVersion>2026.9.1.12</FileVersion>
     <Product>Task Manager</Product>
     <Company>Socratic</Company>
     <Copyright>Copyright © 2026 Socratic</Copyright>

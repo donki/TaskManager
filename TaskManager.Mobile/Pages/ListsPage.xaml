@@ -8,6 +8,7 @@
 
     <ContentPage.ToolbarItems>
         <ToolbarItem IconImageSource="ic_add_w.png" Clicked="OnNewListClicked" />
+        <ToolbarItem IconImageSource="ic_refresh_w.png" Clicked="OnRefreshClicked" />
     </ContentPage.ToolbarItems>
 
     <CollectionView x:Name="ListsView" SelectionMode="None" Margin="8">
