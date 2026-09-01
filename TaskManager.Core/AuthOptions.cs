@@ -4,43 +4,41 @@ namespace TaskManager.Core;
 /// Como se identifica a quien usa la aplicacion.
 /// </summary>
 /// <remarks>
-/// <para><b>Ahora mismo: sin login.</b> La identidad es el <i>identificador de instalacion</i>, un
-/// GUID que se genera la primera vez que se abre la aplicacion y vive en su almacen. No se pide
-/// nada al usuario y no hay pantalla de entrada.</para>
+/// <para><b>Con cuenta, y es obligatorio</b> (2026-08-31). Se puede entrar con <b>Google</b> o con
+/// <b>Microsoft</b>. La identidad es el identificador de la cuenta —el <c>sub</c> de Google o el
+/// <c>oid</c> de Microsoft—: el mismo en Windows y en Android, y no cambia aunque el usuario se
+/// cambie el nombre o el correo. El nombre de la cuenta es tambien el nombre en la aplicacion.</para>
 ///
-/// <para><b>Lo que eso implica en el servidor.</b> Toda la RLS esta escrita contra
-/// <c>auth.uid()</c>, que sale del JWT que emite Supabase. Sin sesion no hay <c>auth.uid()</c>: las
-/// politicas no dejarian leer ni escribir nada. Por eso, cuando se active la sincronizacion, el
-/// identificador de instalacion se canjea por una <b>sesion anonima</b> de Supabase
-/// (<c>signInAnonymously</c>): el usuario sigue sin ver ninguna pantalla de entrada, pero el
-/// servidor recibe un JWT de verdad y la RLS sigue valiendo tal cual esta escrita.</para>
+/// <para><b>Por que ya no se puede seguir sin cuenta.</b> El identificador de instalacion era un
+/// GUID por aparato: daba un usuario distinto en cada equipo, asi que Windows y Android no podian
+/// compartir nada. Lo mismo pasa con la sesion anonima de Supabase, que ademas gasta una fila de
+/// <c>auth.users</c> por instalacion. Compartir las tareas exige que los dos lados sepan que son la
+/// misma persona, y eso solo lo puede decir una cuenta.</para>
 ///
-/// <para><b>Lo que NO se hace, y por que.</b> Mandar el identificador de instalacion en una
-/// cabecera y comparar contra el en las politicas seria tanto como no tener RLS: la clave
-/// publicable es publica, y cualquiera podria repetir la peticion con el identificador de otro y
-/// leer sus tareas. El identificador sirve para *saber quien eres*, no para *demostrarlo*.</para>
-///
-/// <para>Para volver a activar la entrada con Google basta poner
-/// <see cref="GoogleSignInEnabled"/> a <c>true</c>: el flujo completo (PKCE, navegador del sistema,
-/// tokens en el almacen seguro) sigue escrito y probado en <c>SupabaseAuthService</c>.</para>
+/// <para><b>El proveedor se habla de frente, no a traves de Supabase.</b> Ver
+/// <see cref="Services.IdentitySignInService"/>: pasando por <c>/auth/v1/authorize</c> la entrada
+/// dependia de que el proyecto tuviera el proveedor dado de alta, y sin eso el navegador se plantaba
+/// en una pagina de error de Supabase. La sesion del proyecto se consigue despues, canjeando el
+/// id_token, y es lo unico que hace falta para sincronizar.</para>
 /// </remarks>
 public static class AuthOptions
 {
-    /// <summary>
-    /// Entrada con cuenta. <b>Activada</b> (2026-08-30) porque Windows y Android tienen que
-    /// compartir las tareas, y para eso hace falta que las dos sepan que son el mismo usuario.
-    /// </summary>
-    /// <remarks>
-    /// La sesion anonima no sirve para esto: da un usuario distinto en cada dispositivo, asi que
-    /// cada uno veria solo lo suyo. Sigue estando para quien no quiera entrar con ninguna cuenta,
-    /// pero entonces las tareas se quedan en ese aparato.
-    /// </remarks>
+    /// <summary>Entrada con cuenta. Los proveedores concretos los decide IdentitySignInService.</summary>
     public const bool GoogleSignInEnabled = true;
 
     /// <summary>
-    /// Sesion anonima de Supabase para el identificador de instalacion. Hace falta activar
-    /// «Anonymous sign-ins» en el proyecto (Authentication › Sign In / Providers); ahora mismo esta
-    /// desactivado, asi que hasta entonces la aplicacion funciona solo en local.
+    /// Entrada con Microsoft, ademas de con Google.
     /// </summary>
-    public const bool AnonymousSessionEnabled = true;
+    /// <remarks>
+    /// PKCE contra Entra, <c>oid</c> como identidad —y no <c>sub</c>, que es distinto por
+    /// aplicacion— y canje del id_token por la sesion del proyecto como proveedor «azure», que es
+    /// como Supabase sigue llamando a Entra ID.
+    /// </remarks>
+    public const bool MicrosoftSignInEnabled = false;
+
+    /// <summary>
+    /// No se puede usar la aplicacion sin entrar: la pantalla de entrada no tiene salida y el
+    /// arranque no continua hasta que hay cuenta.
+    /// </summary>
+    public const bool SignInRequired = true;
 }

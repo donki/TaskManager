@@ -28,24 +28,6 @@ public sealed record MailOAuthProvider(
         "outlook.office365.com",
         993);
 
-    /// <summary>
-    /// Azure DevOps. <b>No es un buzon</b>: se cuela en este tipo porque el baile de OAuth es
-    /// exactamente el mismo (navegador del sistema, PKCE, refresco) y duplicarlo entero solo para
-    /// cambiar un ambito no compraria nada. Los datos de IMAP van vacios, que es lo que dice que
-    /// aqui no hay correo que leer.
-    /// </summary>
-    /// <remarks>
-    /// El identificador largo es el de la aplicacion de Azure DevOps en Entra; es el mismo para
-    /// todos los tenants del mundo y lo publica Microsoft.
-    /// </remarks>
-    public static readonly MailOAuthProvider AzureDevOps = new(
-        "AzureDevOps",
-        "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-        "https://login.microsoftonline.com/common/oauth2/v2.0/token",
-        "offline_access 499b84ac-1321-427f-aa17-267ca6975798/user_impersonation",
-        string.Empty,
-        0);
-
     /// <summary>Google (Gmail). <c>gmail.readonly</c> es ambito restringido: exige verificacion.</summary>
     public static readonly MailOAuthProvider Google = new(
         "Google",
@@ -99,10 +81,16 @@ public static class MailOAuthConfig
     /// </summary>
     public static string GoogleDesktopClientSecret => OAuthSecrets.GoogleDesktopClientSecret;
 
+    /// <summary>
+    /// Esquema de vuelta en Android: el identificador de cliente invertido. Lo genera oauth.props,
+    /// que es tambien quien lo mete en el intent-filter, para que los dos no puedan desalinearse.
+    /// </summary>
+    public static string GoogleAndroidRedirectScheme => OAuthSecrets.GoogleAndroidRedirectScheme;
+
     public static bool IsConfigured(MailOAuthProvider provider) => ClientIdFor(provider).Length > 0;
 
     public static string ClientIdFor(MailOAuthProvider provider) =>
-        provider.Name is "Microsoft" or "AzureDevOps"
+        provider.Name == "Microsoft"
             ? MicrosoftClientId
             : (OperatingSystem.IsAndroid() ? GoogleAndroidClientId : GoogleDesktopClientId);
 
@@ -192,7 +180,7 @@ public sealed class MailOAuthService
             return "NoClientId";
         }
 
-        if (provider.Name is not ("Microsoft" or "AzureDevOps"))
+        if (provider.Name != "Microsoft")
         {
             return null;
         }
@@ -407,8 +395,7 @@ public sealed class MailOAuthService
     {
         if (provider.Name == "Google" && OperatingSystem.IsAndroid())
         {
-            var id = MailOAuthConfig.GoogleAndroidClientId.Replace(".apps.googleusercontent.com", string.Empty);
-            return $"com.googleusercontent.apps.{id}:/oauth2redirect";
+            return $"{MailOAuthConfig.GoogleAndroidRedirectScheme}:/oauth2redirect";
         }
 
         return _browser.RedirectUri;

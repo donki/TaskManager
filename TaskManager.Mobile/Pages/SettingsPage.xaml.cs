@@ -1,3 +1,4 @@
+using System.Linq;
 using TaskManager.Core;
 using TaskManager.Core.Services;
 using TaskManager.Mobile.Helpers;
@@ -48,6 +49,7 @@ public partial class SettingsPage : ContentPage
         HapticsSwitch.IsToggled = _settings.HapticsEnabled;
         SoundSwitch.IsToggled = _settings.SoundEnabled;
         NotifySwitch.IsToggled = _settings.NotificationsEnabled;
+        FillSnooze();
         NotifyTimePicker.Time = TimeSpan.FromHours(_settings.NotifyHour);
         NotifyHourRow.IsVisible = _settings.NotificationsEnabled;
         _loading = false;
@@ -64,33 +66,60 @@ public partial class SettingsPage : ContentPage
     // Cuenta
     // -----------------------------------------------------------------------
 
+    /// <summary>Cada cuanto insiste el aviso de pendientes, en minutos.</summary>
+    private static readonly int[] SnoozeChoices = [0, 15, 30, 60, 120, 240];
+
+    /// <summary>
+    /// Rellena las opciones de repeticion del aviso.
+    /// </summary>
+    /// <remarks>
+    /// «No repetir» es la primera y la de siempre: un aviso al dia. Las demas estan para quien
+    /// necesita que le insistan, que es justo el caso en el que un unico aviso por la mañana no
+    /// sirve de nada.
+    /// </remarks>
+    private void FillSnooze()
+    {
+        SnoozePicker.ItemsSource = SnoozeChoices.Select(Describe).ToList();
+        SnoozePicker.SelectedIndex = Math.Max(0, Array.IndexOf(SnoozeChoices, _settings.SnoozeMinutes));
+        SnoozeRow.IsVisible = _settings.NotificationsEnabled;
+    }
+
+    private static string Describe(int minutes) => minutes switch
+    {
+        0 => Localization.Loc.Instance["SnoozeOff"],
+        60 => Localization.Loc.Instance["SnoozeHour"],
+        < 60 => Localization.Loc.Instance.Format("SnoozeMinutes", minutes),
+        _ => Localization.Loc.Instance.Format("SnoozeHours", minutes / 60),
+    };
+
+    private async void OnSnoozeChanged(object? sender, EventArgs e)
+    {
+        var minutes = SnoozeChoices[Math.Clamp(SnoozePicker.SelectedIndex, 0, SnoozeChoices.Length - 1)];
+        await _settings.SetAsync(SettingsService.KeySnoozeMinutes, minutes.ToString());
+
+        // Reprogramar al momento: el ajuste no puede quedarse esperando al proximo arranque.
+        _notifications.ScheduleDailySummary(TimeSpan.FromHours(_settings.NotifyHour));
+    }
+
     private void ShowAccount()
     {
-        // Sin entrada con Google, la identidad es esta instalacion: no hay nada que pulsar, solo
-        // que ensenar. Se muestran los primeros caracteres, que es lo util para reconocer el
-        // dispositivo sin llenar la pantalla con un GUID entero.
-        if (!AuthOptions.GoogleSignInEnabled)
-        {
-            var id = _settings.InstallationId;
-            AccountNameLabel.Text = "Este dispositivo";
-            AccountEmailLabel.Text = id.Length >= 8 ? $"Instalación {id[..8]}" : id;
-            SignInButton.IsVisible = false;
-            SignOutButton.IsVisible = false;
-            AccountHintLabel.Text = "Tus tareas van ligadas a esta instalación. Si desinstalas la aplicación, se pierden.";
-            return;
-        }
-
         var user = _auth.CurrentUser;
 
+        // La foto de la cuenta al lado del nombre. Solo se enseña si hay: si no, se queda el
+        // icono generico que hay debajo.
+        var avatar = _settings.AvatarUrl;
+        AvatarFrame.IsVisible = user is not null && avatar.Length > 0;
+        AvatarImage.Source = AvatarFrame.IsVisible ? ImageSource.FromUri(new Uri(avatar)) : null;
+
         AccountNameLabel.Text = user?.DisplayName ?? "Sin cuenta";
-        AccountEmailLabel.Text = user?.Email ?? "Las tareas se quedan en este dispositivo";
+        AccountEmailLabel.Text = user?.Email ?? "Hay que entrar con Google para usar la aplicación";
         SignInButton.IsVisible = user is null;
         SignOutButton.IsVisible = user is not null;
-        SignInButton.IsEnabled = _settings.IsSupabaseConfigured;
+        SignInButton.IsEnabled = _auth.IsConfigured;
 
         AccountHintLabel.Text = user is not null
-            ? "Tus listas y tu progreso van con la cuenta."
-            : "Entra con Google para guardar tu usuario y compartir listas con tus grupos.";
+            ? "Tus listas y tu progreso van con la cuenta de Google."
+            : "La entrada es obligatoria: sin cuenta no se puede usar la aplicación.";
     }
 
     private async void OnSignInClicked(object? sender, EventArgs e)
@@ -98,11 +127,10 @@ public partial class SettingsPage : ContentPage
         SignInButton.IsEnabled = false;
         try
         {
-            var user = await _auth.SignInWithGoogleAsync();
+            var user = await _auth.SignInAsync(IdentityProvider.Google);
 
             // Lo hecho sin cuenta pasa a la cuenta: el nivel y las rachas no se pierden.
             await _tasks.AdoptAccountAsync(user.Id);
-            await _settings.SetBoolAsync(SettingsService.KeyAuthSkipped, false);
             ShowAccount();
         }
         catch (TaskCanceledException)
@@ -116,23 +144,23 @@ public partial class SettingsPage : ContentPage
         }
         finally
         {
-            SignInButton.IsEnabled = _settings.IsSupabaseConfigured;
+            SignInButton.IsEnabled = _auth.IsConfigured;
         }
     }
 
     private async void OnSignOutClicked(object? sender, EventArgs e)
     {
         var confirmed = await SocShared.ModernDialog.AlertAsync(this, "Cerrar sesión",
-            "Las tareas se quedan en este dispositivo. Podrás volver a entrar cuando quieras.",
+            "Sin cuenta no se puede usar la aplicación: volverá a la pantalla de entrada.",
             "Cerrar sesión", "Cancelar");
 
         if (confirmed)
         {
             await _auth.SignOutAsync();
-
-            // Al salir se vuelve a preguntar en el proximo arranque.
-            await _settings.SetBoolAsync(SettingsService.KeyAuthSkipped, false);
             ShowAccount();
+
+            // Sin usuario no hay nada que enseñar: se vuelve a la puerta.
+            await Shell.Current.GoToAsync("//LoginPage");
         }
     }
 
@@ -153,6 +181,7 @@ public partial class SettingsPage : ContentPage
         {
             await _settings.SetBoolAsync(SettingsService.KeyNotifyEnabled, false);
             _notifications.CancelDailySummary();
+            SnoozeRow.IsVisible = false;
             return;
         }
 

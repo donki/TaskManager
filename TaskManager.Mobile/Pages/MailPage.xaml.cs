@@ -341,7 +341,7 @@ public partial class MailPage : ContentPage
             ?? (await _tasks.Repository.CreateListAsync(Localization.Loc.Instance["DefaultListName"])).Id;
 
         var task = await _tasks.Repository.AddTaskAsync(listId, row.Message.ToTaskTitle(), inMyDay: true);
-        task.Context = row.Message.ToTaskContext();
+        task.Notes = row.Message.ToTaskContext();
         task.Tags = TaskManager.Core.Models.TaskTags.FromInput("correo");
         await _tasks.Repository.UpdateTaskAsync(task);
 

@@ -35,6 +35,20 @@ public sealed class TaskRepository
     public async Task<TaskList?> GetListAsync(Guid id) =>
         await Db.Table<TaskList>().Where(l => l.Id == id).FirstOrDefaultAsync().ConfigureAwait(false);
 
+    /// <summary>
+    /// La lista donde caen las tareas cuando nadie ha dicho otra cosa, creandola si hace falta.
+    /// </summary>
+    /// <remarks>
+    /// Existe porque <b>ninguna tarea puede quedarse sin lista</b> y porque escribir la primera
+    /// tarea de la vida no puede acabar en un formulario preguntando donde guardarla. El nombre
+    /// viene traducido de fuera para que no se cuele una cadena en español en la aplicacion inglesa.
+    /// </remarks>
+    public async Task<TaskList> GetOrCreateDefaultListAsync(string name)
+    {
+        var existing = await GetPrivateListsAsync().ConfigureAwait(false);
+        return existing.Count > 0 ? existing[0] : await CreateListAsync(name).ConfigureAwait(false);
+    }
+
     public async Task<TaskList> CreateListAsync(string name, Guid? groupId = null, string icon = "ic_list")
     {
         var order = await Db.Table<TaskList>().CountAsync().ConfigureAwait(false);
@@ -58,14 +72,92 @@ public sealed class TaskRepository
         await QueueAsync("task_lists", list.Id, "upsert").ConfigureAwait(false);
     }
 
-    /// <summary>Borrado logico: hay que poder propagar la baja a los demas dispositivos.</summary>
-    public async Task DeleteListAsync(TaskList list)
+    /// <summary>
+    /// Borra una lista y todo lo que cuelga de ella: sus tareas y los pasos de esas tareas.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Se borra de verdad</b>, aqui y en el servidor. Lo que queda no es la fila sino un
+    /// apunte de baja (tabla <c>deletions</c>), que es lo que permite que el otro dispositivo se
+    /// entere. Antes era un borrado logico y la fila se quedaba para siempre con
+    /// <c>deleted = true</c>: la lista desaparecia de la vista pero seguia ocupando sitio.</para>
+    ///
+    /// <para><b>Cada fila se encola por separado.</b> Antes las tareas se marcaban de golpe con un
+    /// UPDATE y no se encolaba ninguna: en el otro aparato desaparecia la lista pero sus tareas
+    /// seguian ahi, sin lista a la que pertenecer, saliendo en «Mis tareas» para siempre.</para>
+    /// </remarks>
+    /// <param name="moveTasksTo">
+    /// A donde van las tareas que quedan dentro. Si es <c>null</c> se borran con la lista.
+    /// </param>
+    public async Task DeleteListAsync(TaskList list, Guid? moveTasksTo = null)
     {
-        list.Deleted = true;
-        list.UpdatedAt = DateTime.UtcNow;
-        await Db.UpdateAsync(list).ConfigureAwait(false);
-        await Db.ExecuteAsync("UPDATE tasks SET Deleted = 1 WHERE ListId = ?", list.Id).ConfigureAwait(false);
+        var tasks = await Db.Table<TaskItem>().Where(t => t.ListId == list.Id)
+                            .ToListAsync().ConfigureAwait(false);
+
+        if (moveTasksTo is { } destination && destination != list.Id)
+        {
+            foreach (var task in tasks)
+            {
+                await MoveTaskAsync(task, destination).ConfigureAwait(false);
+            }
+        }
+        else
+        {
+            foreach (var task in tasks)
+            {
+                await DeleteTaskAsync(task).ConfigureAwait(false);
+            }
+        }
+
+        await Db.DeleteAsync(list).ConfigureAwait(false);
         await QueueAsync("task_lists", list.Id, "delete").ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Cambia una tarea de lista.
+    /// </summary>
+    /// <remarks>
+    /// <b>Ninguna tarea puede quedarse sin lista</b>: la lista es de donde cuelga y lo que decide
+    /// quien la ve. Por eso este metodo exige un destino, en vez de admitir un hueco.
+    /// </remarks>
+    public async Task MoveTaskAsync(TaskItem task, Guid listId)
+    {
+        if (listId == Guid.Empty || listId == task.ListId)
+        {
+            return;
+        }
+
+        task.ListId = listId;
+        task.UpdatedAt = DateTime.UtcNow;
+
+        await Db.UpdateAsync(task).ConfigureAwait(false);
+        await QueueAsync("tasks", task.Id, "upsert").ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Quita una fila que ha llegado borrada de otro dispositivo. No encola nada: la baja ya venia
+    /// de fuera, y devolverla al servidor seria darle la vuelta a la misma noticia.
+    /// </summary>
+    public async Task ApplyRemoteDeleteAsync(string entity, Guid id)
+    {
+        switch (entity)
+        {
+            case "tasks":
+                await Db.ExecuteAsync("DELETE FROM task_steps WHERE TaskId = ?", id).ConfigureAwait(false);
+                await Db.ExecuteAsync("DELETE FROM tasks WHERE Id = ?", id).ConfigureAwait(false);
+                break;
+
+            case "task_lists":
+                await Db.ExecuteAsync(
+                    "DELETE FROM task_steps WHERE TaskId IN (SELECT Id FROM tasks WHERE ListId = ?)", id)
+                    .ConfigureAwait(false);
+                await Db.ExecuteAsync("DELETE FROM tasks WHERE ListId = ?", id).ConfigureAwait(false);
+                await Db.ExecuteAsync("DELETE FROM task_lists WHERE Id = ?", id).ConfigureAwait(false);
+                break;
+
+            case "task_steps":
+                await Db.ExecuteAsync("DELETE FROM task_steps WHERE Id = ?", id).ConfigureAwait(false);
+                break;
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -182,6 +274,42 @@ public sealed class TaskRepository
         return byDay;
     }
 
+    /// <summary>
+    /// Todas las tareas del usuario, de todas sus listas, pasadas por el filtro elegido.
+    /// </summary>
+    /// <remarks>
+    /// <para>El filtro se aplica en memoria y no en SQL a proposito: la mitad de los criterios
+    /// comparan solo la <i>parte de fecha</i> de un <c>DateTime</c>, y eso en SQLite obliga a
+    /// funciones de texto sobre la columna que ademas anulan cualquier indice. Una lista de tareas
+    /// personales no llega al tamaño en que eso importe, y a cambio el criterio se escribe una vez
+    /// (<see cref="TaskFilters.Matches"/>) y vale igual en Windows y en Android.</para>
+    ///
+    /// <para>El orden es el mismo que en las listas: primero lo que queda por hacer.</para>
+    /// </remarks>
+    public async Task<List<TaskItem>> GetAllTasksAsync(TaskFilter filter, string? tag = null)
+    {
+        var tasks = await Db.Table<TaskItem>()
+                            .Where(t => !t.Deleted)
+                            .ToListAsync().ConfigureAwait(false);
+
+        var today = DateTime.Now.Date;
+
+        tasks = FilterByTag(tasks, tag)
+            .Where(t => TaskFilters.Matches(t, filter, today))
+            .OrderBy(t => t.IsDone)
+            .ThenBy(t => t.DueAt ?? DateTime.MaxValue)
+            .ThenBy(t => t.SortOrder)
+            .ThenByDescending(t => t.CreatedAt)
+            .ToList();
+
+        await FillStepCountsAsync(tasks).ConfigureAwait(false);
+        return tasks;
+    }
+
+    /// <summary>Cuantas quedan por hacer en total. Es lo que cuenta el icono de la bandeja.</summary>
+    public Task<int> CountPendingAsync() =>
+        Db.Table<TaskItem>().Where(t => !t.Deleted && !t.IsDone).CountAsync();
+
     public Task<int> CountMyDayPendingAsync()
     {
         var date = DateTime.Now.Date;
@@ -265,11 +393,14 @@ public sealed class TaskRepository
         await QueueAsync("tasks", task.Id, "upsert").ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Borra la tarea y sus pasos, de verdad. Lo que viaja al servidor es el apunte de baja
+    /// (ver <see cref="DeleteListAsync"/>), no una fila marcada.
+    /// </summary>
     public async Task DeleteTaskAsync(TaskItem task)
     {
-        task.Deleted = true;
-        task.UpdatedAt = DateTime.UtcNow;
-        await Db.UpdateAsync(task).ConfigureAwait(false);
+        await Db.ExecuteAsync("DELETE FROM task_steps WHERE TaskId = ?", task.Id).ConfigureAwait(false);
+        await Db.DeleteAsync(task).ConfigureAwait(false);
         await QueueAsync("tasks", task.Id, "delete").ConfigureAwait(false);
     }
 
@@ -328,11 +459,58 @@ public sealed class TaskRepository
         await QueueAsync("task_steps", step.Id, "upsert").ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Fija el orden de los pasos a partir de como han quedado tras arrastrar.
+    /// </summary>
+    /// <remarks>
+    /// Mismo criterio que <see cref="ReorderTasksAsync"/>: se renumera la lista entera de 0 en
+    /// adelante en vez de tocar solo el que se ha movido, porque con numeros consecutivos no hay
+    /// empates ni huecos que se agoten. En los pasos importa mas todavia que en las tareas: son el
+    /// guion de como se hace algo, y un guion desordenado no sirve de nada.
+    /// </remarks>
+    /// <summary>Cambia el texto de un paso. Vacio no vale: un paso sin texto no dice que hacer.</summary>
+    public async Task RenameStepAsync(TaskStep step, string title)
+    {
+        var clean = title.Trim();
+        if (clean.Length == 0 || clean == step.Title)
+        {
+            return;
+        }
+
+        step.Title = clean;
+        step.UpdatedAt = DateTime.UtcNow;
+
+        await Db.UpdateAsync(step).ConfigureAwait(false);
+        await QueueAsync("task_steps", step.Id, "upsert").ConfigureAwait(false);
+    }
+
+    public async Task ReorderStepsAsync(IReadOnlyList<Guid> orderedIds)
+    {
+        if (orderedIds.Count == 0)
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+
+        await Db.RunInTransactionAsync(db =>
+        {
+            for (var i = 0; i < orderedIds.Count; i++)
+            {
+                db.Execute("UPDATE task_steps SET SortOrder = ?, UpdatedAt = ? WHERE Id = ?",
+                    i, now, orderedIds[i]);
+            }
+        }).ConfigureAwait(false);
+
+        foreach (var id in orderedIds)
+        {
+            await QueueAsync("task_steps", id, "upsert").ConfigureAwait(false);
+        }
+    }
+
     public async Task DeleteStepAsync(TaskStep step)
     {
-        step.Deleted = true;
-        step.UpdatedAt = DateTime.UtcNow;
-        await Db.UpdateAsync(step).ConfigureAwait(false);
+        await Db.DeleteAsync(step).ConfigureAwait(false);
         await QueueAsync("task_steps", step.Id, "delete").ConfigureAwait(false);
     }
 
@@ -441,8 +619,21 @@ public sealed class TaskRepository
     // Cola de sincronizacion
     // -----------------------------------------------------------------------
 
-    private Task QueueAsync(string entity, Guid id, string operation) =>
-        Db.InsertAsync(new SyncOp { Entity = entity, EntityId = id.ToString(), Operation = operation });
+    /// <summary>
+    /// Se ha encolado un cambio hecho <b>aqui</b>. Es el unico sitio por el que pasan todos, asi
+    /// que engancharse aqui es engancharse a cualquier cambio local sin tener que acordarse de
+    /// avisar en cada metodo. Lo que baja del servidor no pasa por la cola
+    /// (<see cref="SaveFromRemoteAsync"/>) y por eso no se realimenta.
+    /// </summary>
+    public event EventHandler? LocalChangeQueued;
+
+    private async Task QueueAsync(string entity, Guid id, string operation)
+    {
+        await Db.InsertAsync(new SyncOp { Entity = entity, EntityId = id.ToString(), Operation = operation })
+                .ConfigureAwait(false);
+
+        LocalChangeQueued?.Invoke(this, EventArgs.Empty);
+    }
 
     /// <summary>
     /// Escribe una fila que viene del servidor.
@@ -455,6 +646,39 @@ public sealed class TaskRepository
     /// </remarks>
     public Task SaveFromRemoteAsync<T>(T row, bool isNew) where T : notnull =>
         isNew ? Db.InsertAsync(row) : Db.UpdateAsync(row);
+
+    /// <summary>
+    /// Mete en la cola <b>todo lo que ya hay aqui</b>, para que suba al servidor.
+    /// </summary>
+    /// <remarks>
+    /// <para>Hace falta porque la cola solo recoge cambios <i>a partir de ahora</i>. Lo escrito
+    /// antes de que hubiera cuenta —o antes de que el servidor tuviera la entrada configurada— no
+    /// dejo ninguna huella en ella: sin esto, esas tareas se quedarian para siempre en el aparato
+    /// donde se escribieron, que es justo lo contrario de tener una cuenta.</para>
+    ///
+    /// <para>Se encola como <c>upsert</c>, asi que repetirlo no duplica nada: si la fila ya esta
+    /// arriba se pisa con la misma, y manda igualmente la fecha mas reciente.</para>
+    /// </remarks>
+    public async Task<int> QueueEverythingAsync()
+    {
+        var lists = await Db.Table<TaskList>().ToListAsync().ConfigureAwait(false);
+        var tasks = await Db.Table<TaskItem>().ToListAsync().ConfigureAwait(false);
+        var steps = await Db.Table<TaskStep>().ToListAsync().ConfigureAwait(false);
+
+        // Las listas primero: una tarea cuya lista aun no existe arriba no tendria donde colgarse.
+        var ops = new List<SyncOp>(lists.Count + tasks.Count + steps.Count);
+        ops.AddRange(lists.Select(l => new SyncOp { Entity = "task_lists", EntityId = l.Id.ToString(), Operation = "upsert" }));
+        ops.AddRange(tasks.Select(t => new SyncOp { Entity = "tasks", EntityId = t.Id.ToString(), Operation = "upsert" }));
+        ops.AddRange(steps.Select(s => new SyncOp { Entity = "task_steps", EntityId = s.Id.ToString(), Operation = "upsert" }));
+
+        if (ops.Count > 0)
+        {
+            await Db.InsertAllAsync(ops).ConfigureAwait(false);
+            LocalChangeQueued?.Invoke(this, EventArgs.Empty);
+        }
+
+        return ops.Count;
+    }
 
     public Task<List<SyncOp>> GetPendingSyncAsync(int take = 200) =>
         Db.Table<SyncOp>().OrderBy(o => o.Id).Take(take).ToListAsync();

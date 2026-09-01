@@ -1,11 +1,21 @@
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
 namespace TaskManager.Core.Services;
 
-/// <summary>Usuario autenticado. El <see cref="Id"/> es el <c>auth.uid()</c> de Supabase.</summary>
-public sealed record AuthUser(string Id, string Email, string DisplayName, string AvatarUrl);
+/// <summary>
+/// Usuario autenticado.
+/// </summary>
+/// <param name="Id">
+/// El <c>sub</c> de Google: el identificador de la cuenta, igual en todos los dispositivos. Es lo
+/// que la aplicacion usa como usuario en su base local (autoria, XP, rachas).
+/// </param>
+/// <param name="RemoteId">
+/// El <c>auth.uid()</c> de Supabase, cuando hay sesion en el servidor. Es distinto del
+/// <paramref name="Id"/> y solo sirve para las filas que suben: la RLS esta escrita contra el.
+/// Vacio mientras el proyecto no tenga dado de alta el proveedor de Google.
+/// </param>
+public sealed record AuthUser(string Id, string Email, string DisplayName, string AvatarUrl, string RemoteId = "");
 
 /// <summary>
 /// Donde se guardan los tokens. Cada plataforma pone el suyo: en Android el almacen seguro del
@@ -21,7 +31,7 @@ public interface ITokenStore
 /// <summary>Abre el navegador del sistema y devuelve la URL de vuelta con el codigo.</summary>
 public interface IOAuthBrowser
 {
-    /// <summary>A donde vuelve Google/Supabase. Tiene que estar dado de alta en el proyecto.</summary>
+    /// <summary>A donde vuelve Google. Tiene que estar dado de alta en el cliente OAuth.</summary>
     string RedirectUri { get; }
 
     Task<Uri> AuthenticateAsync(Uri authorizeUrl, CancellationToken cancellationToken = default);
@@ -30,31 +40,50 @@ public interface IOAuthBrowser
 public sealed class AuthException(string message) : Exception(message);
 
 /// <summary>
-/// Entrada con Google a traves de Supabase Auth (especificacion 2.C). El usuario queda guardado en
-/// <c>auth.users</c> y su perfil en <c>profiles</c>, que es lo que ven sus companeros de grupo.
-///
-/// Se usa **PKCE**: el codigo vuelve como parametro de consulta, asi que sirve igual el esquema
-/// propio de Android que el localhost del escritorio. El flujo implicito no valdria en Windows,
-/// porque el token viaja en el fragmento y el fragmento no llega nunca al servidor local.
+/// La entrada de la aplicacion: <b>identidad de Google</b> y, encima, la sesion de Supabase que
+/// hace falta para sincronizar.
 /// </summary>
+/// <remarks>
+/// <para><b>Quien eres lo dice Google.</b> Se habla con Google directamente
+/// (<see cref="IdentitySignInService"/>) y de ahi salen el identificador de la cuenta y el nombre,
+/// que es lo que la aplicacion usa como usuario y como nombre visible. Antes se pasaba por
+/// <c>/auth/v1/authorize</c> de Supabase, y con el proveedor sin dar de alta en el proyecto el
+/// navegador se quedaba en una pagina de Supabase con un error: la entrada no puede depender de un
+/// ajuste del servidor.</para>
+///
+/// <para><b>La sesion de Supabase es aparte, y opcional.</b> El id_token que firma Google se canjea
+/// por un JWT del proyecto (<c>grant_type=id_token</c>), que es lo unico que la RLS entiende. Si el
+/// proyecto todavia no tiene Google dado de alta, ese canje falla y no pasa nada: se entra igual y
+/// la aplicacion funciona en local, que es lo que hacia hasta ahora. Cuando se active, la
+/// sincronizacion empieza a funcionar sola sin tocar el cliente.</para>
+///
+/// <para><b>Al arrancar no se pide red.</b> La identidad guardada vale desde el primer momento y la
+/// renovacion va detras: un equipo sin conexion no puede dejar al usuario fuera de sus propias
+/// tareas. Solo se cierra la sesion cuando Google dice que el permiso ya no vale.</para>
+/// </remarks>
 public sealed class SupabaseAuthService
 {
+    /// <summary>
+    /// El token de refresco del proveedor. El nombre guardado sigue siendo <c>auth.google_refresh</c>
+    /// aunque ahora valga tambien para Microsoft: cambiarlo dejaria sin sesion a quien actualizara,
+    /// porque la aplicacion buscaria una clave que en su almacen no existe.
+    /// </summary>
+    private const string KeyRefresh = "auth.google_refresh";
     private const string KeyAccessToken = "auth.access_token";
     private const string KeyRefreshToken = "auth.refresh_token";
     private const string KeyExpiresAt = "auth.expires_at";
-    private const string KeyVerifier = "auth.pkce_verifier";
 
     private readonly HttpClient _http;
     private readonly SettingsService _settings;
     private readonly ITokenStore _tokens;
-    private readonly IOAuthBrowser _browser;
+    private readonly IdentitySignInService _identity;
 
     public SupabaseAuthService(HttpClient http, SettingsService settings, ITokenStore tokens, IOAuthBrowser browser)
     {
         _http = http;
         _settings = settings;
         _tokens = tokens;
-        _browser = browser;
+        _identity = new IdentitySignInService(http, browser);
     }
 
     /// <summary>Usuario de la sesion actual, o null si no ha entrado nadie.</summary>
@@ -62,8 +91,13 @@ public sealed class SupabaseAuthService
 
     public bool IsSignedIn => CurrentUser is not null;
 
-    /// <summary>Sin proyecto de Supabase no hay con quien autenticarse.</summary>
-    public bool IsConfigured => _settings.IsSupabaseConfigured;
+    /// <summary>Sin ningun cliente OAuth no hay a quien pedirle la entrada.</summary>
+    public bool IsConfigured => Available.Count > 0;
+
+    /// <summary>Con que cuentas se puede entrar en esta compilacion.</summary>
+    public IReadOnlyList<IdentityProvider> Available => _identity.Available;
+
+    public bool IsConfiguredFor(IdentityProvider provider) => _identity.IsConfigured(provider);
 
     public event EventHandler<AuthUser?>? UserChanged;
 
@@ -72,49 +106,56 @@ public sealed class SupabaseAuthService
     // -----------------------------------------------------------------------
 
     /// <summary>
-    /// Recupera la sesion guardada al arrancar. Si el token caduco se renueva con el de refresco,
-    /// de modo que solo se pide entrar otra vez cuando de verdad hace falta.
+    /// Recupera la sesion guardada al arrancar. Devuelve el usuario en cuanto lo tiene de la base
+    /// local, sin esperar a la red; la renovacion contra Google va despues y solo cierra la sesion
+    /// si el permiso ha dejado de valer.
     /// </summary>
     public async Task<AuthUser?> RestoreSessionAsync(CancellationToken cancellationToken = default)
     {
-        if (!IsConfigured)
+        var refresh = await _tokens.GetAsync(KeyRefresh).ConfigureAwait(false);
+        var userId = _settings.Get(SettingsService.KeyGoogleSub);
+
+        if (string.IsNullOrEmpty(refresh) || userId.Length == 0)
         {
             return null;
         }
 
-        var access = await _tokens.GetAsync(KeyAccessToken).ConfigureAwait(false);
-        var refresh = await _tokens.GetAsync(KeyRefreshToken).ConfigureAwait(false);
-        if (string.IsNullOrEmpty(access) && string.IsNullOrEmpty(refresh))
-        {
-            return null;
-        }
-
-        var expiresAt = DateTimeOffset.TryParse(await _tokens.GetAsync(KeyExpiresAt).ConfigureAwait(false), out var parsed)
+        var provider = Enum.TryParse<IdentityProvider>(
+            _settings.Get(SettingsService.KeyAuthProvider, nameof(IdentityProvider.Google)), out var parsed)
             ? parsed
-            : DateTimeOffset.MinValue;
+            : IdentityProvider.Google;
+
+        CurrentUser = new AuthUser(
+            userId,
+            _settings.AccountEmail,
+            _settings.DisplayName,
+            _settings.AvatarUrl,
+            _settings.Get(SettingsService.KeyRemoteUserId));
+
+        UserChanged?.Invoke(this, CurrentUser);
 
         try
         {
-            if (expiresAt <= DateTimeOffset.UtcNow.AddMinutes(2) && !string.IsNullOrEmpty(refresh))
+            var account = await _identity.RefreshAsync(provider, refresh, cancellationToken).ConfigureAwait(false);
+            if (account is null)
             {
-                await RefreshAsync(refresh, cancellationToken).ConfigureAwait(false);
+                // El proveedor ya no reconoce el permiso: hay que volver a entrar de verdad.
+                await SignOutAsync().ConfigureAwait(false);
+                return null;
             }
-            else
-            {
-                await LoadUserAsync(access!, cancellationToken).ConfigureAwait(false);
-            }
+
+            await ApplyAccountAsync(account).ConfigureAwait(false);
+            await TryLinkSupabaseAsync(account, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception)
         {
-            // Una sesion que ya no vale no puede impedir usar la aplicacion: se limpia y a seguir.
-            await SignOutAsync().ConfigureAwait(false);
-            return null;
+            // Sin red se sigue con lo guardado: la aplicacion es local antes que nada.
         }
 
         return CurrentUser;
     }
 
-    /// <summary>Token valido para llamar a la API, renovandolo si toca. Null si no hay sesion.</summary>
+    /// <summary>Token de Supabase valido para llamar a la API. Null si el proyecto aun no lo da.</summary>
     public async Task<string?> GetAccessTokenAsync(CancellationToken cancellationToken = default)
     {
         var access = await _tokens.GetAsync(KeyAccessToken).ConfigureAwait(false);
@@ -138,7 +179,15 @@ public sealed class SupabaseAuthService
             return access;
         }
 
-        await RefreshAsync(refresh, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await RefreshSupabaseAsync(refresh, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            return access;
+        }
+
         return await _tokens.GetAsync(KeyAccessToken).ConfigureAwait(false);
     }
 
@@ -146,70 +195,35 @@ public sealed class SupabaseAuthService
     // Entrar con Google
     // -----------------------------------------------------------------------
 
-    public async Task<AuthUser> SignInWithGoogleAsync(CancellationToken cancellationToken = default)
-    {
-        if (!IsConfigured)
-        {
-            throw new AuthException("La aplicación no tiene servidor configurado.");
-        }
-
-        var verifier = CreateVerifier();
-        await _tokens.SetAsync(KeyVerifier, verifier).ConfigureAwait(false);
-
-        var authorize = new Uri(
-            $"{BaseUrl}/auth/v1/authorize" +
-            $"?provider=google" +
-            $"&redirect_to={Uri.EscapeDataString(_browser.RedirectUri)}" +
-            $"&code_challenge={Challenge(verifier)}" +
-            $"&code_challenge_method=s256");
-
-        var callback = await _browser.AuthenticateAsync(authorize, cancellationToken).ConfigureAwait(false);
-        var code = ReadParameter(callback, "code");
-
-        if (string.IsNullOrEmpty(code))
-        {
-            var error = ReadParameter(callback, "error_description") ?? ReadParameter(callback, "error");
-            throw new AuthException(error is null
-                ? "Google no devolvió ningún código de acceso."
-                : $"Google rechazó la entrada: {error}");
-        }
-
-        await ExchangeAsync(code, verifier, cancellationToken).ConfigureAwait(false);
-        return CurrentUser ?? throw new AuthException("La sesión no trajo ningún usuario.");
-    }
-
     /// <summary>
-    /// Canjea el identificador de instalacion por una sesion anonima de Supabase. Es lo que permite
-    /// no tener pantalla de entrada y aun asi mandar un JWT de verdad, que es lo unico con lo que la
-    /// RLS sabe quien pregunta (ver <see cref="AuthOptions"/>).
+    /// Abre el navegador, entra con el proveedor elegido y deja la identidad puesta. El canje por la
+    /// sesion de Supabase va detras y no puede tumbar la entrada: se entra aunque el servidor no
+    /// responda.
     /// </summary>
-    public async Task<AuthUser?> SignInAnonymouslyAsync(string installationId, CancellationToken cancellationToken = default)
+    public async Task<AuthUser> SignInAsync(
+        IdentityProvider provider,
+        CancellationToken cancellationToken = default)
     {
-        if (!IsConfigured || !AuthOptions.AnonymousSessionEnabled)
-        {
-            return null;
-        }
+        var account = await _identity.SignInAsync(provider, cancellationToken).ConfigureAwait(false);
 
-        // El identificador de instalacion viaja como metadato: sirve para reconocer el dispositivo
-        // en el servidor, no para autorizar nada (de eso se encarga el JWT).
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/auth/v1/signup")
-        {
-            Content = JsonContent(new { data = new { installation_id = installationId } }),
-        };
-        request.Headers.Add("apikey", AnonKey);
+        await _tokens.SetAsync(KeyRefresh, account.RefreshToken).ConfigureAwait(false);
+        await ApplyAccountAsync(account).ConfigureAwait(false);
+        await TryLinkSupabaseAsync(account, cancellationToken).ConfigureAwait(false);
 
-        using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        await StoreSessionAsync(response, cancellationToken).ConfigureAwait(false);
-        return CurrentUser;
+        return CurrentUser ?? throw new AuthException("La entrada no trajo ningún usuario.");
     }
 
     public async Task SignOutAsync()
     {
+        await _tokens.SetAsync(KeyRefresh, null).ConfigureAwait(false);
         await _tokens.SetAsync(KeyAccessToken, null).ConfigureAwait(false);
         await _tokens.SetAsync(KeyRefreshToken, null).ConfigureAwait(false);
         await _tokens.SetAsync(KeyExpiresAt, null).ConfigureAwait(false);
 
         CurrentUser = null;
+        await _settings.SetAsync(SettingsService.KeyGoogleSub, string.Empty).ConfigureAwait(false);
+        await _settings.SetAsync(SettingsService.KeyAuthProvider, string.Empty).ConfigureAwait(false);
+        await _settings.SetAsync(SettingsService.KeyRemoteUserId, string.Empty).ConfigureAwait(false);
         await _settings.SetAsync(SettingsService.KeyAccountEmail, string.Empty).ConfigureAwait(false);
         await _settings.SetAsync(SettingsService.KeyAvatarUrl, string.Empty).ConfigureAwait(false);
         UserChanged?.Invoke(this, null);
@@ -221,20 +235,93 @@ public sealed class SupabaseAuthService
 
     private static string AnonKey => SupabaseConfig.PublishableKey;
 
-    private async Task ExchangeAsync(string code, string verifier, CancellationToken cancellationToken)
+    /// <summary>
+    /// Guarda la identidad que acaba de dar Google.
+    /// </summary>
+    /// <remarks>
+    /// El nombre de la cuenta pasa a ser <b>el nombre en la aplicacion</b>, se sobreescriba lo que
+    /// hubiera: con la entrada obligatoria ya no hay ningun "yo" provisional que respetar, y quien
+    /// quiera otro nombre lo cambia en los ajustes despues.
+    /// </remarks>
+    private async Task ApplyAccountAsync(IdentityAccount account)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/auth/v1/token?grant_type=pkce")
-        {
-            Content = JsonContent(new { auth_code = code, code_verifier = verifier }),
-        };
-        request.Headers.Add("apikey", AnonKey);
+        // Lo que el proveedor no diga, se conserva. Al renovar, el id_token trae la identidad pero
+        // no repite el perfil: sin esto, cada arranque cambiaba el nombre «Josep Solà» por el
+        // correo, que es lo unico que quedaba.
+        var email = Keep(account.Email, _settings.AccountEmail);
+        var name = Keep(account.Name, _settings.Get(SettingsService.KeyDisplayName));
+        var avatar = Keep(account.Picture, _settings.AvatarUrl);
 
-        using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        await StoreSessionAsync(response, cancellationToken).ConfigureAwait(false);
-        await _tokens.SetAsync(KeyVerifier, null).ConfigureAwait(false);
+        // Y si nunca ha habido nombre, el correo es mejor que un hueco.
+        if (name.Length == 0)
+        {
+            name = email;
+        }
+
+        CurrentUser = new AuthUser(
+            account.UserId,
+            email,
+            name,
+            avatar,
+            _settings.Get(SettingsService.KeyRemoteUserId));
+
+        await _settings.SetAsync(SettingsService.KeyGoogleSub, account.UserId).ConfigureAwait(false);
+        await _settings.SetAsync(SettingsService.KeyUserId, account.UserId).ConfigureAwait(false);
+        await _settings.SetAsync(SettingsService.KeyAuthProvider, account.Provider.ToString()).ConfigureAwait(false);
+        await _settings.SetAsync(SettingsService.KeyAccountEmail, email).ConfigureAwait(false);
+        await _settings.SetAsync(SettingsService.KeyAvatarUrl, avatar).ConfigureAwait(false);
+        await _settings.SetAsync(SettingsService.KeyDisplayName, name).ConfigureAwait(false);
+
+        UserChanged?.Invoke(this, CurrentUser);
     }
 
-    private async Task RefreshAsync(string refreshToken, CancellationToken cancellationToken)
+    /// <summary>
+    /// Canjea el id_token de Google por una sesion del proyecto de Supabase, que es lo unico que la
+    /// RLS entiende. <b>De cortesia</b>: si el proyecto no tiene el proveedor dado de alta responde
+    /// un 400 y la aplicacion sigue funcionando en local, sin sincronizar.
+    /// </summary>
+    private async Task TryLinkSupabaseAsync(IdentityAccount account, CancellationToken cancellationToken)
+    {
+        if (!SupabaseConfig.IsConfigured)
+        {
+            return;
+        }
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/auth/v1/token?grant_type=id_token")
+            {
+                Content = JsonContent(new { provider = SupabaseProviderOf(account.Provider), id_token = account.IdToken }),
+            };
+            request.Headers.Add("apikey", AnonKey);
+
+            using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                LastRemoteError = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            await StoreSupabaseSessionAsync(response, cancellationToken).ConfigureAwait(false);
+            LastRemoteError = null;
+        }
+        catch (Exception ex)
+        {
+            LastRemoteError = ex.Message;
+        }
+    }
+
+    /// <summary>Por que no hay sincronizacion, cuando no la hay. Solo para poder contarlo.</summary>
+    public string? LastRemoteError { get; private set; }
+
+    /// <summary>
+    /// Como llama Supabase a cada proveedor. Microsoft es «azure» alli, que es el nombre que tenia
+    /// Entra ID cuando se escribio esa parte del servidor.
+    /// </summary>
+    private static string SupabaseProviderOf(IdentityProvider provider) =>
+        provider == IdentityProvider.Microsoft ? "azure" : "google";
+
+    private async Task RefreshSupabaseAsync(string refreshToken, CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/auth/v1/token?grant_type=refresh_token")
         {
@@ -243,10 +330,10 @@ public sealed class SupabaseAuthService
         request.Headers.Add("apikey", AnonKey);
 
         using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        await StoreSessionAsync(response, cancellationToken).ConfigureAwait(false);
+        await StoreSupabaseSessionAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task StoreSessionAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    private async Task StoreSupabaseSessionAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
@@ -266,104 +353,26 @@ public sealed class SupabaseAuthService
         await _tokens.SetAsync(KeyRefreshToken, refresh).ConfigureAwait(false);
         await _tokens.SetAsync(KeyExpiresAt, DateTimeOffset.UtcNow.AddSeconds(expiresIn).ToString("O")).ConfigureAwait(false);
 
-        // La propia respuesta trae el usuario; si no, se pide aparte.
-        if (root.TryGetProperty("user", out var user) && user.ValueKind == JsonValueKind.Object)
+        // El uid del proyecto no es el de Google: se guarda aparte porque es el que firma las filas.
+        if (root.TryGetProperty("user", out var user)
+            && user.ValueKind == JsonValueKind.Object
+            && user.TryGetProperty("id", out var id)
+            && id.GetString() is { Length: > 0 } remoteId)
         {
-            await ApplyUserAsync(user).ConfigureAwait(false);
-        }
-        else
-        {
-            await LoadUserAsync(access, cancellationToken).ConfigureAwait(false);
+            await _settings.SetAsync(SettingsService.KeyRemoteUserId, remoteId).ConfigureAwait(false);
+
+            if (CurrentUser is not null)
+            {
+                CurrentUser = CurrentUser with { RemoteId = remoteId };
+                UserChanged?.Invoke(this, CurrentUser);
+            }
         }
     }
 
-    private async Task LoadUserAsync(string accessToken, CancellationToken cancellationToken)
-    {
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"{BaseUrl}/auth/v1/user");
-        request.Headers.Add("apikey", AnonKey);
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-
-        using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new AuthException($"No se pudo leer el usuario ({(int)response.StatusCode}).");
-        }
-
-        using var document = JsonDocument.Parse(body);
-        await ApplyUserAsync(document.RootElement).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Guarda la identidad. El id de Supabase pasa a ser el del usuario en la base local, para que
-    /// el XP y la autoria de las tareas se atribuyan a la cuenta y no al identificador provisional.
-    /// </summary>
-    private async Task ApplyUserAsync(JsonElement user)
-    {
-        var id = user.GetProperty("id").GetString() ?? string.Empty;
-        var email = user.TryGetProperty("email", out var e) ? e.GetString() ?? string.Empty : string.Empty;
-
-        var name = email;
-        var avatar = string.Empty;
-        if (user.TryGetProperty("user_metadata", out var metadata) && metadata.ValueKind == JsonValueKind.Object)
-        {
-            if (metadata.TryGetProperty("full_name", out var fullName) && fullName.GetString() is { Length: > 0 } n)
-            {
-                name = n;
-            }
-            else if (metadata.TryGetProperty("name", out var shortName) && shortName.GetString() is { Length: > 0 } n2)
-            {
-                name = n2;
-            }
-
-            if (metadata.TryGetProperty("avatar_url", out var picture))
-            {
-                avatar = picture.GetString() ?? string.Empty;
-            }
-        }
-
-        CurrentUser = new AuthUser(id, email, name, avatar);
-
-        await _settings.SetAsync(SettingsService.KeyUserId, id).ConfigureAwait(false);
-        await _settings.SetAsync(SettingsService.KeyAccountEmail, email).ConfigureAwait(false);
-        await _settings.SetAsync(SettingsService.KeyAvatarUrl, avatar).ConfigureAwait(false);
-
-        // El nombre visible solo se rellena si el usuario no ha puesto uno propio.
-        if (_settings.Get(SettingsService.KeyDisplayName).Length == 0)
-        {
-            await _settings.SetAsync(SettingsService.KeyDisplayName, name).ConfigureAwait(false);
-        }
-
-        UserChanged?.Invoke(this, CurrentUser);
-    }
+    /// <summary>Lo nuevo si dice algo; si no, lo que ya habia.</summary>
+    private static string Keep(string incoming, string stored) =>
+        incoming.Length > 0 ? incoming : stored;
 
     private static HttpContent JsonContent(object payload) =>
         new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-
-    private static string? ReadParameter(Uri uri, string name)
-    {
-        var query = uri.Query.TrimStart('?');
-        foreach (var pair in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
-        {
-            var parts = pair.Split('=', 2);
-            if (parts.Length == 2 && parts[0] == name)
-            {
-                return Uri.UnescapeDataString(parts[1]);
-            }
-        }
-
-        return null;
-    }
-
-    private static string CreateVerifier()
-    {
-        var bytes = RandomNumberGenerator.GetBytes(64);
-        return Base64Url(bytes);
-    }
-
-    private static string Challenge(string verifier) =>
-        Base64Url(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
-
-    private static string Base64Url(byte[] bytes) =>
-        Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 }

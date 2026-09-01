@@ -12,22 +12,24 @@ public partial class AppShell : Shell
         Routing.RegisterRoute(nameof(ListDetailPage), typeof(ListDetailPage));
         Routing.RegisterRoute(nameof(TaskDetailPage), typeof(TaskDetailPage));
 
+        // El correo esta oculto: la fila del menu no se enseña y la ruta no se ofrece.
+        MailMenuRow.IsVisible = TaskManager.Core.FeatureOptions.MailEnabled;
+
         VersionLabel.Text = $"v{AppInfo.Current.VersionString}";
     }
 
-    private async void OnMyDayTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//MyDayPage");
+    private async void OnMyTasksTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//MyTasksPage");
 
     private async void OnCalendarTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//CalendarPage");
 
-    private async void OnDevOpsTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//DevOpsPage");
 
     private async void OnListsTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//ListsPage");
+
+    private async void OnMailTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//MailPage");
 
     private async void OnGroupsTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//GroupsPage");
 
     private async void OnBoardTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//BoardPage");
-
-    private async void OnMailTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//MailPage");
 
     private async void OnSettingsTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//SettingsPage");
 

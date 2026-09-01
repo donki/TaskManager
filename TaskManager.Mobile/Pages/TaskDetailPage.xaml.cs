@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+using TaskManager.Mobile.Models;
 using TaskManager.Core.Models;
 using TaskManager.Core.Services;
 using TaskManager.Mobile.Helpers;
@@ -15,6 +17,12 @@ namespace TaskManager.Mobile.Pages;
 [QueryProperty(nameof(TaskId), "taskId")]
 public partial class TaskDetailPage : ContentPage
 {
+    private ObservableCollection<StepRow> _steps = [];
+    private readonly List<TaskList> _lists = [];
+    private byte _days;
+    private byte _monthDay;
+    private byte _month;
+
     private static readonly RecurrenceKind[] Kinds =
         [RecurrenceKind.None, RecurrenceKind.Daily, RecurrenceKind.Weekly, RecurrenceKind.Monthly, RecurrenceKind.Yearly];
 
@@ -81,9 +89,9 @@ public partial class TaskDetailPage : ContentPage
         _loading = true;
 
         Title = _task.Title;
+        DoneSwitch.IsToggled = _task.IsDone;
         TitleEntry.Text = _task.Title;
         NotesEditor.Text = _task.Notes;
-        ContextEditor.Text = _task.Context;
         TagsEntry.Text = TaskTags.ToInput(_task.Tags);
 
         // Rango acotado: sin el, el selector de Android abre la lista de años entera y cuesta
@@ -105,6 +113,14 @@ public partial class TaskDetailPage : ContentPage
         PlannedPicker.Date = _task.PlannedFor?.Date ?? DateTime.Now.Date;
 
         var recurrence = _task.Recurrence;
+        _days = recurrence.Days;
+        _monthDay = recurrence.MonthDay;
+        _month = recurrence.Month;
+
+        BuildWeekdays();
+        BuildMonthDays();
+        BuildMonths();
+
         RecurrencePicker.SelectedIndex = Array.IndexOf(Kinds, recurrence.Kind) is var index && index >= 0 ? index : 0;
         IntervalStepper.Value = Math.Clamp(recurrence.Interval <= 0 ? 1 : recurrence.Interval, 1, 30);
         IntervalStepper.IsVisible = recurrence.Kind != RecurrenceKind.None;
@@ -112,12 +128,89 @@ public partial class TaskDetailPage : ContentPage
 
         _loading = false;
 
+        await LoadListsAsync();
+        await LoadKnownTagsAsync();
         await LoadStepsAsync();
     }
 
     // ==================================================================================
     //  Pasos
     // ==================================================================================
+
+    /// <summary>
+    /// Carga las listas y marca la de esta tarea. El desplegable no tiene opcion vacia a proposito:
+    /// <b>ninguna tarea puede quedarse sin lista</b>.
+    /// </summary>
+    private async Task LoadListsAsync()
+    {
+        if (_task is null)
+        {
+            return;
+        }
+
+        _lists.Clear();
+        _lists.AddRange(await _tasks.Repository.GetPrivateListsAsync());
+
+        ListPicker.ItemsSource = _lists.Select(l => l.Name).ToList();
+
+        var index = _lists.FindIndex(l => l.Id == _task.ListId);
+        ListPicker.SelectedIndex = index >= 0 ? index : 0;
+    }
+
+    /// <summary>
+    /// Pinta las etiquetas que ya existen en otras tareas. Tocar una la pone o la quita de esta.
+    /// </summary>
+    /// <remarks>
+    /// Es lo que evita que la misma idea acabe escrita de tres formas —«casa», «Casa», «casaa»— y
+    /// que el filtro por etiquetas se llene de duplicados que no agrupan nada.
+    /// </remarks>
+    private async Task LoadKnownTagsAsync()
+    {
+        var tags = await _tasks.Repository.GetTagsAsync();
+
+        KnownTagsScroll.IsVisible = tags.Count > 0;
+        KnownTagsBox.Clear();
+
+        foreach (var tag in tags)
+        {
+            KnownTagsBox.Add(BuildTagChip(tag));
+        }
+    }
+
+    private View BuildTagChip(string tag)
+    {
+        var dark = Application.Current?.RequestedTheme == AppTheme.Dark;
+        var active = TaskTags.Split(TaskTags.FromInput(TagsEntry.Text))
+                             .Contains(tag, StringComparer.CurrentCultureIgnoreCase);
+
+        var button = new Button
+        {
+            Text = $"#{tag}",
+            FontSize = 13,
+            Padding = new Thickness(14, 6),
+            MinimumHeightRequest = 0,
+            CornerRadius = 16,
+            BackgroundColor = active
+                ? Color.FromArgb("#3525CD")
+                : Color.FromArgb(dark ? "#2A2833" : "#EDEEEF"),
+            TextColor = active ? Colors.White : Color.FromArgb(dark ? "#E6E1E9" : "#191C1D"),
+        };
+
+        button.Clicked += async (_, _) =>
+        {
+            var current = TaskTags.Split(TaskTags.FromInput(TagsEntry.Text)).ToList();
+
+            if (current.RemoveAll(t => string.Equals(t, tag, StringComparison.CurrentCultureIgnoreCase)) == 0)
+            {
+                current.Add(tag);
+            }
+
+            TagsEntry.Text = TaskTags.ToInput(TaskTags.Join(current));
+            await LoadKnownTagsAsync();
+        };
+
+        return button;
+    }
 
     private async Task LoadStepsAsync()
     {
@@ -128,46 +221,201 @@ public partial class TaskDetailPage : ContentPage
 
         var steps = await _tasks.Repository.GetStepsAsync(_task.Id);
 
-        StepsBox.Clear();
-        NoStepsLabel.IsVisible = steps.Count == 0;
+        // Coleccion observable, no una lista: al arrastrar, CollectionView mueve el elemento dentro
+        // de la propia fuente, y con una List<> corriente el cambio no se ve.
+        _steps = new ObservableCollection<StepRow>(steps.Select(s => new StepRow(s)));
+        StepsView.ItemsSource = _steps;
 
-        foreach (var step in steps)
+        NoStepsLabel.IsVisible = steps.Count == 0;
+    }
+
+    private async void OnAddStepClicked(object? sender, EventArgs e)
+    {
+        if (_task is null)
         {
-            StepsBox.Add(BuildStepRow(step));
+            return;
+        }
+
+        var title = NewStepEntry.Text?.Trim();
+        if (string.IsNullOrEmpty(title))
+        {
+            return;
+        }
+
+        await _tasks.Repository.AddStepsAsync(_task.Id, [title]);
+        NewStepEntry.Text = string.Empty;
+        await LoadStepsAsync();
+    }
+
+    private async void OnDeleteStepClicked(object? sender, EventArgs e)
+    {
+        if (sender is not ImageButton { CommandParameter: Guid id })
+        {
+            return;
+        }
+
+        var step = await _tasks.Repository.GetStepAsync(id);
+        if (step is null)
+        {
+            return;
+        }
+
+        await _tasks.Repository.DeleteStepAsync(step);
+        await LoadStepsAsync();
+    }
+
+    /// <summary>
+    /// Guarda el orden despues de arrastrar.
+    /// </summary>
+    /// <remarks>
+    /// No se recarga la lista al terminar: CollectionView ya ha dejado las filas donde el usuario
+    /// las ha soltado, y volver a pintarlas provoca un parpadeo justo cuando acaba de levantar el
+    /// dedo. Lo unico que hace falta es persistir el orden que ya se ve.
+    /// </remarks>
+    private async void OnStepsReordered(object? sender, EventArgs e)
+    {
+        await _tasks.Repository.ReorderStepsAsync([.. _steps.Select(r => r.Id)]);
+    }
+
+    /// <summary>
+    /// Las siete pastillas de los dias, en el orden de la semana europea (lunes primero) aunque la
+    /// mascara se guarde con domingo en el bit 0, que es como numera <see cref="DayOfWeek"/>.
+    /// </summary>
+    /// <summary>
+    /// Los dias del mes elegibles, con «el mismo dia» como primera opcion: el que ya tuviera la
+    /// tarea, que es como se comportaba antes de poder elegir.
+    /// </summary>
+    private void BuildMonthDays()
+    {
+        var options = new List<string> { Localization.Loc.Instance["MonthDaySame"] };
+        options.AddRange(Enumerable.Range(1, 31).Select(d => d.ToString()));
+
+        MonthDayPicker.ItemsSource = options;
+        MonthDayPicker.SelectedIndex = Math.Clamp((int)_monthDay, 0, 31);
+    }
+
+    /// <summary>Los doce meses, con «el mismo mes» delante: el que ya tuviera la tarea.</summary>
+    private void BuildMonths()
+    {
+        var names = System.Globalization.CultureInfo
+            .GetCultureInfo(Localization.Loc.Instance.Language)
+            .DateTimeFormat.MonthNames;
+
+        var options = new List<string> { Localization.Loc.Instance["MonthSame"] };
+        options.AddRange(names.Take(12).Select(n => char.ToUpperInvariant(n[0]) + n[1..]));
+
+        MonthPicker.ItemsSource = options;
+        MonthPicker.SelectedIndex = Math.Clamp((int)_month, 0, 12);
+    }
+
+    private void OnMonthChanged(object? sender, EventArgs e)
+    {
+        _month = (byte)Math.Clamp(MonthPicker.SelectedIndex, 0, 12);
+        OnRecurrenceChanged(sender, e);
+    }
+
+    private void OnMonthDayChanged(object? sender, EventArgs e)
+    {
+        _monthDay = (byte)Math.Clamp(MonthDayPicker.SelectedIndex, 0, 31);
+        OnRecurrenceChanged(sender, e);
+    }
+
+    private void BuildWeekdays()
+    {
+        WeekdaysBox.Clear();
+
+        DayOfWeek[] order =
+        [
+            DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday,
+            DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday,
+        ];
+
+        var names = System.Globalization.CultureInfo
+            .GetCultureInfo(Localization.Loc.Instance.Language)
+            .DateTimeFormat.AbbreviatedDayNames;
+
+        foreach (var day in order)
+        {
+            var bit = (byte)(1 << (int)day);
+            var dark = Application.Current?.RequestedTheme == AppTheme.Dark;
+            var active = (_days & bit) != 0;
+
+            var button = new Button
+            {
+                Text = names[(int)day].TrimEnd('.').ToUpperInvariant(),
+                FontSize = 12,
+                Padding = new Thickness(10, 6),
+                MinimumWidthRequest = 44,
+                MinimumHeightRequest = 0,
+                CornerRadius = 16,
+                BackgroundColor = active
+                    ? Color.FromArgb("#3525CD")
+                    : Color.FromArgb(dark ? "#2A2833" : "#EDEEEF"),
+                TextColor = active ? Colors.White : Color.FromArgb(dark ? "#E6E1E9" : "#191C1D"),
+            };
+
+            button.Clicked += (_, _) =>
+            {
+                _days = (byte)((_days & bit) != 0 ? _days & ~bit : _days | bit);
+                BuildWeekdays();
+                OnRecurrenceChanged(null, EventArgs.Empty);
+            };
+
+            WeekdaysBox.Add(button);
         }
     }
 
-    /// <summary>Fila de paso: icono de estado, titulo tachado si esta hecho y marca de si vino de la IA.</summary>
-    private View BuildStepRow(TaskStep step)
+    /// <summary>
+    /// Marca o desmarca la tarea sin salir del detalle. Completar suma XP y celebra; deshacer lo
+    /// devuelve sin castigar, igual que en la lista.
+    /// </summary>
+    private async void OnDoneToggled(object? sender, ToggledEventArgs e)
     {
-        var toggle = new ImageButton
+        if (_task is null || _task.IsDone == e.Value)
         {
-            Source = step.IsDone ? "ic_circle_check.png" : "ic_circle.png",
-            Style = (Style)Application.Current!.Resources["RowIconButton"],
-            HeightRequest = 34,
-            WidthRequest = 34,
-            CommandParameter = step.Id,
-        };
-        toggle.Clicked += OnToggleStepClicked;
+            return;
+        }
 
-        var label = new Label
+        if (e.Value)
         {
-            Text = step.Title,
-            VerticalOptions = LayoutOptions.Center,
-            Opacity = step.IsDone ? 0.55 : 1,
-            TextDecorations = step.IsDone ? TextDecorations.Strikethrough : TextDecorations.None,
-        };
-
-        var row = new Grid
+            var celebration = await _tasks.CompleteTaskAsync(_task);
+            if (celebration is not null)
+            {
+                Celebration.Celebrate(celebration);
+            }
+        }
+        else
         {
-            ColumnDefinitions = [new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star)],
-            ColumnSpacing = 6,
-            Padding = new Thickness(0, 2),
-        };
+            await _tasks.UncompleteTaskAsync(_task);
+        }
+    }
 
-        row.Add(toggle, 0, 0);
-        row.Add(label, 1, 0);
-        return row;
+    /// <summary>
+    /// Toca el texto de un paso para cambiarlo. Antes solo se podia borrar y reescribir, que ademas
+    /// le hacia perder su sitio en el orden.
+    /// </summary>
+    private async void OnEditStepClicked(object? sender, EventArgs e)
+    {
+        if (_task is null || sender is not ImageButton { CommandParameter: Guid id })
+        {
+            return;
+        }
+
+        var step = await _tasks.Repository.GetStepAsync(id);
+        if (step is null)
+        {
+            return;
+        }
+
+        var written = await SocShared.ModernDialog.PromptAsync(
+            this, Localization.Loc.Instance["EditStepTooltip"], null,
+            Localization.Loc.Instance["Save"], Localization.Loc.Instance["Cancel"], step.Title);
+
+        if (!string.IsNullOrWhiteSpace(written))
+        {
+            await _tasks.Repository.RenameStepAsync(step, written);
+            await LoadStepsAsync();
+        }
     }
 
     private async void OnToggleStepClicked(object? sender, EventArgs e)
@@ -274,8 +522,15 @@ public partial class TaskDetailPage : ContentPage
         }
 
         var kind = Kinds[Math.Clamp(RecurrencePicker.SelectedIndex, 0, Kinds.Length - 1)];
+        var recurrence = new Recurrence(kind, (int)IntervalStepper.Value, _days, _monthDay, _month);
+
         IntervalStepper.IsVisible = kind != RecurrenceKind.None;
-        RecurrenceLabel.Text = new Recurrence(kind, (int)IntervalStepper.Value).Describe();
+
+        // Elegir dias solo tiene sentido en la diaria y la semanal.
+        WeekdaysScroll.IsVisible = recurrence.UsesDays;
+        MonthDayRow.IsVisible = recurrence.UsesMonthDay;
+        MonthRow.IsVisible = recurrence.UsesMonth;
+        RecurrenceLabel.Text = recurrence.Describe();
     }
 
     private void OnIntervalChanged(object? sender, ValueChangedEventArgs e)
@@ -322,14 +577,18 @@ public partial class TaskDetailPage : ContentPage
 
         _task.Title = title;
         _task.Notes = NotesEditor.Text?.Trim() ?? string.Empty;
-        _task.Context = ContextEditor.Text?.Trim() ?? string.Empty;
         _task.Tags = TaskTags.FromInput(TagsEntry.Text);
         // DatePicker.Date es nullable desde MAUI 10.
         _task.DueAt = DueSwitch.IsToggled ? DuePicker.Date?.Date : null;
         _task.PlannedFor = PlannedSwitch.IsToggled ? PlannedPicker.Date?.Date : null;
 
         var kind = Kinds[Math.Clamp(RecurrencePicker.SelectedIndex, 0, Kinds.Length - 1)];
-        _task.RecurrenceRule = new Recurrence(kind, (int)IntervalStepper.Value).Serialize();
+        _task.RecurrenceRule = new Recurrence(kind, (int)IntervalStepper.Value, _days, _monthDay, _month).Serialize();
+
+        if (ListPicker.SelectedIndex >= 0 && ListPicker.SelectedIndex < _lists.Count)
+        {
+            _task.ListId = _lists[ListPicker.SelectedIndex].Id;
+        }
 
         await _tasks.Repository.UpdateTaskAsync(_task);
 

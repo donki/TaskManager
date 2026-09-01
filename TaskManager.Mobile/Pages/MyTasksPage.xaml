@@ -4,19 +4,19 @@
              xmlns:loc="clr-namespace:TaskManager.Mobile.Localization"
              xmlns:models="clr-namespace:TaskManager.Mobile.Models"
              xmlns:controls="clr-namespace:TaskManager.Mobile.Controls"
-             x:Class="TaskManager.Mobile.Pages.MyDayPage"
-             Title="{loc:T MenuMyDay}">
+             x:Class="TaskManager.Mobile.Pages.MyTasksPage"
+             Title="{loc:T MenuMyTasks}">
 
     <Grid>
         <Grid RowDefinitions="Auto,Auto,Auto,*">
 
-            <!-- Fecha y estado del dia -->
+            <!-- Cuantas hay con el filtro puesto -->
             <VerticalStackLayout Grid.Row="0" Padding="16,12,16,4" Spacing="2">
-                <Label x:Name="DateLabel" Style="{StaticResource HintText}" />
+                <Label x:Name="FilterLabel" Style="{StaticResource HintText}" />
                 <Label x:Name="SummaryLabel" Style="{StaticResource CardTitle}" />
             </VerticalStackLayout>
 
-            <!-- Captura rapida: escribir y anadir. -->
+            <!-- Captura rapida -->
             <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8" Padding="16,8">
                 <Border Grid.Column="0" Style="{StaticResource Card}" Padding="12,0">
                     <Entry x:Name="QuickAdd"
@@ -29,23 +29,28 @@
                              Clicked="OnAddClicked" />
             </Grid>
 
-            <!-- Filtro por etiqueta: se pinta con las etiquetas que hay en uso. -->
-            <ScrollView Grid.Row="2" Orientation="Horizontal" HorizontalScrollBarVisibility="Never"
-                        Padding="16,0,16,8" x:Name="TagFilterScroll" IsVisible="False">
-                <HorizontalStackLayout x:Name="TagFilterBox" Spacing="8" />
-            </ScrollView>
+            <!-- Filtros: una fila que se desliza. Son ocho, no caben en pantalla de otra forma,
+                 y partirlos en un desplegable esconderia justo lo que se viene a usar. -->
+            <VerticalStackLayout Grid.Row="2" Spacing="6">
+                <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never"
+                            Padding="16,0,16,0">
+                    <HorizontalStackLayout x:Name="FilterBox" Spacing="8" />
+                </ScrollView>
+
+                <!-- Etiquetas en uso. La fila no aparece si no hay ninguna: un filtro vacio solo
+                     ocupa sitio. -->
+                <ScrollView x:Name="TagFilterScroll" Orientation="Horizontal"
+                            HorizontalScrollBarVisibility="Never" Padding="16,0,16,8" IsVisible="False">
+                    <HorizontalStackLayout x:Name="TagFilterBox" Spacing="8" />
+                </ScrollView>
+            </VerticalStackLayout>
 
             <RefreshView Grid.Row="3" x:Name="Refresher" Refreshing="OnRefreshing">
-                <!-- Se ordena arrastrando: manten pulsada una tarea y subela o bajala. -->
-                <CollectionView x:Name="TasksView" SelectionMode="None" Margin="8,0,8,8"
-                                CanReorderItems="True" ReorderCompleted="OnReorderCompleted">
+                <CollectionView x:Name="TasksView" SelectionMode="None" Margin="8,0,8,8">
 
                     <CollectionView.EmptyView>
                         <VerticalStackLayout Padding="24" Spacing="8">
-                            <Label Text="{loc:T MyDayEmptyTitle}"
-                                   Style="{StaticResource CardTitle}"
-                                   HorizontalTextAlignment="Center" />
-                            <Label Text="{loc:T MyDayEmptyMessage}"
+                            <Label Text="{loc:T NoTasksForFilter}"
                                    Style="{StaticResource HintText}"
                                    HorizontalTextAlignment="Center" />
                         </VerticalStackLayout>
@@ -54,7 +59,7 @@
                     <CollectionView.ItemTemplate>
                         <DataTemplate x:DataType="models:TaskRow">
                             <Border Style="{StaticResource Card}" Margin="0,0,0,6">
-                                <Grid ColumnDefinitions="44,*,Auto" ColumnSpacing="4" Padding="6,8,8,8">
+                                <Grid ColumnDefinitions="44,*" ColumnSpacing="4" Padding="6,8,8,8">
 
                                     <ImageButton Grid.Column="0"
                                                  Style="{StaticResource RowIconButton}"
@@ -64,13 +69,15 @@
 
                                     <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center"
                                                          Opacity="{Binding Opacity}">
-                                        <!-- Tocar la tarea abre su detalle: editarla, darle contexto y ver los pasos. -->
                                         <VerticalStackLayout.GestureRecognizers>
                                             <TapGestureRecognizer Tapped="OnTaskTapped" CommandParameter="{Binding Id}" />
                                         </VerticalStackLayout.GestureRecognizers>
                                         <Label Text="{Binding Title}"
                                                Style="{StaticResource ItemTitle}"
                                                TextDecorations="{Binding Decoration}" />
+                                        <Label Text="{Binding ScheduleCaption}"
+                                               Style="{StaticResource HintText}"
+                                               IsVisible="{Binding HasSchedule}" />
                                         <Label Text="{Binding TagsCaption}"
                                                Style="{StaticResource HintText}"
                                                IsVisible="{Binding HasTags}" />
@@ -90,7 +97,6 @@
             </RefreshView>
         </Grid>
 
-        <!-- La celebracion va encima de todo y no intercepta el toque -->
         <controls:CelebrationView x:Name="Celebration" />
     </Grid>
 </ContentPage>

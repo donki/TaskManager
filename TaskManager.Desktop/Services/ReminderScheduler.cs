@@ -67,19 +67,29 @@ public sealed class ReminderScheduler : IDisposable
     /// <summary>Un solo globo al dia, a la hora elegida, con lo que queda en Mi Dia.</summary>
     private async Task CheckDailySummaryAsync(DateTime now)
     {
-        if (_lastDailySummary.Date == now.Date || now.Hour < _settings.NotifyHour)
+        // Con posposicion, el aviso se repite cada tantos minutos; sin ella, uno al dia.
+        var snooze = _settings.SnoozeMinutes;
+        var due = snooze > 0
+            ? _lastDailySummary.AddMinutes(snooze) <= now
+            : _lastDailySummary.Date != now.Date;
+
+        if (!due || now.Hour < _settings.NotifyHour)
         {
             return;
         }
 
         _lastDailySummary = now;
 
-        var pending = await _repository.CountMyDayPendingAsync().ConfigureAwait(true);
+        var pending = await _repository.CountPendingAsync().ConfigureAwait(true);
         if (pending > 0)
         {
-            _tray.Notify("Mi Día", pending == 1
-                ? "Te queda 1 tarea para hoy"
-                : $"Te quedan {pending} tareas para hoy");
+            // Traducido, como todo lo demas: estas dos frases estaban clavadas en español y
+            // hablaban de «Mi Día», que ya no existe.
+            _tray.Notify(
+                Localization.Loc.Get("MenuMyTasks"),
+                pending == 1
+                    ? Localization.Loc.Get("NotifyOnePending")
+                    : Localization.Loc.Format("NotifyManyPending", pending));
         }
     }
 
@@ -91,14 +101,14 @@ public sealed class ReminderScheduler : IDisposable
             return;
         }
 
-        foreach (var task in await _repository.GetMyDayAsync().ConfigureAwait(true))
+        foreach (var task in await _repository.GetAllTasksAsync(TaskManager.Core.Models.TaskFilter.Pending).ConfigureAwait(true))
         {
             if (task.IsDone || task.DueAt?.Date != now.Date || !_notifiedTasks.Add(task.Id))
             {
                 continue;
             }
 
-            _tray.Notify("Vence hoy", task.Title);
+            _tray.Notify(Localization.Loc.Get("DueToday"), task.Title);
         }
     }
 

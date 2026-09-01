@@ -1,39 +1,42 @@
 # Supabase — Task Manager
 
-Dos ficheros, en este orden, desde el **SQL Editor** del proyecto de Supabase:
+Una sola base de datos para todos los usuarios. Las migraciones están más abajo.
 
-1. `01_schema.sql` — tablas, índices, `updated_at` automático y publicación de Realtime.
-2. `02_rls.sql` — Row Level Security y las funciones `create_group`, `join_group` y
-   `rotate_group_key`.
+## Entrada con cuenta
 
-Los dos son idempotentes: se pueden relanzar sin romper nada.
+La aplicación **habla directamente con Google y con Microsoft**, no a través de Supabase: abre el
+navegador del sistema, hace PKCE contra el proveedor y de ahí saca la identidad y el nombre. Por eso
+la entrada funciona con este proyecto en cualquier estado — antes, con el proveedor sin activar, el
+navegador se quedaba en una página de Supabase que decía `Unsupported provider`.
 
-## Entrada con Google (hay que configurarla a mano)
+Lo que sí necesita el proyecto es poder **firmar la sesión**, que es lo único que entiende la RLS. El
+cliente canjea el `id_token` del proveedor:
 
-1. **Google Cloud** → *APIs y servicios › Credenciales* → **ID de cliente de OAuth 2.0** de tipo
-   *Aplicación web*.
-   - URI de redirección autorizado: `https://<proyecto>.supabase.co/auth/v1/callback`
-   - Rellenar la *pantalla de consentimiento* (nombre, correo de soporte, dominio).
-2. **Supabase** → *Authentication › Providers › Google*: activar y pegar el **Client ID** y el
-   **Client Secret** de Google.
-3. **Supabase** → *Authentication › URL Configuration › Redirect URLs*, las dos:
+```
+POST /auth/v1/token?grant_type=id_token
+{"provider": "google" | "azure", "id_token": "..."}
+```
 
-   ```
-   com.socratic.taskmanager://auth
-   http://127.0.0.1:*/auth/
-   ```
+Para que ese canje funcione hay que activar cada proveedor en *Authentication › Sign In / Providers*
+y pegar su **Client ID** (el de escritorio de Google y el de Entra). No hacen falta *Redirect URLs*:
+con este flujo el navegador nunca vuelve a Supabase.
 
-   La primera es la de Android (coincide con el intent-filter de
-   `WebAuthenticationCallbackActivity`); la segunda, la del escritorio, que levanta un servidor
-   local para recoger la vuelta.
-4. En la aplicación, *Ajustes* → pegar la **URL del proyecto** y la **anon key**. A partir de ahí el
-   botón *Continuar con Google* funciona en las dos.
-
-No hace falta ningún ID de cliente de Android: la app no habla con Google, habla con Supabase, y es
-Supabase quien tiene registrada la aplicación en Google.
+Si el canje falla, **la aplicación entra igual** y funciona en local, sin sincronizar; en cuanto el
+proveedor quede activo, la sincronización arranca sola sin tocar el cliente.
 
 El perfil (`profiles`) se crea y se actualiza solo con el disparador `handle_new_user` de
-`01_schema.sql`, con el nombre y la foto que devuelve Google.
+`01_schema.sql`.
+
+## Migraciones
+
+Desde el **SQL Editor**, en orden. Todas son idempotentes:
+
+1. `01_schema.sql` — tablas, índices, `updated_at` automático y publicación de Realtime.
+2. `02_rls.sql` — Row Level Security y las funciones de grupo.
+3. `03_sync_columns.sql` — columnas que le faltaban a `tasks` para poder sincronizar.
+4. `04_synced_at.sql` — `synced_at`: **cuándo llegó la fila al servidor**, que es distinto de cuándo
+   la tocó el usuario. Sin ella, lo que un dispositivo sube por primera vez lleva su fecha original
+   —de hace días—, cae por detrás del último corte del otro dispositivo y no se baja nunca.
 
 ## Cómo entra un usuario a un grupo
 

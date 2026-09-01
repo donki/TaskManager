@@ -12,17 +12,23 @@ namespace TaskManager.Mobile.Services;
 public sealed class MauiOAuthBrowser : IOAuthBrowser
 {
     /// <summary>
-    /// Tiene que estar dado de alta en Supabase (Authentication › URL Configuration › Redirect URLs)
-    /// y coincidir con el intent-filter de <c>WebAuthenticationCallbackActivity</c>.
+    /// El esquema propio de la aplicacion, que coincide con el intent-filter de
+    /// <c>WebAuthenticationCallbackActivity</c>. Es el que vale para Microsoft; Google impone el
+    /// suyo y lo pone el propio servicio en la URL de autorizacion.
     /// </summary>
     public string RedirectUri => "com.socratic.taskmanager://auth";
 
     public async Task<Uri> AuthenticateAsync(Uri authorizeUrl, CancellationToken cancellationToken = default)
     {
+        // La vuelta se saca de la propia URL de autorizacion, no de esta clase: Google exige en
+        // Android el identificador de cliente invertido, y dar por hecho el esquema de la aplicacion
+        // dejaria la pestana abierta esperando una vuelta que nunca coincide.
+        var callbackUrl = new Uri(ReadParameter(authorizeUrl, "redirect_uri") ?? RedirectUri);
+
         var result = await WebAuthenticator.Default.AuthenticateAsync(new WebAuthenticatorOptions
         {
             Url = authorizeUrl,
-            CallbackUrl = new Uri(RedirectUri),
+            CallbackUrl = callbackUrl,
             PrefersEphemeralWebBrowserSession = false,
         });
 
@@ -31,7 +37,21 @@ public sealed class MauiOAuthBrowser : IOAuthBrowser
         var query = string.Join('&', result.Properties.Select(p =>
             $"{Uri.EscapeDataString(p.Key)}={Uri.EscapeDataString(p.Value)}"));
 
-        return new Uri($"{RedirectUri}?{query}");
+        return new Uri($"{callbackUrl}?{query}");
+    }
+
+    private static string? ReadParameter(Uri uri, string name)
+    {
+        foreach (var pair in uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var parts = pair.Split('=', 2);
+            if (parts.Length == 2 && parts[0] == name)
+            {
+                return Uri.UnescapeDataString(parts[1]);
+            }
+        }
+
+        return null;
     }
 }
 

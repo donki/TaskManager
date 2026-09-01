@@ -1,0 +1,69 @@
+<Window x:Class="TaskManager.Desktop.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:TaskManager.Desktop.Localization"
+        Title="Task Manager"
+        Width="400" SizeToContent="Height"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="{DynamicResource PageBackground}">
+
+    <StackPanel Margin="32,28,32,24">
+
+        <TextBlock Text="Task Manager"
+                   FontSize="24" FontWeight="SemiBold"
+                   Foreground="{DynamicResource Primary}"
+                   HorizontalAlignment="Center" />
+
+        <TextBlock Text="{loc:T LoginPitch}"
+                   Foreground="{DynamicResource TextSecondary}"
+                   FontSize="12"
+                   TextWrapping="Wrap"
+                   TextAlignment="Center"
+                   Margin="0,10,0,0" />
+
+        <!-- Botones de accion: solo icono (constitucion 7). Uno por cuenta con la que se puede
+             entrar; se esconde el que esta compilacion no pueda ofrecer. -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,22,0,0">
+            <Button x:Name="GoogleButton"
+                    Style="{StaticResource IconButton}"
+                    Content="&#xE77B;"
+                    ToolTip="{loc:T SignInGoogle}"
+                    Width="52" Height="52" FontSize="22"
+                    Margin="0,0,12,0"
+                    Click="OnGoogleClick" />
+            <Button x:Name="MicrosoftButton"
+                    Style="{StaticResource IconButton}"
+                    Content="&#xE902;"
+                    ToolTip="{loc:T SignInMicrosoft}"
+                    Width="52" Height="52" FontSize="22"
+                    Click="OnMicrosoftClick" />
+        </StackPanel>
+
+        <ProgressBar x:Name="Busy"
+                     Height="3" Width="180"
+                     IsIndeterminate="True"
+                     Visibility="Collapsed"
+                     Foreground="{DynamicResource Primary}"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     Margin="0,14,0,0" />
+
+        <TextBlock x:Name="StatusLabel"
+                   Foreground="{DynamicResource TextSecondary}"
+                   FontSize="11"
+                   TextWrapping="Wrap"
+                   TextAlignment="Center"
+                   Margin="0,14,0,0" />
+
+        <!-- No hay "seguir sin cuenta": la entrada es obligatoria (AuthOptions). Lo unico que se
+             puede hacer sin entrar es cerrar la aplicacion. -->
+        <Button x:Name="QuitButton"
+                Style="{StaticResource GhostIconButton}"
+                Content="&#xE711;"
+                ToolTip="{loc:T Cancel}"
+                HorizontalAlignment="Center"
+                Margin="0,10,0,0"
+                Click="OnQuitClick" />
+    </StackPanel>
+</Window>

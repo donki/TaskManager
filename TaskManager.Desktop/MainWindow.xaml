@@ -3,172 +3,189 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:loc="clr-namespace:TaskManager.Desktop.Localization"
         Title="{loc:T AppName}"
-        Width="900" Height="620"
+        Width="920" Height="660"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource PageBackground}">
 
-    <Window.Resources>
-        <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-        </Style>
-        <Style x:Key="Hint" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="TextWrapping" Value="Wrap" />
-        </Style>
-        <Style x:Key="Rows" TargetType="ListBox">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
-        </Style>
-    </Window.Resources>
+    <!--
+        Las mismas dos pantallas que Android y en el mismo orden: «Mis tareas» (todo, con filtro) y
+        «Mis listas». El gremio y los grupos ya no estan, y el correo esta oculto.
+    -->
 
-    <TabControl Margin="10" Background="Transparent" BorderThickness="0">
+    <DockPanel>
 
-        <!-- ============================== Listas ============================== -->
-        <TabItem Header="{loc:T MenuLists}">
-            <Grid Margin="10" ColumnDefinitions="240,*">
+        <!-- Franja de marca, como la cabecera del movil. -->
+        <Border DockPanel.Dock="Top" Background="{DynamicResource Primary}" Padding="18,12">
+            <TextBlock Text="{loc:T AppName}" FontSize="18" FontWeight="SemiBold" Foreground="White" />
+        </Border>
 
-                <DockPanel Grid.Column="0" Margin="0,0,12,0">
-                    <Button DockPanel.Dock="Bottom" x:Name="NewListButton" Height="30"
-                            Content="{loc:T NewListTitle}" Margin="0,8,0,0" Click="OnNewListClick" />
-                    <ListBox x:Name="ListsBox" Style="{StaticResource Rows}"
-                             SelectionChanged="OnListSelected">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Margin="4,6">
-                                    <TextBlock Text="{Binding Name}" FontSize="13" />
-                                    <TextBlock Text="{Binding Caption}" Style="{StaticResource Hint}" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </DockPanel>
+        <TabControl x:Name="Tabs" Margin="12,8,12,12">
 
-                <DockPanel Grid.Column="1">
-                    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                        <TextBox Grid.Column="0" x:Name="NewTaskBox" Padding="6,4"
-                                 KeyDown="OnNewTaskKeyDown" />
-                        <Button Grid.Column="1" Content="+" Width="34" Margin="6,0,0,0"
-                                ToolTip="{loc:T AddTaskTooltip}" Click="OnAddTaskClick" />
+            <!-- ============================== Mis tareas ============================== -->
+            <TabItem Header="{loc:T MenuMyTasks}">
+                <DockPanel Margin="4,12,4,4">
+
+                    <!-- Cuantas hay con el filtro puesto -->
+                    <StackPanel DockPanel.Dock="Top" Margin="6,0,6,8">
+                        <TextBlock x:Name="FilterLabel" Style="{StaticResource HintText}" />
+                        <TextBlock x:Name="SummaryLabel" Style="{StaticResource CardTitle}" />
+                    </StackPanel>
+
+                    <!-- Captura rapida -->
+                    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="6,0,6,10">
+                        <TextBox Grid.Column="0" x:Name="QuickAddBox" Style="{StaticResource Field}"
+                                 Background="{DynamicResource CardBackground}"
+                                 KeyDown="OnQuickAddKeyDown" />
+                        <Button Grid.Column="1" Style="{StaticResource IconButton}" Content="&#xE710;"
+                                Margin="8,0,0,0" ToolTip="{loc:T AddTaskTooltip}" Click="OnQuickAddClick" />
                     </Grid>
 
-                    <ListBox x:Name="ListTasksBox" Style="{StaticResource Rows}">
+                    <!-- Filtros: las mismas ocho pastillas que en Android, en una fila que se desliza. -->
+                    <ScrollViewer DockPanel.Dock="Top" HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled" Margin="6,0,6,6">
+                        <StackPanel x:Name="FilterBox" Orientation="Horizontal" />
+                    </ScrollViewer>
+
+                    <!-- Etiquetas en uso. La fila se esconde si no hay ninguna. -->
+                    <ScrollViewer x:Name="TagFilterScroll" DockPanel.Dock="Top"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled" Margin="6,0,6,10"
+                                  Visibility="Collapsed">
+                        <StackPanel x:Name="TagFilterBox" Orientation="Horizontal" />
+                    </ScrollViewer>
+
+                    <TextBlock x:Name="NoTasksLabel" DockPanel.Dock="Top" Margin="6,10,6,0"
+                               Text="{loc:T NoTasksForFilter}" Style="{StaticResource HintText}"
+                               Visibility="Collapsed" />
+
+                    <ListBox x:Name="AllTasksBox" Style="{StaticResource Rows}" Margin="2,0"
+                             MouseDoubleClick="OnRowDoubleClick">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Border Background="{DynamicResource CardBackground}" CornerRadius="8"
-                                        Padding="10,8" Margin="0,0,0,6">
-                                    <Grid ColumnDefinitions="Auto,*">
+                                <Border Style="{StaticResource Card}" Margin="4,0,4,8">
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
                                         <CheckBox Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"
                                                   IsChecked="{Binding IsDone, Mode=OneWay}"
                                                   Tag="{Binding Id}" Click="OnTaskToggled" />
-                                        <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="13"
-                                                   VerticalAlignment="Center" TextWrapping="Wrap" />
+
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center"
+                                                    Opacity="{Binding Opacity}">
+                                            <TextBlock Text="{Binding Title}" Style="{StaticResource ItemTitle}"
+                                                       TextWrapping="Wrap"
+                                                       TextDecorations="{Binding Decoration}" />
+                                            <TextBlock Text="{Binding Caption}" Style="{StaticResource ItemSubtitle}"
+                                                       Visibility="{Binding CaptionVisibility}" />
+                                        </StackPanel>
+
+                                        <Button Grid.Column="2" Style="{StaticResource RowIconButton}"
+                                                Content="&#xE70F;" ToolTip="{loc:T OpenTaskTooltip}"
+                                                Tag="{Binding Id}" Click="OnOpenTaskClick" />
                                     </Grid>
                                 </Border>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
                 </DockPanel>
-            </Grid>
-        </TabItem>
+            </TabItem>
 
-        <!-- ============================== Correo ============================== -->
-        <TabItem Header="{loc:T MenuMail}">
-            <DockPanel Margin="10">
-                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
-                    <TextBlock Text="{loc:T Mailbox}" FontWeight="SemiBold" Margin="0,0,0,6" />
+            <!-- ============================== Mis listas ============================== -->
+            <TabItem Header="{loc:T MenuLists}">
+                <Grid Margin="4,12,4,4" ColumnDefinitions="250,*">
 
-                    <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,6">
-                        <TextBox Grid.Column="0" x:Name="MailAddressBox" Padding="6,4" />
-                        <Button Grid.Column="1" x:Name="MailGoogleButton" Margin="6,0,0,0" Padding="10,0"
-                                Content="{loc:T SignInGoogle}" Click="OnMailGoogleClick" />
-                        <Button Grid.Column="2" x:Name="MailMicrosoftButton" Margin="6,0,0,0" Padding="10,0"
-                                Content="{loc:T SignInMicrosoft}" Click="OnMailMicrosoftClick" />
-                    </Grid>
+                    <DockPanel Grid.Column="0" Margin="4,0,12,0">
+                        <Button DockPanel.Dock="Bottom" Style="{StaticResource IconButton}"
+                                Content="&#xE710;" HorizontalAlignment="Left" Margin="0,10,0,0"
+                                ToolTip="{loc:T NewListTitle}" Click="OnNewListClick" />
+                        <ListBox x:Name="ListsBox" Style="{StaticResource PickRows}"
+                                 SelectionChanged="OnListSelected">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" FontSize="13" />
+                                            <TextBlock Text="{Binding Caption}" FontSize="11" Opacity="0.75" />
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Style="{StaticResource RowIconButton}"
+                                                Content="&#xE74D;" Foreground="{DynamicResource Danger}"
+                                                ToolTip="{loc:T DeleteListTitle}"
+                                                Tag="{Binding Id}" Click="OnDeleteListClick" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
 
-                    <Grid ColumnDefinitions="*,*,Auto,Auto">
-                        <PasswordBox Grid.Column="0" x:Name="MailPasswordBox" Padding="6,4" Margin="0,0,6,0" />
-                        <TextBox Grid.Column="1" x:Name="MailHostBox" Padding="6,4" Margin="0,0,6,0" />
-                        <TextBox Grid.Column="2" x:Name="MailPortBox" Padding="6,4" Width="60" Margin="0,0,6,0" />
-                        <Button Grid.Column="3" x:Name="MailReadButton" Padding="10,0"
-                                Content="{loc:T ReadMailbox}" Click="OnMailReadClick" />
-                    </Grid>
+                    <DockPanel Grid.Column="1" Margin="0,0,4,0">
+                        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+                            <TextBox Grid.Column="0" x:Name="NewTaskBox" Style="{StaticResource Field}"
+                                     Background="{DynamicResource CardBackground}"
+                                     KeyDown="OnNewTaskKeyDown" />
+                            <Button Grid.Column="1" Style="{StaticResource IconButton}" Content="&#xE710;"
+                                    Margin="8,0,0,0" ToolTip="{loc:T AddTaskTooltip}" Click="OnAddTaskClick" />
+                        </Grid>
 
-                    <TextBlock x:Name="MailStatus" Style="{StaticResource Hint}" Margin="0,6,0,0" />
-                </StackPanel>
+                        <ListBox x:Name="ListTasksBox" Style="{StaticResource Rows}"
+                                 MouseDoubleClick="OnRowDoubleClick">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource Card}" Margin="0,0,4,8">
+                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                            <CheckBox Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"
+                                                      IsChecked="{Binding IsDone, Mode=OneWay}"
+                                                      Tag="{Binding Id}" Click="OnTaskToggled" />
 
-                <ListBox x:Name="MailBox" Style="{StaticResource Rows}">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Border Background="{DynamicResource CardBackground}" CornerRadius="8"
-                                    Padding="10,8" Margin="0,0,0,6">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="{Binding Subject}" FontSize="13" TextWrapping="Wrap" />
-                                        <TextBlock Text="{Binding Caption}" Style="{StaticResource Hint}" />
-                                    </StackPanel>
-                                    <Button Grid.Column="1" Content="+" Width="30" VerticalAlignment="Center"
-                                            ToolTip="{loc:T MailToTask}" Tag="{Binding Uid}"
-                                            Click="OnMailToTaskClick" />
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </DockPanel>
-        </TabItem>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center"
+                                                        Opacity="{Binding Opacity}">
+                                                <TextBlock Text="{Binding Title}" Style="{StaticResource ItemTitle}"
+                                                           TextWrapping="Wrap"
+                                                           TextDecorations="{Binding Decoration}" />
+                                                <TextBlock Text="{Binding Caption}" Style="{StaticResource ItemSubtitle}"
+                                                           Visibility="{Binding CaptionVisibility}" />
+                                            </StackPanel>
 
-        <!-- ============================== Azure DevOps ============================== -->
-        <TabItem Header="{loc:T MenuDevOps}">
-            <DockPanel Margin="10">
-                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
-                    <TextBlock Text="{loc:T DevOpsTitle}" FontWeight="SemiBold" Margin="0,0,0,4" />
-                    <TextBlock Text="{loc:T DevOpsPitch}" Style="{StaticResource Hint}" Margin="0,0,0,8" />
+                                            <Button Grid.Column="2" Style="{StaticResource RowIconButton}"
+                                                    Content="&#xE70F;" ToolTip="{loc:T OpenTaskTooltip}"
+                                                    Tag="{Binding Id}" Click="OnOpenTaskClick" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+                </Grid>
+            </TabItem>
 
-                    <Grid ColumnDefinitions="Auto,Auto,*">
-                        <Button Grid.Column="0" x:Name="DevOpsSignInButton" Padding="10,4"
-                                Content="{loc:T SignInMicrosoft}" Click="OnDevOpsSignInClick" />
-                        <Button Grid.Column="1" x:Name="DevOpsRefreshButton" Padding="10,4" Margin="6,0,0,0"
-                                Content="{loc:T DevOpsRefresh}" Click="OnDevOpsRefreshClick" />
-                        <TextBlock Grid.Column="2" x:Name="DevOpsStatus" Style="{StaticResource Hint}"
-                                   VerticalAlignment="Center" Margin="10,0,0,0" />
-                    </Grid>
-                </StackPanel>
 
-                <ListBox x:Name="DevOpsBox" Style="{StaticResource Rows}">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Border Background="{DynamicResource CardBackground}" CornerRadius="8"
-                                    Padding="10,8" Margin="0,0,0,6">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="{Binding Title}" FontSize="13" TextWrapping="Wrap" />
-                                        <TextBlock Text="{Binding Caption}" Style="{StaticResource Hint}" />
-                                    </StackPanel>
-                                    <Button Grid.Column="1" Content="+" Width="30" VerticalAlignment="Center"
-                                            ToolTip="{loc:T DevOpsImport}" Tag="{Binding Id}"
-                                            Click="OnDevOpsImportClick" />
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </DockPanel>
-        </TabItem>
+            <!-- ============================== Gremio ============================== -->
+            <TabItem Header="{loc:T MenuBoard}">
+                <ScrollViewer Margin="4,12,4,4" VerticalScrollBarVisibility="Auto">
+                    <StackPanel MaxWidth="460" HorizontalAlignment="Left" Margin="4">
 
-        <!-- ============================== Gremio ============================== -->
-        <TabItem Header="{loc:T MenuBoard}">
-            <StackPanel Margin="20" MaxWidth="420" HorizontalAlignment="Left">
-                <TextBlock x:Name="BoardLevel" FontSize="24" FontWeight="Bold" />
-                <ProgressBar x:Name="BoardProgress" Height="8" Margin="0,8,0,4" Maximum="1" />
-                <TextBlock x:Name="BoardToNext" Style="{StaticResource Hint}" />
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock x:Name="BoardLevel" FontSize="24" FontWeight="Bold"
+                                           Foreground="{DynamicResource Primary}" />
+                                <ProgressBar x:Name="BoardProgress" Height="8" Margin="0,10,0,6"
+                                             Maximum="1" Background="{DynamicResource SubmenuBackground}"
+                                             Foreground="{DynamicResource Primary}" BorderThickness="0" />
+                                <TextBlock x:Name="BoardToNext" Style="{StaticResource HintText}" />
+                            </StackPanel>
+                        </Border>
 
-                <TextBlock x:Name="BoardXp" Margin="0,20,0,0" />
-                <TextBlock x:Name="BoardStreak" Margin="0,6,0,0" />
-                <TextBlock x:Name="BoardNextUnlock" Style="{StaticResource Hint}" Margin="0,16,0,0" />
-            </StackPanel>
-        </TabItem>
-    </TabControl>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock x:Name="BoardXp" Style="{StaticResource ItemTitle}" />
+                                <TextBlock x:Name="BoardStreak" Style="{StaticResource ItemTitle}"
+                                           Margin="0,8,0,0" />
+                                <TextBlock x:Name="BoardNextUnlock" Style="{StaticResource HintText}"
+                                           Margin="0,14,0,0" />
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+        </TabControl>
+    </DockPanel>
 </Window>

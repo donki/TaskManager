@@ -1,0 +1,196 @@
+<Window x:Class="TaskManager.Desktop.TaskDetailWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:TaskManager.Desktop.Localization"
+        xmlns:hc="https://handyorg.github.io/handycontrol"
+        Title="{loc:T TaskTitle}"
+        Width="520" Height="720"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource PageBackground}">
+
+    <!--
+        El detalle de una tarea en Windows, con LOS MISMOS campos que TaskDetailPage en Android y
+        en el mismo orden: titulo y notas, etiquetas, fechas y repeticion, y los pasos. Antes
+        Windows no tenia ninguna pantalla de detalle —solo se podia marcar hecha—, asi que lo que
+        se configuraba en el movil no habia forma de tocarlo aqui.
+    -->
+
+    <DockPanel Margin="16">
+
+        <!-- Acciones abajo: solo iconos, nunca palabras (constitucion 7). -->
+        <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto,Auto" Margin="0,14,0,0">
+            <TextBlock Grid.Column="0" x:Name="StatusLabel" Style="{StaticResource HintText}"
+                       VerticalAlignment="Center" />
+            <Button Grid.Column="1" x:Name="DeleteButton" Style="{StaticResource DangerIconButton}"
+                    Content="&#xE74D;" ToolTip="{loc:T DeleteTask}" Margin="0,0,8,0"
+                    Click="OnDeleteClick" />
+            <Button Grid.Column="2" x:Name="SaveButton" Style="{StaticResource IconButton}"
+                    Content="&#xE73E;" ToolTip="{loc:T Save}" Click="OnSaveClick" />
+        </Grid>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="0,0,10,0">
+
+                <!-- Titulo y notas -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <!-- Marcar hecha sin salir del detalle: si se ha entrado a repasarla,
+                             tener que cerrar para tacharla sobra. -->
+                        <CheckBox x:Name="DoneCheck" Content="{loc:T MarkDone}" Margin="0,0,0,10"
+                                  Click="OnDoneToggled" />
+
+                        <TextBlock Text="{loc:T TaskTitle}" Style="{StaticResource HintText}" />
+                        <TextBox x:Name="TitleBox" Style="{StaticResource Field}" Margin="0,4,0,10" />
+
+                        <TextBlock Text="{loc:T TaskList}" Style="{StaticResource HintText}" />
+                        <hc:ComboBox x:Name="ListBox" Margin="0,4,0,10" />
+
+                        <TextBlock Text="{loc:T Notes}" Style="{StaticResource HintText}" />
+                        <TextBox x:Name="NotesBox" Style="{StaticResource FieldMultiline}"
+                                 Height="90" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Etiquetas, fechas y repeticion -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="{loc:T Tags}" Style="{StaticResource CardTitle}" Margin="0,0,0,6" />
+                        <!-- TagContainer de HandyControl: cada etiqueta es una pastilla con su
+                             aspa, y la caja de abajo da de alta una nueva. Antes era un campo de
+                             texto con comas, donde un espacio de mas creaba una etiqueta distinta. -->
+                        <hc:TagContainer x:Name="TagsContainer" Margin="0,0,0,6" />
+                        <TextBox x:Name="TagsBox" Style="{StaticResource Field}"
+                                 KeyDown="OnNewTagKeyDown" />
+                        <TextBlock Text="{loc:T TagsHelp}" Style="{StaticResource HintText}" Margin="0,4,0,6" />
+
+                        <Border Height="1" Background="{DynamicResource Separator}" Margin="0,0,0,12" />
+
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                            <TextBlock Grid.Column="0" Text="{loc:T DueDate}" VerticalAlignment="Center" />
+                            <CheckBox Grid.Column="1" x:Name="DueCheck" Click="OnDueToggled" />
+                        </Grid>
+                        <Grid x:Name="DueRow" Visibility="Collapsed" Margin="0,0,0,12"
+                              ColumnDefinitions="*,Auto">
+                            <hc:DatePicker Grid.Column="0" x:Name="DuePicker" />
+                            <hc:TimePicker Grid.Column="1" x:Name="DueTime" Width="110" Margin="8,0,0,0"
+                                           />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                            <TextBlock Grid.Column="0" Text="{loc:T PlannedFor}" VerticalAlignment="Center" />
+                            <CheckBox Grid.Column="1" x:Name="PlannedCheck" Click="OnPlannedToggled" />
+                        </Grid>
+                        <Grid x:Name="PlannedRow" Visibility="Collapsed" ColumnDefinitions="*,Auto">
+                            <hc:DatePicker Grid.Column="0" x:Name="PlannedPicker" />
+                            <hc:TimePicker Grid.Column="1" x:Name="PlannedTime" Width="110" Margin="8,0,0,0"
+                                           />
+                        </Grid>
+                        <TextBlock Text="{loc:T PlannedHelp}" Style="{StaticResource HintText}" Margin="0,4,0,12" />
+
+                        <Border Height="1" Background="{DynamicResource Separator}" Margin="0,0,0,12" />
+
+                        <TextBlock Text="{loc:T Recurrence}" Style="{StaticResource CardTitle}" Margin="0,0,0,6" />
+                        <Grid ColumnDefinitions="*,Auto" >
+                            <hc:ComboBox Grid.Column="0" x:Name="RecurrenceBox"
+                                      SelectionChanged="OnRecurrenceChanged" />
+                            <StackPanel Grid.Column="1" x:Name="IntervalPanel" Orientation="Horizontal"
+                                        Margin="8,0,0,0" Visibility="Collapsed">
+                                <Button Style="{StaticResource RowIconButton}" Content="&#xE949;"
+                                        Click="OnIntervalDown" />
+                                <TextBlock x:Name="IntervalLabel" Width="26" TextAlignment="Center"
+                                           VerticalAlignment="Center" />
+                                <Button Style="{StaticResource RowIconButton}" Content="&#xE948;"
+                                        Click="OnIntervalUp" />
+                            </StackPanel>
+                        </Grid>
+                        <!-- Dias de la semana: solo con repeticion diaria o semanal. -->
+                        <StackPanel x:Name="WeekdaysBox" Orientation="Horizontal" Margin="0,8,0,0"
+                                    Visibility="Collapsed" />
+
+                        <!-- Dia del mes: solo con repeticion mensual. -->
+                        <Grid x:Name="MonthDayRow" Margin="0,8,0,0" Visibility="Collapsed"
+                              ColumnDefinitions="Auto,Auto,Auto,Auto">
+                            <TextBlock Grid.Column="0" Text="{loc:T MonthDayLabel}"
+                                       VerticalAlignment="Center" Margin="0,0,10,0" />
+                            <hc:ComboBox Grid.Column="1" x:Name="MonthDayBox" Width="130"
+                                      SelectionChanged="OnMonthDayChanged" />
+
+                            <!-- El mes solo con repeticion anual: «cada año el 15 de septiembre». -->
+                            <TextBlock Grid.Column="2" x:Name="MonthLabelText" Text="{loc:T MonthLabel}"
+                                       VerticalAlignment="Center" Margin="14,0,10,0"
+                                       Visibility="Collapsed" />
+                            <hc:ComboBox Grid.Column="3" x:Name="MonthBox" Width="140"
+                                      Visibility="Collapsed" SelectionChanged="OnMonthChanged" />
+                        </Grid>
+
+                        <TextBlock x:Name="RecurrenceLabel" Style="{StaticResource HintText}" Margin="0,6,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Pasos -->
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                            <TextBlock Grid.Column="0" Text="{loc:T Steps}" Style="{StaticResource CardTitle}"
+                                       VerticalAlignment="Center" />
+                            <Button Grid.Column="1" x:Name="BreakdownButton" Style="{StaticResource IconButton}"
+                                    Content="&#xE945;" ToolTip="{loc:T BreakdownTooltip}"
+                                    Click="OnBreakdownClick" />
+                        </Grid>
+
+                        <!-- Anadir un paso a mano: escribir y Enter, o el boton. -->
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+                            <TextBox Grid.Column="0" x:Name="NewStepBox" Style="{StaticResource Field}"
+                                     KeyDown="OnNewStepKeyDown" />
+                            <Button Grid.Column="1" Style="{StaticResource IconButton}" Content="&#xE710;"
+                                    Margin="8,0,0,0" ToolTip="{loc:T AddStepTooltip}" Click="OnAddStepClick" />
+                        </Grid>
+
+                        <TextBlock x:Name="NoStepsLabel" Text="{loc:T NoSteps}"
+                                   Style="{StaticResource HintText}" />
+
+                        <!--
+                            ListBox y no ItemsControl: es lo que trae seleccion y, con los
+                            manejadores de abajo, permite arrastrar un paso para reordenarlo. Los
+                            pasos son el guion de como se hace algo, y un guion desordenado no sirve.
+                        -->
+                        <ListBox x:Name="StepsBox" Style="{StaticResource Rows}"
+                                 MouseDoubleClick="OnStepDoubleClick"
+                                 AllowDrop="True"
+                                 PreviewMouseLeftButtonDown="OnStepMouseDown"
+                                 PreviewMouseMove="OnStepMouseMove"
+                                 Drop="OnStepDrop">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,2"
+                                          Background="Transparent">
+                                        <TextBlock Grid.Column="0" Text="&#xE700;" Margin="0,0,6,0"
+                                                   FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                                   FontSize="13" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource TextSecondary}"
+                                                   ToolTip="{loc:T DragStepTooltip}" />
+                                        <CheckBox Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0"
+                                                  IsChecked="{Binding IsDone, Mode=OneWay}"
+                                                  Tag="{Binding Id}" Click="OnStepToggled" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Title}"
+                                                   Style="{StaticResource ItemTitle}"
+                                                   TextWrapping="Wrap" VerticalAlignment="Center"
+                                                   TextDecorations="{Binding Decoration}"
+                                                   Opacity="{Binding Opacity}"
+                                                   ToolTip="{loc:T EditStepTooltip}" />
+                                        <Button Grid.Column="3" Style="{StaticResource RowIconButton}"
+                                                Content="&#xE74D;" Foreground="{DynamicResource TextSecondary}"
+                                                ToolTip="{loc:T DeleteStepTooltip}"
+                                                Tag="{Binding Id}" Click="OnDeleteStepClick" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

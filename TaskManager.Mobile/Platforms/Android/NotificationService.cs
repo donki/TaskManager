@@ -69,6 +69,17 @@ public sealed class NotificationService : INotificationService
 
     public void CancelTaskReminder(Guid taskId) => Cancel(RequestCodeFor(taskId));
 
+    /// <summary>
+    /// Aviso inmediato. Se reutiliza el canal de los recordatorios a proposito: para quien recibe,
+    /// «una tarea nueva» y «una tarea que vence» son lo mismo —cosas que hacer— y partirlo en dos
+    /// canales solo obligaria a silenciar dos veces.
+    /// </summary>
+    public void Notify(string title, string message)
+    {
+        var context = global::Android.App.Application.Context;
+        ReminderReceiver.ShowNow(context, message.GetHashCode(), title, message);
+    }
+
     public void ScheduleDailySummary(TimeSpan timeOfDay)
     {
         var intent = new Intent(global::Android.App.Application.Context, typeof(ReminderReceiver));
@@ -195,7 +206,9 @@ public class ReminderReceiver : BroadcastReceiver
         var repository = new TaskManager.Core.Data.TaskRepository(database);
         await repository.InitializeAsync();
 
-        var pending = await repository.CountMyDayPendingAsync();
+        // Todo lo que queda por hacer, no solo lo de «Mi Dia»: esa pantalla ya no existe, asi que
+        // contar por ella daba siempre cero y el recordatorio diario no saltaba nunca.
+        var pending = await repository.CountPendingAsync();
         if (pending == 0)
         {
             return;
@@ -232,6 +245,13 @@ public class ReminderReceiver : BroadcastReceiver
         }
 
         new NotificationService().ScheduleDailySummary(TimeSpan.FromHours(Math.Clamp(hour, 0, 23)));
+    }
+
+    /// <summary>Aviso inmediato desde fuera del receptor, con el canal ya creado.</summary>
+    internal static void ShowNow(Context context, int id, string title, string text)
+    {
+        CreateChannel(context);
+        Show(context, id, title, text);
     }
 
     private static void Show(Context context, int id, string title, string text)
@@ -306,6 +326,9 @@ public class BootReceiver : BroadcastReceiver
 
             var hour = int.TryParse(settings.Get("notify.hour", "9"), out var parsed) ? parsed : 9;
             new NotificationService().ScheduleDailySummary(TimeSpan.FromHours(Math.Clamp(hour, 0, 23)));
+
+            // Al reiniciar se pierden todas las alarmas, tambien la de la pasada de fondo.
+            BackgroundSyncReceiver.Schedule();
         }
         catch (Exception ex)
         {

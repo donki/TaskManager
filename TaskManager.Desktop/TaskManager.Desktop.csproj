@@ -14,9 +14,9 @@
     <RootNamespace>TaskManager.Desktop</RootNamespace>
     <AssemblyName>TaskManager</AssemblyName>
     <ApplicationTitle>Task Manager</ApplicationTitle>
-    <Version>2026.8.29.2</Version>
-    <AssemblyVersion>2026.8.29.2</AssemblyVersion>
-    <FileVersion>2026.8.29.2</FileVersion>
+    <Version>2026.9.1.2</Version>
+    <AssemblyVersion>2026.9.1.2</AssemblyVersion>
+    <FileVersion>2026.9.1.2</FileVersion>
     <Product>Task Manager</Product>
     <Company>Socratic</Company>
     <Copyright>Copyright © 2026 Socratic</Copyright>
@@ -36,6 +36,7 @@
 
   <ItemGroup>
     <!-- DPAPI para cifrar los tokens de sesion con la cuenta de Windows del usuario. -->
+    <PackageReference Include="HandyControl" Version="3.5.1" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.2" />
   </ItemGroup>
 

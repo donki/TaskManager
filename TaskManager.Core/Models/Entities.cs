@@ -85,14 +85,6 @@ public class TaskItem
 
     public string Notes { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Contexto que precisa la tarea: lo que hay que tener en cuenta para desglosarla bien
-    /// ("piso sin ascensor, dos gatos, mudanza en agosto"). Se guarda con la tarea y se puede
-    /// cambiar cuando se quiera; cada desglose parte de lo que diga aqui, asi que afinarlo es la
-    /// forma de conseguir pasos que sirvan de verdad.
-    /// </summary>
-    public string Context { get; set; } = string.Empty;
-
     public bool IsDone { get; set; }
 
     public DateTime? DoneAt { get; set; }
