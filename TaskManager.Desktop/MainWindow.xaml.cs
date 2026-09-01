@@ -220,7 +220,10 @@ public partial class MainWindow : Window
     /// </remarks>
     private async void OnRefreshClick(object sender, RoutedEventArgs e)
     {
+        // Los dos botones de refrescar (el de «Mis tareas» y el de «Mis listas») llaman aqui y los
+        // dos se apagan: da igual desde cual se pidiera, lo que se esta refrescando es lo mismo.
         RefreshButton.IsEnabled = false;
+        ListsRefreshButton.IsEnabled = false;
 
         try
         {
@@ -234,6 +237,7 @@ public partial class MainWindow : Window
         finally
         {
             RefreshButton.IsEnabled = true;
+            ListsRefreshButton.IsEnabled = true;
         }
     }
 

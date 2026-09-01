@@ -52,6 +52,16 @@ public partial class CalendarPage : ContentPage
     // Carga
     // -----------------------------------------------------------------------
 
+    /// <summary>
+    /// Refrescar: habla con el servidor y vuelve a pintar. No es solo repintar lo de aqui — lo que
+    /// se quiere saber al pulsarlo es si hay algo nuevo del otro dispositivo.
+    /// </summary>
+    private async void OnRefreshClicked(object? sender, EventArgs e)
+    {
+        await Helpers.ServiceHelper.GetRequiredService<SyncCoordinator>().SyncNowAsync();
+        await ReloadAsync();
+    }
+
     private async Task ReloadAsync()
     {
         var first = new DateTime(_month.Year, _month.Month, 1);

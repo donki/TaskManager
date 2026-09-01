@@ -9,6 +9,7 @@
 
     <ContentPage.ToolbarItems>
         <ToolbarItem IconImageSource="ic_edit_w.png" Clicked="OnRenameListClicked" />
+        <ToolbarItem IconImageSource="ic_refresh_w.png" Clicked="OnRefreshClicked" />
     </ContentPage.ToolbarItems>
 
     <Grid>

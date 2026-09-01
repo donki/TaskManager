@@ -24,10 +24,11 @@ public sealed record ArrivedTask(Guid Id, string Title);
 /// cambios seguidos —titulo, lista, fecha—; subir en cada uno seria una peticion por tecla. Se
 /// espera un momento a que la mano pare, y entonces sube todo junto.</para>
 ///
-/// <para><b>Lo que NO hace.</b> No despierta a la aplicacion cerrada: para eso haria falta una
-/// notificacion enviada desde un servidor (FCM), con su proyecto de Firebase. Mientras no lo haya,
-/// lo que llega de otro dispositivo se ve al abrir o al volver a la aplicacion, y entonces si se
-/// avisa.</para>
+/// <para><b>Lo que NO hace, a proposito.</b> No despierta a la aplicacion cerrada. Haria falta una
+/// notificacion enviada desde un servidor (FCM) con su proyecto de Firebase, y <b>se decidio no
+/// hacerlo</b> (2026-09-01): no compensa montar esa pieza para adelantar unos minutos un aviso. Lo
+/// que llega de otro dispositivo se ve al abrir, al volver a la aplicacion o al pulsar refrescar,
+/// y entonces si se avisa.</para>
 /// </remarks>
 public sealed class SyncCoordinator : IDisposable
 {
@@ -39,6 +40,9 @@ public sealed class SyncCoordinator : IDisposable
 
     /// <summary>De quien es lo que ya se subio entero. Vacio = todavia de nadie.</summary>
     private const string KeyBackfilledFor = "sync.backfilled_for";
+
+    /// <summary>De quien es lo que ya se ha vuelto a subir <b>cifrado</b>.</summary>
+    private const string KeyEncryptedFor = "sync.encrypted_v1_for";
 
     private readonly ISyncService _sync;
     private readonly SupabaseAuthService _auth;
@@ -161,6 +165,7 @@ public sealed class SyncCoordinator : IDisposable
                 try
                 {
                     await BackfillOnceAsync().ConfigureAwait(false);
+                    await EncryptOnceAsync().ConfigureAwait(false);
                     await _sync.StartAsync(cancellationToken).ConfigureAwait(false);
                     Changed?.Invoke(this, EventArgs.Empty);
                 }
@@ -205,6 +210,49 @@ public sealed class SyncCoordinator : IDisposable
         await _settings.SetAsync(KeyBackfilledFor, user.Id).ConfigureAwait(false);
 
         System.Diagnostics.Debug.WriteLine($"Sync: {queued} filas locales encoladas para subir.");
+    }
+
+    /// <summary>
+    /// Vuelve a subir todo <b>una vez</b>, ya cifrado, para que lo que quedo guardado en claro deje
+    /// de estarlo.
+    /// </summary>
+    /// <remarks>
+    /// <para>El cifrado nuevo solo alcanza a lo que se sube a partir de ahora; lo que ya estaba
+    /// arriba se quedaria en claro para siempre, que es justo lo que no se queria. Como el
+    /// <c>upsert</c> va por identificador, volver a subir cada fila sobrescribe el texto plano por
+    /// el cifrado sin duplicar nada.</para>
+    ///
+    /// <para>No mueve <c>updated_at</c>: se sube tal cual estaba, asi que el otro dispositivo se
+    /// baja las filas, ve que lo suyo es igual de nuevo y no cambia nada. La reescritura no se nota
+    /// en ninguna pantalla.</para>
+    ///
+    /// <para>Se apunta contra el usuario, como el volcado inicial: entrar con otra cuenta vuelve a
+    /// tener su propio texto arriba que cifrar.</para>
+    /// </remarks>
+    private async Task EncryptOnceAsync()
+    {
+        var user = _auth.CurrentUser;
+        if (user is null || user.RemoteId.Length == 0)
+        {
+            return;
+        }
+
+        if (_settings.Get(KeyEncryptedFor) == user.Id)
+        {
+            return;
+        }
+
+        if (!TextCipher.IsAvailable)
+        {
+            // Sin cifrado en esta plataforma no se marca nada: si algun dia lo hay, se hara
+            // entonces en vez de dar por reescrito lo que se subio en claro.
+            return;
+        }
+
+        var queued = await _repository.QueueEverythingAsync().ConfigureAwait(false);
+        await _settings.SetAsync(KeyEncryptedFor, user.Id).ConfigureAwait(false);
+
+        System.Diagnostics.Debug.WriteLine($"Sync: {queued} filas encoladas para volver a subir cifradas.");
     }
 
     private void OnLocalChange(object? sender, EventArgs e) => NotifyLocalChange();

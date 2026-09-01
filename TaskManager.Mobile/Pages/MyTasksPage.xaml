@@ -7,6 +7,10 @@
              x:Class="TaskManager.Mobile.Pages.MyTasksPage"
              Title="{loc:T MenuMyTasks}">
 
+    <ContentPage.ToolbarItems>
+        <ToolbarItem IconImageSource="ic_refresh_w.png" Clicked="OnRefreshClicked" />
+    </ContentPage.ToolbarItems>
+
     <Grid>
         <Grid RowDefinitions="Auto,Auto,Auto,*">
 

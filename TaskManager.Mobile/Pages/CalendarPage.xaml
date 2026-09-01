@@ -5,6 +5,10 @@
              x:Class="TaskManager.Mobile.Pages.CalendarPage"
              Title="{loc:T MenuCalendar}">
 
+    <ContentPage.ToolbarItems>
+        <ToolbarItem IconImageSource="ic_refresh_w.png" Clicked="OnRefreshClicked" />
+    </ContentPage.ToolbarItems>
+
     <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="12,8">
 
         <!-- Mes, con los saltos a un lado y otro -->
