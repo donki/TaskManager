@@ -741,6 +741,11 @@ public partial class TaskDetailPage : ContentPage
     //  Guardar y borrar
     // ==================================================================================
 
+    /// <summary>Lo escrito, en una sola linea y sin espacios de sobra.</summary>
+    private static string UnaLinea(string? texto) =>
+        string.Join(' ', (texto ?? string.Empty).ReplaceLineEndings(" ")
+                                                .Split(' ', StringSplitOptions.RemoveEmptyEntries));
+
     private async void OnSaveClicked(object? sender, EventArgs e)
     {
         if (await SaveAsync(silent: false))
@@ -756,7 +761,10 @@ public partial class TaskDetailPage : ContentPage
             return false;
         }
 
-        var title = TitleEntry.Text?.Trim() ?? string.Empty;
+        // El titulo se guarda en UNA linea aunque la caja tenga varias: la caja es multilinea para
+        // poder leerlo entero, no para escribir parrafos. Un salto de linea dentro de un titulo
+        // rompe cualquier lista donde salga despues.
+        var title = UnaLinea(TitleEntry.Text);
         if (title.Length == 0)
         {
             if (!silent)

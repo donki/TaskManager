@@ -66,7 +66,12 @@
                             </StackPanel>
 
                             <TextBlock Text="{loc:T TaskTitle}" Style="{StaticResource HintText}" />
-                            <TextBox x:Name="TitleBox" Style="{StaticResource Field}" Margin="0,4,0,10" />
+                            <!-- Se parte en varias lineas, pero NO acepta saltos: un titulo largo hay que
+                                 poder leerlo entero, y a la vez tiene que seguir siendo una linea de
+                                 texto en todas las listas donde salga. -->
+                            <TextBox x:Name="TitleBox" Style="{StaticResource Field}" Margin="0,4,0,10"
+                                     TextWrapping="Wrap" AcceptsReturn="False" MaxHeight="90"
+                                     VerticalScrollBarVisibility="Auto" />
 
                             <TextBlock Text="{loc:T TaskList}" Style="{StaticResource HintText}" />
                             <hc:ComboBox x:Name="ListBox" Margin="0,4,0,10" />
