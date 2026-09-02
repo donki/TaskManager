@@ -51,6 +51,10 @@ public partial class App : Application
         // construirla, asi que leerlo despues dejaria la primera ventana en el idioma equivocado.
         Localization.Loc.Use(new LocalizationService(_settings));
 
+        // HandyControl trae sus 40 cadenas en chino y sin ningun otro idioma dentro; aqui se le
+        // cambian por las nuestras. Va antes de crear ninguna ventana, que es cuando se leen.
+        Localization.HandyControlLang.Install();
+
         // El desglose intenta primero el modelo local y cae a plantillas: nunca se queda sin pasos.
         // El modelo local no se configura: se busca donde escuchan por costumbre (Ollama y
         // LM Studio en el propio equipo). Si no hay ninguno, el desglose cae a plantillas y
@@ -94,6 +98,7 @@ public partial class App : Application
         _flyout = new FlyoutWindow(_tasks, _settings, _syncing) { Icon = TrayIconHost.CreateWindowIcon() };
         _flyout.PendingChanged += (_, pending) => _tray.SetPending(pending);
         _flyout.SettingsRequested += (_, _) => OpenSettings();
+        _flyout.AboutRequested += (_, _) => OpenAbout();
         _flyout.CalendarRequested += (_, _) => OpenCalendar();
         _flyout.MainRequested += (_, _) => OpenMain();
 
@@ -185,6 +190,7 @@ public partial class App : Application
         _flyout = new FlyoutWindow(_tasks, _settings, _syncing) { Icon = TrayIconHost.CreateWindowIcon() };
         _flyout.PendingChanged += (_, count) => _tray.SetPending(count);
         _flyout.SettingsRequested += (_, _) => OpenSettings();
+        _flyout.AboutRequested += (_, _) => OpenAbout();
         _flyout.CalendarRequested += (_, _) => OpenCalendar();
         _flyout.MainRequested += (_, _) => OpenMain();
 
@@ -240,6 +246,16 @@ public partial class App : Application
     private void OpenSettings()
     {
         var window = new SettingsWindow(_settings, _hotkey, _auth, _tasks)
+        {
+            Icon = TrayIconHost.CreateWindowIcon(),
+        };
+        window.ShowDialog();
+    }
+
+    /// <summary>«Acerca de»: version, contacto, idioma, privacidad y licencia, como en el movil.</summary>
+    private void OpenAbout()
+    {
+        var window = new AboutWindow(_settings)
         {
             Icon = TrayIconHost.CreateWindowIcon(),
         };

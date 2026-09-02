@@ -245,6 +245,46 @@
                 <Setter Property="Background" Value="{DynamicResource Danger}" />
             </Style>
 
+            <!--
+                Boton con TEXTO y borde, el equivalente del OutlineButton del movil.
+
+                Existe porque hay dos sitios donde el texto es el contenido y no cabe un icono: los
+                nombres de los idiomas y el enlace al autor en «Acerca de». Con los estilos de icono
+                salian recortados —miden 34x34 fijos— y se leia «Espa…» y «Engli…».
+            -->
+            <Style x:Key="OutlineButton" TargetType="Button">
+                <Setter Property="FontFamily" Value="Segoe UI" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="Height" Value="36" />
+                <Setter Property="Padding" Value="16,0" />
+                <Setter Property="Foreground" Value="{DynamicResource Primary}" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bd"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{DynamicResource Primary}"
+                                    BorderThickness="1"
+                                    CornerRadius="10">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  Margin="{TemplateBinding Padding}" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background"
+                                            Value="{DynamicResource CardBackground}" />
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="Bd" Property="Opacity" Value="0.4" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
             <!-- Boton redondo pequeño de una fila: el equivalente del RowIconButton del movil. -->
             <Style x:Key="RowIconButton" TargetType="Button" BasedOn="{StaticResource GhostIconButton}">
                 <Setter Property="Width" Value="30" />
