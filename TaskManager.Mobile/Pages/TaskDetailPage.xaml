@@ -36,7 +36,13 @@
                             <Switch Grid.Column="1" x:Name="PinSwitch" Toggled="OnPinToggled" />
                         </Grid>
                         <Border Style="{StaticResource Card}" Padding="12,0">
-                            <Entry x:Name="TitleEntry" Placeholder="{loc:T TaskWhat}" />
+                            <!--
+                                 Editor y no Entry: un Entry es de una sola linea y no parte el
+                                 texto, asi que un titulo largo se salia por la derecha y no habia
+                                 forma de leerlo entero. El Editor crece con lo que se escribe.
+                            -->
+                            <Editor x:Name="TitleEntry" Placeholder="{loc:T TaskWhat}"
+                                    AutoSize="TextChanges" MinimumHeightRequest="44" />
                         </Border>
 
                         <!-- De que lista cuelga. Sin opcion vacia: ninguna tarea puede quedarse
