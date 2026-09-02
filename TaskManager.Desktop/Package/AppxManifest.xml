@@ -3,12 +3,13 @@
 <!--
     Manifiesto del paquete MSIX para la Microsoft Store.
 
-    LO QUE HAY QUE RELLENAR ANTES DE SUBIR NADA: los tres valores de <Identity> y el
-    <PublisherDisplayName> los asigna Partner Center al reservar el nombre de la aplicacion, y
-    tienen que coincidir EXACTAMENTE con lo que ponga alli (Product management > Product identity).
-    Si no coinciden, la Store rechaza el paquete sin mas explicacion. Estan como
-    @@MARCADORES@@ a proposito: un valor inventado que parezca real es peor que un hueco, porque se
-    cuela hasta el rechazo.
+    LOS VALORES LOS PONE EL SCRIPT (tools/empaquetar-msix.ps1), que los trae por defecto ya
+    rellenos con los que asigno Partner Center (Product management > Product identity). Aqui se
+    quedan como marcadores para que este fichero no dependa de una cuenta concreta.
+
+    <DisplayName> tambien va como marcador y NO es un detalle: la Store comprueba que el nombre del
+    paquete coincida con uno de los nombres reservados de la aplicacion. Si no coincide, rechaza el
+    envio.
 
     El paquete envuelve el ejecutable autocontenido tal cual (no hay instalador): MSIX es
     precisamente lo que la Store pide para una aplicacion de escritorio, y ademas le da instalacion
@@ -32,7 +33,7 @@
       ProcessorArchitecture="x64" />
 
   <Properties>
-    <DisplayName>Task Manager</DisplayName>
+    <DisplayName>@@DISPLAY_NAME@@</DisplayName>
     <PublisherDisplayName>@@PUBLISHER_DISPLAY_NAME@@</PublisherDisplayName>
     <Logo>Images\StoreLogo.png</Logo>
     <Description>Tareas diarias con listas, etiquetas, pasos y sincronización entre tus dispositivos.</Description>
@@ -51,7 +52,7 @@
   <Applications>
     <Application Id="TaskManager" Executable="TaskManager.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-          DisplayName="Task Manager"
+          DisplayName="@@DISPLAY_NAME@@"
           Description="Tareas diarias con listas, etiquetas, pasos y sincronización entre tus dispositivos."
           BackgroundColor="transparent"
           Square150x150Logo="Images\Square150x150Logo.png"

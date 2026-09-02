@@ -6,9 +6,8 @@
     Publica el ejecutable autocontenido, monta la carpeta del paquete con el manifiesto y los
     iconos, y llama a MakeAppx.
 
-    Los tres valores de identidad los asigna Partner Center al reservar el nombre; sin ellos el
-    paquete no vale para subir. Se pasan por parametro a proposito, para que no acaben escritos en
-    el repositorio y para que nadie suba un paquete con una identidad inventada.
+    Los valores de identidad los asigna Partner Center al reservar el nombre y vienen ya puestos
+    por defecto. No son secretos: viajan dentro del paquete y estan publicados en la ficha.
 
     Para PROBARLO en este equipo hace falta firmarlo, porque Windows no instala un MSIX sin firma:
     con -Autofirmar se genera un certificado temporal, se firma y se deja el .cer al lado para
@@ -19,16 +18,25 @@
     .\tools\empaquetar-msix.ps1 -Autofirmar
 
 .EXAMPLE
-    # Para subir (los valores salen de Partner Center > Product identity):
-    .\tools\empaquetar-msix.ps1 -IdentityName 1234Socratic.TaskManager `
-                               -Publisher "CN=ABCD1234-..." `
-                               -PublisherDisplayName "Socratic"
+    # Para subir: los valores por defecto ya son los de la cuenta de Partner Center.
+    .\tools\empaquetar-msix.ps1
+
+.EXAMPLE
+    # Si el nombre reservado en Partner Center fuera otro:
+    .\tools\empaquetar-msix.ps1 -DisplayName "El nombre reservado"
+
 #>
 [CmdletBinding()]
 param(
-    [string] $IdentityName = "Socratic.TaskManager",
-    [string] $Publisher = "CN=Socratic",
-    [string] $PublisherDisplayName = "Socratic",
+    # Valores reales de Partner Center (Product management > Product identity). No son secretos:
+    # viajan dentro del propio paquete y estan publicados en la ficha.
+    [string] $IdentityName = "sOCratic.sOCTaskManager",
+    [string] $Publisher = "CN=2FC3763A-58D5-473A-840E-D47726B23FE3",
+    [string] $PublisherDisplayName = "sOCratic",
+
+    # Tiene que ser uno de los nombres RESERVADOS de la aplicacion en Partner Center, no el que nos
+    # guste: la Store lo comprueba contra su lista y rechaza el envio si no esta.
+    [string] $DisplayName = "sOC Task Manager",
     [string] $Version,
     [switch] $Autofirmar
 )
@@ -71,6 +79,7 @@ $manifiesto = Get-Content (Join-Path $origenPaquete "AppxManifest.xml") -Raw
 $manifiesto = $manifiesto.Replace("@@IDENTITY_NAME@@", $IdentityName).
                           Replace("@@PUBLISHER@@", $Publisher).
                           Replace("@@PUBLISHER_DISPLAY_NAME@@", $PublisherDisplayName).
+                          Replace("@@DISPLAY_NAME@@", $DisplayName).
                           Replace("@@VERSION@@", $Version)
 Set-Content (Join-Path $trabajo "AppxManifest.xml") $manifiesto -Encoding UTF8
 
