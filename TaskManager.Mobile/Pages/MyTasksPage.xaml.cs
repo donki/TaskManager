@@ -500,9 +500,13 @@ public partial class MyTasksPage : ContentPage
                 .GetOrCreateDefaultListAsync(Localization.Loc.Instance["DefaultListName"])).Id;
         }
 
-        await _tasks.Repository.AddTaskAsync(_defaultListId, title);
+        var task = await _tasks.Repository.AddTaskAsync(_defaultListId, title);
         QuickAdd.Text = string.Empty;
         await ReloadAsync();
+
+        // Se abre el detalle: la caja de arriba solo recoge el titulo, y una tarea recien escrita
+        // casi siempre necesita lista y etiqueta. Quien no quiera tocar nada mas, vuelve atras.
+        await Shell.Current.GoToAsync($"{nameof(TaskDetailPage)}?taskId={task.Id}");
     }
 
     private async void OnToggleDoneClicked(object? sender, EventArgs e)

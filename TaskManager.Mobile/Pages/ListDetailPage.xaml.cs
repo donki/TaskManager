@@ -118,6 +118,11 @@ public partial class ListDetailPage : ContentPage
         var task = await _tasks.Repository.AddTaskAsync(_listId, title);
         QuickAdd.Text = string.Empty;
         await ReloadAsync();
+
+        // Se abre el detalle: la caja de arriba solo recoge el titulo, y una tarea recien escrita
+        // casi siempre necesita etiqueta (la lista ya la tiene, es esta). Quien no quiera tocar
+        // nada mas, vuelve atras.
+        await Shell.Current.GoToAsync($"{nameof(TaskDetailPage)}?taskId={task.Id}");
         return task;
     }
 

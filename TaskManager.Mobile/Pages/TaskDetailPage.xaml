@@ -7,6 +7,16 @@
              x:Class="TaskManager.Mobile.Pages.TaskDetailPage"
              Title="{loc:T TaskTitle}">
 
+    <!--
+        Guardar y borrar, en la cabecera. Estaban al final de la pagina: con una tarea con notas,
+        fechas, adjuntos y pasos habia que recorrerla entera para guardar, y despues volver a subir.
+        Arriba estan siempre a la vista y a un dedo, se mire donde se mire.
+    -->
+    <ContentPage.ToolbarItems>
+        <ToolbarItem IconImageSource="ic_check_w.png" Clicked="OnSaveClicked" />
+        <ToolbarItem IconImageSource="ic_delete_w.png" Clicked="OnDeleteClicked" />
+    </ContentPage.ToolbarItems>
+
     <Grid>
         <ScrollView>
             <VerticalStackLayout Padding="16" Spacing="12">
@@ -203,24 +213,6 @@
                         </CollectionView>
                     </VerticalStackLayout>
                 </Border>
-
-                <!-- Botones con icono, no con palabras (constitucion Mobile 7). El texto queda
-                     como ayuda emergente, que es lo que Android lee en voz alta. -->
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                    <ImageButton Grid.Column="0" x:Name="SaveButton"
-                                 Style="{StaticResource HeaderIconButton}"
-                                 HeightRequest="52"
-                                 BackgroundColor="{StaticResource Primary}"
-                                 Source="ic_check_w.png"
-                                 SemanticProperties.Description="{loc:T Save}"
-                                 Clicked="OnSaveClicked" />
-                    <ImageButton Grid.Column="1" x:Name="DeleteButton"
-                                 Style="{StaticResource HeaderIconButton}"
-                                 HeightRequest="52" WidthRequest="52"
-                                 Source="ic_delete_danger.png"
-                                 SemanticProperties.Description="{loc:T DeleteTask}"
-                                 Clicked="OnDeleteClicked" />
-                </Grid>
 
             </VerticalStackLayout>
         </ScrollView>
