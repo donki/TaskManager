@@ -46,6 +46,16 @@ ID, **no** con la cuenta Microsoft personal.
   el paquete. Para instalarlo hay que confiar antes en `bin\pruebas.cer`. Ese paquete es **solo para
   probar**.
 
+## La ficha, ya redactada
+
+Todo el material está en `store/microsoft/`:
+
+- `ficha-es-ES.md` y `ficha-en-US.md`: nombre, descripción, características y qué va en cada campo,
+  en bloques para copiar y pegar.
+- `capturas/`: cuatro capturas de 1586x893 o mayor, hechas con una **compilación de demostración**
+  (base aparte, sin cuenta, tareas inventadas). Ni un dato real.
+- `logos/`: póster 9:16, caja 1:1, iconos 300/150/71 y arte de héroe 16:9.
+
 ## Lo que hay que rellenar en la ficha
 
 ### Descripción (es-ES)
