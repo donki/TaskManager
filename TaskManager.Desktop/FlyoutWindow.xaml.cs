@@ -78,6 +78,8 @@ public partial class FlyoutWindow : Window
 
     public event EventHandler? SettingsRequested;
 
+    public event EventHandler? AboutRequested;
+
     public event EventHandler? CalendarRequested;
 
     public event EventHandler? MainRequested;
@@ -454,6 +456,14 @@ public partial class FlyoutWindow : Window
             ShowToast(Localization.Loc.Format("UnlockedItem", unlocked.Name));
         }
     }
+
+    /// <summary>«Acerca de», el mismo sitio que en el menu del movil.</summary>
+    private void OnAboutClick(object sender, RoutedEventArgs e)
+    {
+        HideFlyout();
+        AboutRequested?.Invoke(this, EventArgs.Empty);
+    }
+
 
     private void ShowToast(string text)
     {

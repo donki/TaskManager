@@ -17,6 +17,16 @@ public enum TaskFilter
     /// <summary>Lo que queda por hacer. Es el filtro de partida: es a lo que se viene.</summary>
     Pending,
 
+    /// <summary>
+    /// Las ancladas, y solo esas.
+    /// </summary>
+    /// <remarks>
+    /// Anclar ya las sube arriba del todo, pero cuando la lista es larga «arriba del todo» sigue
+    /// estando entre otras cuarenta. Esto las deja solas, que es lo que se quiere cuando se pregunta
+    /// «¿que era lo importante?».
+    /// </remarks>
+    Pinned,
+
     Done,
 
     All,
@@ -49,6 +59,11 @@ public static class TaskFilters
     public static readonly TaskFilter[] All =
     [
         TaskFilter.All,
+
+        // Segundo de la fila, pegado a «Todas»: es el atajo a lo importante y se busca antes que
+        // cualquier criterio de fechas.
+        TaskFilter.Pinned,
+
         TaskFilter.Pending,
         TaskFilter.Done,
         TaskFilter.Overdue,
@@ -62,6 +77,7 @@ public static class TaskFilters
     public static string KeyOf(TaskFilter filter) => filter switch
     {
         TaskFilter.Pending => "FilterPending",
+        TaskFilter.Pinned => "FilterPinned",
         TaskFilter.Done => "FilterDone",
         TaskFilter.All => "FilterAll",
         TaskFilter.Overdue => "FilterOverdue",
@@ -78,6 +94,9 @@ public static class TaskFilters
     public static bool Matches(TaskItem task, TaskFilter filter, DateTime today) => filter switch
     {
         TaskFilter.Pending => !task.IsDone,
+
+        // Ancladas pero sin las ya hechas: una tarea terminada no sigue siendo lo importante.
+        TaskFilter.Pinned => task.IsPinned && !task.IsDone,
         TaskFilter.Done => task.IsDone,
         TaskFilter.All => true,
 

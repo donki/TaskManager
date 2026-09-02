@@ -69,7 +69,10 @@
                                 Click="OnCalendarClick" Margin="0,0,6,0" />
                         <Button x:Name="SettingsButton" Style="{StaticResource GhostIconButton}"
                                 Content="&#xE713;" ToolTip="{loc:T MenuSettings}"
-                                Click="OnSettingsClick" />
+                                Click="OnSettingsClick" Margin="0,0,6,0" />
+                        <Button x:Name="AboutButton" Style="{StaticResource GhostIconButton}"
+                                Content="&#xE946;" ToolTip="{loc:T MenuAbout}"
+                                Click="OnAboutClick" />
                     </StackPanel>
                 </Grid>
 
