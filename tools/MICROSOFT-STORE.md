@@ -1,32 +1,36 @@
 # Task Manager en la Microsoft Store
 
-Estado: **el paquete ya se construye; falta la identidad de Partner Center para poder subirlo.**
+Estado: **el paquete está construido y listo para subir.** Falta enviarlo desde Partner Center,
+que la primera vez no se puede hacer por API.
 
-## Lo que falta y solo puedes darlo tú
+- **Identidad** (Partner Center → Product management → Product identity), ya puesta por defecto en
+  `tools/empaquetar-msix.ps1`:
+  - `Package/Identity/Name` — `sOCratic.sOCTaskManager`
+  - `Package/Identity/Publisher` — `CN=2FC3763A-58D5-473A-840E-D47726B23FE3`
+  - `PublisherDisplayName` — `sOCratic`
+  - Nombre del paquete (`DisplayName`) — **`sOC Task Manager`**. La Store lo comprueba contra la
+    lista de nombres reservados de la aplicación: si el reservado fuera otro, se regenera con
+    `-DisplayName "<el que sea>"`.
+- **Id. de Store**: `9PHJK2391727` · **PFN**: `sOCratic.sOCTaskManager_6c84vmrh3mfca`
+- **Paquete**: `C:\ID\OneDrive\TaskManager\sOCTaskManager-2026.9.24.0.msix` (76 MB, **sin
+  firmar**, que es como lo quiere la Store: la firma la pone ella).
 
-El paquete que se sube tiene que llevar la identidad **exacta** que Partner Center asignó al
-reservar el nombre. Está en *Partner Center → la aplicación → Product management → Product
-identity*, y son tres valores:
+## La API no sirve para la primera vez
 
-| Qué | Dónde sale | Ejemplo de cómo se ve |
-|---|---|---|
-| **Package/Identity/Name** | «Package/Identity/Name» | `12345Socratic.TaskManager` |
-| **Package/Identity/Publisher** | «Package/Identity/Publisher» | `CN=A1B2C3D4-1234-5678-90AB-CDEF12345678` |
-| **Publisher display name** | «Package/Properties/PublisherDisplayName» | `Socratic` |
+Partner Center **sí tiene API** (Microsoft Store submission API, y la `msstore` CLI que la envuelve),
+con autenticación de Microsoft Entra ID por *client credentials* — tenant ID, client ID y client
+secret, ámbito `https://api.store.microsoft.com/.default`, token de 60 minutos. Pero la
+documentación es explícita en dos puntos:
 
-Con eso, el paquete se genera en una orden:
+1. La aplicación **no se puede crear por API**; tiene que existir ya en Partner Center. Hecho.
+2. **La primera *submission* hay que crearla a mano**, con el cuestionario de clasificación por
+   edades incluido. A partir de ahí, y solo a partir de ahí, la API puede crear envíos, subir
+   paquetes, tocar la ficha y publicar.
 
-```powershell
-.\tools\empaquetar-msix.ps1 -IdentityName <Name> -Publisher "<Publisher>" -PublisherDisplayName "<Display>"
-```
-
-Sale en `TaskManager.Desktop\bin\TaskManager.msix`, **sin firmar**: la Store lo firma ella con el
-certificado de la cuenta. No hay que firmarlo antes.
-
-**Si además quieres que la subida sea automática** (sin abrir el navegador), hace falta dar de alta
-una aplicación de Azure AD asociada a la cuenta de Partner Center y pasarme tres datos más: *tenant
-ID*, *client ID* y *client secret*. Es lo mismo que ya se hizo para Google Play con la cuenta de
-servicio. Sin eso, la subida es a mano desde el navegador, que para la primera vez tampoco está mal.
+O sea que este primer envío va desde el navegador aunque haya credenciales. Para automatizar los
+siguientes hace falta registrar una aplicación de Entra ID asociada a la cuenta (y ser
+**administrador global** de ese directorio para poder asociarla), y entrar con credenciales de Entra
+ID, **no** con la cuenta Microsoft personal.
 
 ## Lo que ya está hecho
 
