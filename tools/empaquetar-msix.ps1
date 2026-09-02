@@ -1,0 +1,111 @@
+<#
+.SYNOPSIS
+    Construye el paquete MSIX de Task Manager para la Microsoft Store.
+
+.DESCRIPTION
+    Publica el ejecutable autocontenido, monta la carpeta del paquete con el manifiesto y los
+    iconos, y llama a MakeAppx.
+
+    Los tres valores de identidad los asigna Partner Center al reservar el nombre; sin ellos el
+    paquete no vale para subir. Se pasan por parametro a proposito, para que no acaben escritos en
+    el repositorio y para que nadie suba un paquete con una identidad inventada.
+
+    Para PROBARLO en este equipo hace falta firmarlo, porque Windows no instala un MSIX sin firma:
+    con -Autofirmar se genera un certificado temporal, se firma y se deja el .cer al lado para
+    poder confiar en el. Ese paquete sirve para probar y NO para la Store: la Store lo firma ella.
+
+.EXAMPLE
+    # Para probar aqui:
+    .\tools\empaquetar-msix.ps1 -Autofirmar
+
+.EXAMPLE
+    # Para subir (los valores salen de Partner Center > Product identity):
+    .\tools\empaquetar-msix.ps1 -IdentityName 1234Socratic.TaskManager `
+                               -Publisher "CN=ABCD1234-..." `
+                               -PublisherDisplayName "Socratic"
+#>
+[CmdletBinding()]
+param(
+    [string] $IdentityName = "Socratic.TaskManager",
+    [string] $Publisher = "CN=Socratic",
+    [string] $PublisherDisplayName = "Socratic",
+    [string] $Version,
+    [switch] $Autofirmar
+)
+
+$ErrorActionPreference = "Stop"
+$raiz = Split-Path -Parent $PSScriptRoot
+$proyecto = Join-Path $raiz "TaskManager.Desktop\TaskManager.Desktop.csproj"
+$origenPaquete = Join-Path $raiz "TaskManager.Desktop\Package"
+$trabajo = Join-Path $raiz "TaskManager.Desktop\bin\msix"
+$salida = Join-Path $raiz "TaskManager.Desktop\bin\TaskManager.msix"
+
+# --- La version sale del csproj si no se pasa. MSIX exige cuatro numeros y el ultimo debe ser 0.
+if (-not $Version) {
+    $csproj = Get-Content $proyecto -Raw
+    if ($csproj -notmatch "<Version>([\d\.]+)</Version>") { throw "No se encuentra <Version> en el csproj." }
+    $partes = $Matches[1].Split(".")
+    while ($partes.Count -lt 4) { $partes += "0" }
+
+    # La Store reserva el cuarto numero: tiene que ser 0. Se corre el nuestro a la tercera posicion
+    # para no perderlo (2026.9.2.4 -> 2026.9.24.0).
+    $Version = "{0}.{1}.{2}{3}.0" -f $partes[0], $partes[1], $partes[2], $partes[3]
+}
+Write-Host "Version del paquete: $Version"
+
+# --- Publicar el ejecutable autocontenido, igual que la entrega de siempre.
+Write-Host "Publicando..."
+dotnet publish $proyecto -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -v q --nologo
+if ($LASTEXITCODE -ne 0) { throw "Ha fallado el publish." }
+
+$publicado = Join-Path $raiz "TaskManager.Desktop\bin\Release\net10.0-windows\win-x64\publish"
+
+# --- Montar la carpeta del paquete
+if (Test-Path $trabajo) { Remove-Item $trabajo -Recurse -Force }
+New-Item -ItemType Directory -Path $trabajo | Out-Null
+
+Copy-Item (Join-Path $publicado "TaskManager.exe") $trabajo
+Copy-Item (Join-Path $origenPaquete "Images") $trabajo -Recurse
+
+$manifiesto = Get-Content (Join-Path $origenPaquete "AppxManifest.xml") -Raw
+$manifiesto = $manifiesto.Replace("@@IDENTITY_NAME@@", $IdentityName).
+                          Replace("@@PUBLISHER@@", $Publisher).
+                          Replace("@@PUBLISHER_DISPLAY_NAME@@", $PublisherDisplayName).
+                          Replace("@@VERSION@@", $Version)
+Set-Content (Join-Path $trabajo "AppxManifest.xml") $manifiesto -Encoding UTF8
+
+# --- MakeAppx: se coge el SDK mas nuevo que haya instalado.
+$makeappx = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\makeappx.exe" |
+            Sort-Object FullName | Select-Object -Last 1
+if (-not $makeappx) { throw "No hay MakeAppx: falta el SDK de Windows." }
+
+if (Test-Path $salida) { Remove-Item $salida -Force }
+& $makeappx.FullName pack /d $trabajo /p $salida /o | Out-Host
+if ($LASTEXITCODE -ne 0) { throw "MakeAppx ha fallado." }
+
+Write-Host "Paquete: $salida"
+
+# --- Firma solo para probar en este equipo
+if ($Autofirmar) {
+    $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
+                Sort-Object FullName | Select-Object -Last 1
+    if (-not $signtool) { throw "No hay SignTool: falta el SDK de Windows." }
+
+    # El sujeto del certificado tiene que ser IDENTICO al Publisher del manifiesto o la firma no vale.
+    $cert = New-SelfSignedCertificate -Type Custom -Subject $Publisher `
+        -KeyUsage DigitalSignature -FriendlyName "Task Manager (solo pruebas)" `
+        -CertStoreLocation "Cert:\CurrentUser\My" `
+        -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+
+    $clave = ConvertTo-SecureString -String "pruebas" -Force -AsPlainText
+    $pfx = Join-Path $raiz "TaskManager.Desktop\bin\pruebas.pfx"
+    Export-PfxCertificate -Cert "Cert:\CurrentUser\My\$($cert.Thumbprint)" -FilePath $pfx -Password $clave | Out-Null
+    Export-Certificate -Cert "Cert:\CurrentUser\My\$($cert.Thumbprint)" `
+        -FilePath (Join-Path $raiz "TaskManager.Desktop\bin\pruebas.cer") | Out-Null
+
+    & $signtool.FullName sign /fd SHA256 /a /f $pfx /p "pruebas" $salida | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw "SignTool ha fallado." }
+
+    Write-Host "Firmado para pruebas. Para instalarlo aqui hay que confiar antes en bin\pruebas.cer"
+    Write-Host "(Equipo local > Entidades de confianza raiz). ESTE paquete no sirve para la Store."
+}
