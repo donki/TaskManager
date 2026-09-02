@@ -2,7 +2,13 @@ using TaskManager.Core.Data;
 
 namespace TaskManager.Core.Services;
 
-public sealed record RemoteChange(string Entity, string EntityId);
+/// <param name="IsNew">
+/// Si la fila <b>no existia aqui</b>. Es lo que separa «ha llegado una tarea» de «alguien ha
+/// cambiado una tarea que ya tenias»: lo primero merece un aviso y lo segundo no, y sin este dato
+/// no habia forma de distinguirlo — se avisaba de las dos y editar una tarea en el movil sacaba un
+/// globo en Windows como si fuera nueva.
+/// </param>
+public sealed record RemoteChange(string Entity, string EntityId, bool IsNew = false);
 
 /// <summary>
 /// Puente con Supabase. La interfaz nunca depende de que exista: si no hay backend configurado se
