@@ -552,6 +552,31 @@ public partial class TaskDetailWindow : Window
     /// deja en la carpeta temporal del sistema, que es de donde se limpia solo: no es una copia que
     /// haya que mantener, es lo que hace falta para que el programa de turno pueda leerlo.
     /// </remarks>
+    /// <summary>
+    /// Un clic en un enlace lo abre en el navegador.
+    /// </summary>
+    /// <remarks>
+    /// Los adjuntos se abrian solo con doble clic, que esta bien para un fichero de una lista pero
+    /// no para un enlace: un enlace se pulsa una vez, en todas partes. Los ficheros siguen con el
+    /// doble clic, que es donde se espera.
+    /// </remarks>
+    private void OnLinkClick(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri)
+            {
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            Controls.ModernDialog.Alert(this, T("Attachments"), ex.Message);
+        }
+
+        e.Handled = true;
+    }
+
     private async void OnAttachmentDoubleClick(object sender, MouseButtonEventArgs e)
     {
         var source = e.OriginalSource as DependencyObject;
@@ -882,6 +907,52 @@ public partial class TaskDetailWindow : Window
         public string Glyph => Item.IsUrl ? "\uE71B" : "\uE8E5";
 
         public string Caption => Item.IsUrl ? Item.Url : Item.SizeCaption;
+
+        // Un enlace se pinta como un enlace y se abre con un clic; un fichero, no. Son dos
+        // elementos en la misma celda y se enseña el que toca, porque un hipervinculo de verdad
+        // trae gratis el subrayado, el cursor de mano y el poder llegar a el con el tabulador.
+
+        public Visibility LinkVisibility => Item.IsUrl ? Visibility.Visible : Visibility.Collapsed;
+
+        public Visibility FileVisibility => Item.IsUrl ? Visibility.Collapsed : Visibility.Visible;
+
+        /// <summary>
+        /// El pie de la fila, salvo cuando repetiria el titulo.
+        /// </summary>
+        /// <remarks>
+        /// Un enlace pegado sin nombre se guarda con la direccion como nombre, asi que titulo y pie
+        /// decian exactamente lo mismo y una direccion larga ocupaba media tarjeta dos veces.
+        /// </remarks>
+        public Visibility CaptionVisibility =>
+            string.Equals(Caption, Name, StringComparison.Ordinal) ? Visibility.Collapsed : Visibility.Visible;
+
+        /// <summary>
+        /// La direccion como <see cref="Uri"/> para el hipervinculo.
+        /// </summary>
+        /// <remarks>
+        /// Se le pone <c>https://</c> a lo que se guardo sin esquema («ipssoft.com»), porque un
+        /// <c>NavigateUri</c> que no sea absoluto revienta al pintar la fila — y quien pega una
+        /// direccion en una tarea no piensa en el esquema. Si aun asi no hay manera se deja nulo:
+        /// el enlace sale sin destino en vez de tirar abajo la ventana entera.
+        /// </remarks>
+        public Uri? Link
+        {
+            get
+            {
+                if (!Item.IsUrl || string.IsNullOrWhiteSpace(Item.Url))
+                {
+                    return null;
+                }
+
+                var texto = Item.Url.Trim();
+                if (!texto.Contains("://", StringComparison.Ordinal))
+                {
+                    texto = "https://" + texto;
+                }
+
+                return Uri.TryCreate(texto, UriKind.Absolute, out var uri) ? uri : null;
+            }
+        }
     }
 
     /// <summary>Fila de paso lista para pintar, sin logica en el XAML.</summary>

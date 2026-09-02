@@ -4,16 +4,29 @@
         xmlns:loc="clr-namespace:TaskManager.Desktop.Localization"
         xmlns:hc="https://handyorg.github.io/handycontrol"
         Title="{loc:T TaskTitle}"
-        Width="520" Height="720"
+        Width="1060" Height="800"
+        MinWidth="820" MinHeight="620"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource PageBackground}">
 
     <!--
         El detalle de una tarea en Windows, con LOS MISMOS campos que TaskDetailPage en Android y
-        en el mismo orden: titulo y notas, etiquetas, fechas y repeticion, y los pasos. Antes
-        Windows no tenia ninguna pantalla de detalle —solo se podia marcar hecha—, asi que lo que
-        se configuraba en el movil no habia forma de tocarlo aqui.
+        en el mismo orden de lectura: que hay que hacer, cuando, con que etiqueta, con que material
+        y en que pasos.
+
+        DOS COLUMNAS, no una. Antes era una sola columna estrecha —la del movil, tal cual— en una
+        pantalla de escritorio: no cabia ni la mitad y habia que ir bajando para ver si una tarea
+        tenia pasos. Aqui sobra ancho y falta alto, asi que lo que en el movil va uno debajo de otro
+        aqui va al lado:
+
+          * Izquierda, lo que se escribe: titulo, lista, notas, y las fechas con la repeticion.
+          * Derecha, lo que se acumula: etiquetas, adjuntos y pasos. Los pasos se llevan el hueco
+            que sobre, porque son los que crecen.
+
+        Cada columna se desplaza por su cuenta: llenar de pasos la derecha no debe mover el titulo
+        de sitio. Y la ventana se puede agrandar; con el minimo puesto no se puede dejar tan
+        estrecha que las dos columnas se pisen.
     -->
 
     <DockPanel Margin="16">
@@ -29,35 +42,118 @@
                     Content="&#xE73E;" ToolTip="{loc:T Save}" Click="OnSaveClick" />
         </Grid>
 
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Margin="0,0,10,0">
+        <Grid ColumnDefinitions="1.15*,12,*">
 
-                <!-- Titulo y notas -->
-                <Border Style="{StaticResource Card}" Margin="0,0,0,12">
-                    <StackPanel>
-                        <!-- Marcar hecha sin salir del detalle: si se ha entrado a repasarla,
-                             tener que cerrar para tacharla sobra. -->
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                            <CheckBox Style="{StaticResource CheckBoxBaseStyle}" x:Name="DoneCheck" Content="{loc:T MarkDone}"
-                                      Click="OnDoneToggled" />
-                            <CheckBox Style="{StaticResource CheckBoxBaseStyle}" x:Name="PinCheck" Content="{loc:T MarkPinned}"
-                                      Margin="20,0,0,0" Click="OnPinToggled" />
+            <!-- ================= Izquierda: lo que se escribe ================= -->
+            <!--
+                Las notas se llevan el alto que sobre. Con la tarjeta de tamano fijo quedaba un
+                hueco muerto debajo de la repeticion mientras la caja de notas seguia siendo un
+                sello: al agrandar la ventana lo unico que crecia era el vacio.
+            -->
+            <Grid Grid.Column="0" RowDefinitions="*,Auto" Margin="0,0,10,0">
+
+                    <!-- Titulo, lista y notas -->
+                    <Border Grid.Row="0" Style="{StaticResource Card}" Margin="0,0,0,12">
+                        <DockPanel>
+                          <StackPanel DockPanel.Dock="Top">
+                            <!-- Marcar hecha sin salir del detalle: si se ha entrado a repasarla,
+                                 tener que cerrar para tacharla sobra. -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <CheckBox Style="{StaticResource CheckBoxBaseStyle}" x:Name="DoneCheck" Content="{loc:T MarkDone}"
+                                          Click="OnDoneToggled" />
+                                <CheckBox Style="{StaticResource CheckBoxBaseStyle}" x:Name="PinCheck" Content="{loc:T MarkPinned}"
+                                          Margin="20,0,0,0" Click="OnPinToggled" />
+                            </StackPanel>
+
+                            <TextBlock Text="{loc:T TaskTitle}" Style="{StaticResource HintText}" />
+                            <TextBox x:Name="TitleBox" Style="{StaticResource Field}" Margin="0,4,0,10" />
+
+                            <TextBlock Text="{loc:T TaskList}" Style="{StaticResource HintText}" />
+                            <hc:ComboBox x:Name="ListBox" Margin="0,4,0,10" />
+
+                          </StackPanel>
+
+                            <TextBlock DockPanel.Dock="Top" Text="{loc:T Notes}"
+                                       Style="{StaticResource HintText}" />
+                            <TextBox x:Name="NotesBox" Style="{StaticResource FieldMultiline}"
+                                     MinHeight="120" Margin="0,4,0,0" />
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Cuando: plazo, planificacion y repeticion -->
+                    <Border Grid.Row="1" Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="{loc:T WhenTitle}" Style="{StaticResource CardTitle}"
+                                       Margin="0,0,0,8" />
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                                <TextBlock Grid.Column="0" Text="{loc:T DueDate}" VerticalAlignment="Center" />
+                                <CheckBox Style="{StaticResource CheckBoxBaseStyle}" Grid.Column="1" x:Name="DueCheck" Click="OnDueToggled" />
+                            </Grid>
+                            <Grid x:Name="DueRow" Visibility="Collapsed" Margin="0,0,0,12"
+                                  ColumnDefinitions="*,Auto">
+                                <hc:DatePicker Grid.Column="0" x:Name="DuePicker" />
+                                <hc:TimePicker Grid.Column="1" x:Name="DueTime" Width="110" Margin="8,0,0,0"
+                                               />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                                <TextBlock Grid.Column="0" Text="{loc:T PlannedFor}" VerticalAlignment="Center" />
+                                <CheckBox Style="{StaticResource CheckBoxBaseStyle}" Grid.Column="1" x:Name="PlannedCheck" Click="OnPlannedToggled" />
+                            </Grid>
+                            <Grid x:Name="PlannedRow" Visibility="Collapsed" ColumnDefinitions="*,Auto">
+                                <hc:DatePicker Grid.Column="0" x:Name="PlannedPicker" />
+                                <hc:TimePicker Grid.Column="1" x:Name="PlannedTime" Width="110" Margin="8,0,0,0"
+                                               />
+                            </Grid>
+                            <TextBlock Text="{loc:T PlannedHelp}" Style="{StaticResource HintText}" Margin="0,4,0,12" />
+
+                            <Border Height="1" Background="{DynamicResource Separator}" Margin="0,0,0,12" />
+
+                            <TextBlock Text="{loc:T Recurrence}" Style="{StaticResource CardTitle}" Margin="0,0,0,6" />
+                            <Grid ColumnDefinitions="*,Auto" >
+                                <hc:ComboBox Grid.Column="0" x:Name="RecurrenceBox"
+                                          SelectionChanged="OnRecurrenceChanged" />
+                                <StackPanel Grid.Column="1" x:Name="IntervalPanel" Orientation="Horizontal"
+                                            Margin="8,0,0,0" Visibility="Collapsed">
+                                    <Button Style="{StaticResource RowIconButton}" Content="&#xE949;"
+                                            Click="OnIntervalDown" />
+                                    <TextBlock x:Name="IntervalLabel" Width="26" TextAlignment="Center"
+                                               VerticalAlignment="Center" />
+                                    <Button Style="{StaticResource RowIconButton}" Content="&#xE948;"
+                                            Click="OnIntervalUp" />
+                                </StackPanel>
+                            </Grid>
+                            <!-- Dias de la semana: solo con repeticion diaria o semanal. -->
+                            <StackPanel x:Name="WeekdaysBox" Orientation="Horizontal" Margin="0,8,0,0"
+                                        Visibility="Collapsed" />
+
+                            <!-- Dia del mes: solo con repeticion mensual. -->
+                            <Grid x:Name="MonthDayRow" Margin="0,8,0,0" Visibility="Collapsed"
+                                  ColumnDefinitions="Auto,Auto,Auto,Auto">
+                                <TextBlock Grid.Column="0" Text="{loc:T MonthDayLabel}"
+                                           VerticalAlignment="Center" Margin="0,0,10,0" />
+                                <hc:ComboBox Grid.Column="1" x:Name="MonthDayBox" Width="130"
+                                          SelectionChanged="OnMonthDayChanged" />
+
+                                <!-- El mes solo con repeticion anual: «cada año el 15 de septiembre». -->
+                                <TextBlock Grid.Column="2" x:Name="MonthLabelText" Text="{loc:T MonthLabel}"
+                                           VerticalAlignment="Center" Margin="14,0,10,0"
+                                           Visibility="Collapsed" />
+                                <hc:ComboBox Grid.Column="3" x:Name="MonthBox" Width="140"
+                                          Visibility="Collapsed" SelectionChanged="OnMonthChanged" />
+                            </Grid>
+
+                            <TextBlock x:Name="RecurrenceLabel" Style="{StaticResource HintText}" Margin="0,6,0,0" />
                         </StackPanel>
+                    </Border>
 
-                        <TextBlock Text="{loc:T TaskTitle}" Style="{StaticResource HintText}" />
-                        <TextBox x:Name="TitleBox" Style="{StaticResource Field}" Margin="0,4,0,10" />
+            </Grid>
 
-                        <TextBlock Text="{loc:T TaskList}" Style="{StaticResource HintText}" />
-                        <hc:ComboBox x:Name="ListBox" Margin="0,4,0,10" />
+            <!-- ================= Derecha: lo que se acumula ================= -->
+            <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*">
 
-                        <TextBlock Text="{loc:T Notes}" Style="{StaticResource HintText}" />
-                        <TextBox x:Name="NotesBox" Style="{StaticResource FieldMultiline}"
-                                 Height="90" Margin="0,4,0,0" />
-                    </StackPanel>
-                </Border>
-
-                <!-- Etiquetas, fechas y repeticion -->
-                <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                <!-- Etiquetas -->
+                <Border Grid.Row="0" Style="{StaticResource Card}" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="{loc:T Tags}" Style="{StaticResource CardTitle}" Margin="0,0,0,6" />
                         <!-- Las de ESTA tarea: pastilla con aspa para quitarla. -->
@@ -79,73 +175,11 @@
                                       Visibility="Collapsed">
                             <StackPanel x:Name="KnownTagsBox" Orientation="Horizontal" />
                         </ScrollViewer>
-
-                        <Border Height="1" Background="{DynamicResource Separator}" Margin="0,0,0,12" />
-
-                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
-                            <TextBlock Grid.Column="0" Text="{loc:T DueDate}" VerticalAlignment="Center" />
-                            <CheckBox Style="{StaticResource CheckBoxBaseStyle}" Grid.Column="1" x:Name="DueCheck" Click="OnDueToggled" />
-                        </Grid>
-                        <Grid x:Name="DueRow" Visibility="Collapsed" Margin="0,0,0,12"
-                              ColumnDefinitions="*,Auto">
-                            <hc:DatePicker Grid.Column="0" x:Name="DuePicker" />
-                            <hc:TimePicker Grid.Column="1" x:Name="DueTime" Width="110" Margin="8,0,0,0"
-                                           />
-                        </Grid>
-
-                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
-                            <TextBlock Grid.Column="0" Text="{loc:T PlannedFor}" VerticalAlignment="Center" />
-                            <CheckBox Style="{StaticResource CheckBoxBaseStyle}" Grid.Column="1" x:Name="PlannedCheck" Click="OnPlannedToggled" />
-                        </Grid>
-                        <Grid x:Name="PlannedRow" Visibility="Collapsed" ColumnDefinitions="*,Auto">
-                            <hc:DatePicker Grid.Column="0" x:Name="PlannedPicker" />
-                            <hc:TimePicker Grid.Column="1" x:Name="PlannedTime" Width="110" Margin="8,0,0,0"
-                                           />
-                        </Grid>
-                        <TextBlock Text="{loc:T PlannedHelp}" Style="{StaticResource HintText}" Margin="0,4,0,12" />
-
-                        <Border Height="1" Background="{DynamicResource Separator}" Margin="0,0,0,12" />
-
-                        <TextBlock Text="{loc:T Recurrence}" Style="{StaticResource CardTitle}" Margin="0,0,0,6" />
-                        <Grid ColumnDefinitions="*,Auto" >
-                            <hc:ComboBox Grid.Column="0" x:Name="RecurrenceBox"
-                                      SelectionChanged="OnRecurrenceChanged" />
-                            <StackPanel Grid.Column="1" x:Name="IntervalPanel" Orientation="Horizontal"
-                                        Margin="8,0,0,0" Visibility="Collapsed">
-                                <Button Style="{StaticResource RowIconButton}" Content="&#xE949;"
-                                        Click="OnIntervalDown" />
-                                <TextBlock x:Name="IntervalLabel" Width="26" TextAlignment="Center"
-                                           VerticalAlignment="Center" />
-                                <Button Style="{StaticResource RowIconButton}" Content="&#xE948;"
-                                        Click="OnIntervalUp" />
-                            </StackPanel>
-                        </Grid>
-                        <!-- Dias de la semana: solo con repeticion diaria o semanal. -->
-                        <StackPanel x:Name="WeekdaysBox" Orientation="Horizontal" Margin="0,8,0,0"
-                                    Visibility="Collapsed" />
-
-                        <!-- Dia del mes: solo con repeticion mensual. -->
-                        <Grid x:Name="MonthDayRow" Margin="0,8,0,0" Visibility="Collapsed"
-                              ColumnDefinitions="Auto,Auto,Auto,Auto">
-                            <TextBlock Grid.Column="0" Text="{loc:T MonthDayLabel}"
-                                       VerticalAlignment="Center" Margin="0,0,10,0" />
-                            <hc:ComboBox Grid.Column="1" x:Name="MonthDayBox" Width="130"
-                                      SelectionChanged="OnMonthDayChanged" />
-
-                            <!-- El mes solo con repeticion anual: «cada año el 15 de septiembre». -->
-                            <TextBlock Grid.Column="2" x:Name="MonthLabelText" Text="{loc:T MonthLabel}"
-                                       VerticalAlignment="Center" Margin="14,0,10,0"
-                                       Visibility="Collapsed" />
-                            <hc:ComboBox Grid.Column="3" x:Name="MonthBox" Width="140"
-                                      Visibility="Collapsed" SelectionChanged="OnMonthChanged" />
-                        </Grid>
-
-                        <TextBlock x:Name="RecurrenceLabel" Style="{StaticResource HintText}" Margin="0,6,0,0" />
                     </StackPanel>
                 </Border>
 
                 <!-- Enlaces y ficheros -->
-                <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,12">
                     <StackPanel>
                         <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
                             <TextBlock Grid.Column="0" Text="{loc:T Attachments}"
@@ -160,7 +194,7 @@
                         <TextBlock x:Name="NoAttachmentsLabel" Text="{loc:T NoAttachments}"
                                    Style="{StaticResource HintText}" />
 
-                        <ListBox x:Name="AttachmentsBox" Style="{StaticResource Rows}"
+                        <ListBox x:Name="AttachmentsBox" Style="{StaticResource Rows}" MaxHeight="180"
                                  MouseDoubleClick="OnAttachmentDoubleClick">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
@@ -171,11 +205,29 @@
                                                    Foreground="{DynamicResource Primary}" />
 
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <!-- Enlace: se pulsa una vez y se abre en el navegador. -->
+                                            <TextBlock Style="{StaticResource ItemTitle}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Visibility="{Binding LinkVisibility}">
+                                                <Hyperlink NavigateUri="{Binding Link}"
+                                                           RequestNavigate="OnLinkClick"
+                                                           ToolTip="{loc:T OpenAttachmentTooltip}">
+                                                    <!-- OneWay a la fuerza: Run.Text enlaza en dos sentidos por defecto y
+                                                         Name es de solo lectura, asi que la ventana reventaba al
+                                                         pintar la primera fila de adjuntos. -->
+                                                    <Run Text="{Binding Name, Mode=OneWay}" />
+                                                </Hyperlink>
+                                            </TextBlock>
+
+                                            <!-- Fichero: doble clic, como en cualquier lista. -->
                                             <TextBlock Text="{Binding Name}" Style="{StaticResource ItemTitle}"
                                                        TextWrapping="Wrap"
+                                                       Visibility="{Binding FileVisibility}"
                                                        ToolTip="{loc:T OpenAttachmentTooltip}" />
                                             <TextBlock Text="{Binding Caption}"
-                                                       Style="{StaticResource ItemSubtitle}" />
+                                                       Style="{StaticResource ItemSubtitle}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Visibility="{Binding CaptionVisibility}" />
                                         </StackPanel>
 
                                         <Button Grid.Column="2" Style="{StaticResource RowIconButton}"
@@ -189,10 +241,10 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Pasos -->
-                <Border Style="{StaticResource Card}">
-                    <StackPanel>
-                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                <!-- Pasos: se quedan con el hueco que sobre, que son los que crecen -->
+                <Border Grid.Row="2" Style="{StaticResource Card}">
+                    <DockPanel>
+                        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
                             <TextBlock Grid.Column="0" Text="{loc:T Steps}" Style="{StaticResource CardTitle}"
                                        VerticalAlignment="Center" />
                             <Button Grid.Column="1" x:Name="BreakdownButton" Style="{StaticResource IconButton}"
@@ -201,14 +253,14 @@
                         </Grid>
 
                         <!-- Anadir un paso a mano: escribir y Enter, o el boton. -->
-                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+                        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
                             <TextBox Grid.Column="0" x:Name="NewStepBox" Style="{StaticResource Field}"
                                      KeyDown="OnNewStepKeyDown" />
                             <Button Grid.Column="1" Style="{StaticResource IconButton}" Content="&#xE710;"
                                     Margin="8,0,0,0" ToolTip="{loc:T AddStepTooltip}" Click="OnAddStepClick" />
                         </Grid>
 
-                        <TextBlock x:Name="NoStepsLabel" Text="{loc:T NoSteps}"
+                        <TextBlock DockPanel.Dock="Top" x:Name="NoStepsLabel" Text="{loc:T NoSteps}"
                                    Style="{StaticResource HintText}" />
 
                         <!--
@@ -248,10 +300,10 @@
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
-                    </StackPanel>
+                    </DockPanel>
                 </Border>
 
-            </StackPanel>
-        </ScrollViewer>
+            </Grid>
+        </Grid>
     </DockPanel>
 </Window>
