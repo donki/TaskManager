@@ -274,6 +274,13 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>Da de alta la tarea y abre su detalle.</summary>
+    /// <remarks>
+    /// La caja de arriba solo puede recoger el titulo, y una tarea recien escrita casi siempre
+    /// necesita algo mas: de que lista cuelga y con que etiqueta. Antes eso obligaba a escribirla,
+    /// buscarla en la lista y abrirla. Se abre sola: escribir sigue costando lo mismo y quien no
+    /// quiera tocar nada mas, cierra.
+    /// </remarks>
     private async Task QuickAddAsync()
     {
         var title = QuickAddBox.Text.Trim();
@@ -287,11 +294,13 @@ public partial class MainWindow : Window
         var listId = _lists.FirstOrDefault()?.Id
             ?? (await _tasks.Repository.GetOrCreateDefaultListAsync(T("DefaultListName"))).Id;
 
-        await _tasks.Repository.AddTaskAsync(listId, title);
+        var task = await _tasks.Repository.AddTaskAsync(listId, title);
         QuickAddBox.Text = string.Empty;
 
         await ReloadListsAsync();
         await ReloadAllTasksAsync();
+
+        await OpenTaskAsync(task.Id);
     }
 
     // =======================================================================
@@ -488,6 +497,13 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>Da de alta la tarea en la lista elegida y abre su detalle.</summary>
+    /// <remarks>
+    /// La caja de arriba solo puede recoger el titulo, y una tarea recien escrita casi siempre
+    /// necesita algo mas: de que lista cuelga y con que etiqueta. Antes eso obligaba a escribirla,
+    /// buscarla en la lista y abrirla. Se abre sola: escribir sigue costando lo mismo y quien no
+    /// quiera tocar nada mas, cierra.
+    /// </remarks>
     private async Task AddTaskAsync()
     {
         var title = NewTaskBox.Text.Trim();
@@ -496,12 +512,14 @@ public partial class MainWindow : Window
             return;
         }
 
-        await _tasks.Repository.AddTaskAsync(_selectedList, title);
+        var task = await _tasks.Repository.AddTaskAsync(_selectedList, title);
         NewTaskBox.Text = string.Empty;
 
         await ReloadListTasksAsync();
         await ReloadListsAsync();
         await ReloadAllTasksAsync();
+
+        await OpenTaskAsync(task.Id);
     }
 
     // =======================================================================

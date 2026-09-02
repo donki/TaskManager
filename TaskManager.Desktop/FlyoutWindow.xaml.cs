@@ -236,6 +236,13 @@ public partial class FlyoutWindow : Window
 
     private async void OnAddClick(object sender, RoutedEventArgs e) => await AddTaskAsync();
 
+    /// <summary>Da de alta la tarea y abre su detalle.</summary>
+    /// <remarks>
+    /// La caja de arriba solo puede recoger el titulo, y una tarea recien escrita casi siempre
+    /// necesita algo mas: de que lista cuelga y con que etiqueta. Antes eso obligaba a escribirla,
+    /// buscarla en la lista y abrirla. Se abre sola: escribir sigue costando lo mismo y quien no
+    /// quiera tocar nada mas, cierra.
+    /// </remarks>
     private async Task<TaskItem?> AddTaskAsync()
     {
         var title = QuickAdd.Text.Trim();
@@ -247,6 +254,10 @@ public partial class FlyoutWindow : Window
         var task = await _tasks.Repository.AddTaskAsync(listId, title);
         QuickAdd.Text = string.Empty;
         await ReloadAsync();
+
+        // OpenTaskAsync esconde el panel antes de abrir el detalle, que es lo que hace falta: el
+        // panel se cierra al perder el foco y si no desapareceria por debajo del detalle.
+        await OpenTaskAsync(task.Id);
         return task;
     }
 
