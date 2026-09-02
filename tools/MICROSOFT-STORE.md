@@ -114,7 +114,24 @@ Todo el material está en `store/microsoft/`:
 
 ## «¿Por qué necesita runFullTrust y cómo se usará en el producto?»
 
-Es lo que pregunta Partner Center por declarar una capacidad restringida. Para pegar tal cual:
+Es lo que pregunta Partner Center por declarar una capacidad restringida.
+
+> **El campo admite 500 caracteres**, comprobado a las malas: la versión larga se cortaba a mitad de
+> frase. Usa la corta.
+
+### Corta, para el formulario (493 caracteres)
+
+```
+Aplicación de escritorio Windows (WPF, .NET 10) empaquetada en MSIX: runFullTrust es lo que necesita el punto de entrada Windows.FullTrustApplication para arrancar, no para obtener privilegios. Se usa para la interfaz WPF, el icono de bandeja con su atajo global, la base SQLite local, cifrar los tokens con DPAPI, el inicio de sesión OAuth (navegador y 127.0.0.1) y abrir los adjuntos que elige el usuario. Sin elevación, sin servicios ni controladores, sin tocar datos de otras aplicaciones.
+```
+
+### Corta en inglés (491 caracteres)
+
+```
+sOC Task Manager is a Windows desktop app (WPF, .NET 10) packaged as MSIX: runFullTrust is what the Windows.FullTrustApplication entry point needs in order to start, not a way to gain privileges. It is used for the WPF interface, the tray icon and its global shortcut, the local SQLite database, encrypting session tokens with DPAPI, OAuth sign-in (system browser and 127.0.0.1) and opening the attachments the user picks. No elevation, no services or drivers, no access to other apps' data.
+```
+
+### Larga, por si hace falta ampliarla en una respuesta a certificación
 
 ### Español
 
