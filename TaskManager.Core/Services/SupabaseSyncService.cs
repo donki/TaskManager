@@ -572,10 +572,31 @@ public sealed class SupabaseSyncService : ISyncService
     // Fusion: gana lo mas reciente
     // -----------------------------------------------------------------------
 
+    /// <summary>
+    /// Si lo que baja es de verdad mas nuevo que lo que ya hay aqui.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Con un milisegundo de margen</b>, y no con un <c>&gt;</c> pelado, porque los dos
+    /// relojes no guardan lo mismo: .NET escribe la marca con siete decimales de segundo y
+    /// PostgreSQL solo se queda con seis, redondeando. La mitad de las veces la fila vuelve del
+    /// servidor con una marca <b>tres tics mayor</b> que la que salio de aqui, y sin margen eso se
+    /// tomaba por «alguien la ha tocado despues»: cada fila que subia este aparato se volvia a
+    /// fusionar al bajar, con su escritura y su repintado de mas — y, hasta que se separo lo nuevo
+    /// de lo modificado, con su aviso de tarea nueva.</para>
+    ///
+    /// <para>Un milisegundo no se come ningun cambio real: dos ediciones de una persona no caen
+    /// nunca a esa distancia.</para>
+    /// </remarks>
+    private static bool LlegaMasNueva(DateTime local, DateTime remota) =>
+        remota - local > TimeSpan.FromMilliseconds(1);
+
+    private static bool LlegaMasNueva(DateTime local, DateTimeOffset remota) =>
+        LlegaMasNueva(local, remota.UtcDateTime);
+
     private async Task MergeTaskAsync(TaskRowDto row)
     {
         var local = await _repository.GetTaskAsync(row.Id).ConfigureAwait(false);
-        if (local is not null && local.UpdatedAt >= row.UpdatedAt)
+        if (local is not null && !LlegaMasNueva(local.UpdatedAt, row.UpdatedAt))
         {
             return;   // Lo de aqui es mas nuevo: ya lo subira el push, no se pisa.
         }
@@ -598,13 +619,13 @@ public sealed class SupabaseSyncService : ISyncService
         task.Deleted = row.Deleted;
 
         await _repository.SaveFromRemoteAsync(task, local is null).ConfigureAwait(false);
-        RemoteChanged?.Invoke(this, new RemoteChange("tasks", row.Id.ToString()));
+        RemoteChanged?.Invoke(this, new RemoteChange("tasks", row.Id.ToString(), IsNew: local is null));
     }
 
     private async Task MergeListAsync(ListRow row)
     {
         var local = await _repository.GetListAsync(row.Id).ConfigureAwait(false);
-        if (local is not null && local.UpdatedAt >= row.UpdatedAt)
+        if (local is not null && !LlegaMasNueva(local.UpdatedAt, row.UpdatedAt))
         {
             return;
         }
@@ -625,7 +646,7 @@ public sealed class SupabaseSyncService : ISyncService
     private async Task MergeStepAsync(StepRow row)
     {
         var local = await _repository.GetStepAsync(row.Id).ConfigureAwait(false);
-        if (local is not null && local.UpdatedAt >= row.UpdatedAt)
+        if (local is not null && !LlegaMasNueva(local.UpdatedAt, row.UpdatedAt))
         {
             return;
         }
@@ -852,7 +873,7 @@ public sealed class SupabaseSyncService : ISyncService
     private async Task MergeAttachmentAsync(AttachmentRow row)
     {
         var local = await _repository.GetAttachmentAsync(row.Id).ConfigureAwait(false);
-        if (local is not null && local.UpdatedAt >= row.UpdatedAt)
+        if (local is not null && !LlegaMasNueva(local.UpdatedAt, row.UpdatedAt))
         {
             return;
         }

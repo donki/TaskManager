@@ -313,13 +313,20 @@ public sealed class SyncCoordinator : IDisposable
 
     /// <summary>
     /// Avisa solo de lo que de verdad es <b>una tarea nueva de otro</b>: ni las ya hechas, ni las
-    /// borradas, ni las que escribio este mismo aparato —que ya se vieron al escribirlas—.
+    /// borradas, ni las que escribio este mismo aparato —que ya se vieron al escribirlas—, ni las
+    /// que solo se han <b>modificado</b>.
     /// </summary>
+    /// <remarks>
+    /// Lo de las modificadas faltaba y se notaba: cambiarle el titulo a una tarea desde el movil
+    /// sacaba un globo en Windows anunciandola como si acabara de nacer. Un cambio en algo que ya
+    /// tienes delante no es una noticia; la pantalla se refresca y punto.
+    /// </remarks>
     private async void OnRemoteChanged(object? sender, RemoteChange change)
     {
+        // El repintado va siempre: modificada tambien hay que volver a pintarla.
         Changed?.Invoke(this, EventArgs.Empty);
 
-        if (change.Entity != "tasks" || !Guid.TryParse(change.EntityId, out var id))
+        if (!change.IsNew || change.Entity != "tasks" || !Guid.TryParse(change.EntityId, out var id))
         {
             return;
         }
