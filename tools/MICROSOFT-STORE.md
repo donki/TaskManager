@@ -112,6 +112,72 @@ Todo el material está en `store/microsoft/`:
 > `Web/socraticweb/`, pero **falta pegarla en Google Sites**. Enviar la ficha con la política vieja
 > —la que dice que no hay cuentas ni servidor— sería declarar algo falso.
 
+## «¿Por qué necesita runFullTrust y cómo se usará en el producto?»
+
+Es lo que pregunta Partner Center por declarar una capacidad restringida. Para pegar tal cual:
+
+### Español
+
+```
+sOC Task Manager es una aplicación de escritorio clásica de Windows (.NET 10 con WPF) empaquetada en
+MSIX. runFullTrust es la capacidad que necesita el punto de entrada Windows.FullTrustApplication
+para poder ejecutarse: sin ella el paquete no arranca. No se declara para obtener privilegios
+adicionales. La aplicación no solicita elevación, no instala servicios ni controladores, no accede a
+los datos de otras aplicaciones y no recorre el sistema de archivos.
+
+En el producto se usa para:
+
+- Presentar la interfaz de escritorio (WPF), con icono en el área de notificación y un atajo de
+  teclado global (RegisterHotKey) que abre el panel rápido sin necesidad de la ventana principal.
+- Guardar las tareas en una base de datos SQLite local, en la carpeta de datos del propio usuario,
+  a través de una biblioteca nativa (e_sqlite3).
+- Cifrar en disco los tokens de la sesión con DPAPI
+  (System.Security.Cryptography.ProtectedData), para no dejarlos en claro.
+- Iniciar sesión con Google o Microsoft: abre el navegador del sistema y escucha una única respuesta
+  en 127.0.0.1, que es el flujo que exige OAuth 2.0 con PKCE en aplicaciones de escritorio.
+- Adjuntar archivos que el usuario elige en el diálogo estándar de apertura, y abrir un enlace o un
+  archivo adjunto con la aplicación predeterminada del sistema.
+- Ajustar el color de la barra de título al tema claro u oscuro (DwmSetWindowAttribute).
+
+Todo ello se ejecuta en el contexto del usuario que abre la aplicación. No se leen ni se modifican
+archivos que el usuario no haya elegido expresamente.
+```
+
+### English
+
+```
+sOC Task Manager is a classic Windows desktop application (.NET 10 with WPF) packaged as MSIX.
+runFullTrust is the capability required by the Windows.FullTrustApplication entry point: without it
+the package does not start. It is not declared to gain additional privileges. The app never requests
+elevation, installs no services or drivers, does not access other applications' data and does not
+scan the file system.
+
+In the product it is used to:
+
+- Show the desktop (WPF) user interface, with a notification-area icon and a global keyboard
+  shortcut (RegisterHotKey) that opens the quick panel without the main window.
+- Store tasks in a local SQLite database inside the user's own data folder, through a native library
+  (e_sqlite3).
+- Encrypt the session tokens on disk with DPAPI
+  (System.Security.Cryptography.ProtectedData) instead of leaving them readable.
+- Sign in with Google or Microsoft: it opens the system browser and listens for a single response on
+  127.0.0.1, which is the flow OAuth 2.0 with PKCE requires for desktop apps.
+- Attach files the user picks in the standard open dialog, and open a link or an attachment with the
+  system's default application.
+- Match the title bar colour to the light or dark theme (DwmSetWindowAttribute).
+
+All of it runs in the context of the user who opens the app. No file is read or modified unless the
+user chose it.
+```
+
+### Un cabo suelto que deja el empaquetado
+
+El ajuste «iniciar con Windows» escribe hoy en la clave `Run` del usuario en el registro
+(`AutoStart.cs`). **Dentro de un MSIX el registro está virtualizado**, así que esa entrada puede no
+sobrevivir. La forma correcta en un paquete es la extensión `windows.startupTask` del manifiesto. No
+bloquea el envío —la aplicación funciona igual— pero conviene comprobarlo al instalar el paquete y,
+si no arranca sola, cambiarlo por la extensión.
+
 ## Cuenta obligatoria: lo que pregunta la revisión
 
 La aplicación exige entrar con Google o Microsoft. La revisión de la Store pide, cuando hay cuenta
