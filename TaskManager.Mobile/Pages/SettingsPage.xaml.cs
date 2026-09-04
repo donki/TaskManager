@@ -104,6 +104,7 @@ public partial class SettingsPage : ContentPage
     private void ShowAccount()
     {
         var user = _auth.CurrentUser;
+        var provider = CurrentProvider();
 
         // La foto de la cuenta al lado del nombre. Solo se enseña si hay: si no, se queda el
         // icono generico que hay debajo.
@@ -111,48 +112,105 @@ public partial class SettingsPage : ContentPage
         AvatarFrame.IsVisible = user is not null && avatar.Length > 0;
         AvatarImage.Source = AvatarFrame.IsVisible ? ImageSource.FromUri(new Uri(avatar)) : null;
 
-        AccountNameLabel.Text = user?.DisplayName ?? "Sin cuenta";
-        AccountEmailLabel.Text = user?.Email ?? "Hay que entrar con Google para usar la aplicación";
-        SignInButton.IsVisible = user is null;
-        SignOutButton.IsVisible = user is not null;
-        SignInButton.IsEnabled = _auth.IsConfigured;
+        AccountNameLabel.Text = user?.DisplayName ?? Localization.Loc.Instance["NoAccount"];
+        AccountEmailLabel.Text = user is null
+            ? Localization.Loc.Instance["NoAccountMobile"]
+            : $"{user.Email} · {provider}";
 
-        AccountHintLabel.Text = user is not null
-            ? "Tus listas y tu progreso van con la cuenta de Google."
-            : "La entrada es obligatoria: sin cuenta no se puede usar la aplicación.";
+        // El boton de la cuenta con la que ya se esta dentro se apaga: pulsarlo abriria el
+        // navegador para acabar donde ya se estaba.
+        GoogleButton.IsEnabled = _auth.IsConfiguredFor(IdentityProvider.Google)
+            && provider != IdentityProvider.Google;
+        MicrosoftButton.IsVisible = AuthOptions.MicrosoftSignInEnabled
+            && _auth.IsConfiguredFor(IdentityProvider.Microsoft);
+        MicrosoftButton.IsEnabled = provider != IdentityProvider.Microsoft;
+
+        SignOutButton.IsVisible = user is not null;
+
+        AccountHintLabel.Text = Localization.Loc.Instance["AccountListsHint"];
     }
 
-    private async void OnSignInClicked(object? sender, EventArgs e)
+    /// <summary>Con que proveedor se entro, o null si no hay nadie dentro.</summary>
+    private IdentityProvider? CurrentProvider()
     {
-        SignInButton.IsEnabled = false;
+        if (_auth.CurrentUser is null)
+        {
+            return null;
+        }
+
+        return Enum.TryParse<IdentityProvider>(
+            _settings.Get(SettingsService.KeyAuthProvider, nameof(IdentityProvider.Google)), out var parsed)
+            ? parsed
+            : IdentityProvider.Google;
+    }
+
+    private async void OnGoogleClicked(object? sender, EventArgs e) =>
+        await SignInAsync(IdentityProvider.Google);
+
+    private async void OnMicrosoftClicked(object? sender, EventArgs e) =>
+        await SignInAsync(IdentityProvider.Microsoft);
+
+    /// <summary>
+    /// Entra con el proveedor elegido, que es tambien como se <b>cambia de cuenta</b>.
+    /// </summary>
+    /// <remarks>
+    /// <para>Cada cuenta tiene sus listas en este mismo aparato, asi que cambiar no borra ni mueve
+    /// nada: lo de la anterior se queda donde estaba y vuelve a aparecer entero al entrar otra vez
+    /// con ella.</para>
+    ///
+    /// <para>Al volver se rehace el Shell: el menu, los contadores y las paginas que ya estan
+    /// construidas siguen enseñando las listas de la cuenta que acaba de salir, y refrescarlas una
+    /// a una seria acordarse de todas. Es la misma decision que con el cambio de idioma.</para>
+    /// </remarks>
+    private async Task SignInAsync(IdentityProvider provider)
+    {
+        GoogleButton.IsEnabled = false;
+        MicrosoftButton.IsEnabled = false;
+
         try
         {
-            var user = await _auth.SignInAsync(IdentityProvider.Google);
+            // Tres minutos de tope; lo habitual es que se corte antes, al volver a la aplicacion
+            // sin haber terminado en el navegador (ver AndroidLoopbackBrowser).
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+            var user = await _auth.SignInAsync(provider, cts.Token);
 
-            // Lo hecho sin cuenta pasa a la cuenta: el nivel y las rachas no se pierden.
+            // Lo que no era de ninguna cuenta pasa a esta, y si no tiene ninguna lista se le crea
+            // la primera: una cuenta recien estrenada no puede aparecer sin nada donde escribir.
             await _tasks.AdoptAccountAsync(user.Id);
+
             ShowAccount();
+
+            // La sincronizacion no se pide aqui: el coordinador ya arranca una vuelta al cambiar el
+            // usuario, y lo que baje aparece en cuanto se rehace el Shell.
+            if (Application.Current?.Windows.FirstOrDefault() is { } window)
+            {
+                window.Page = new AppShell();
+            }
+
+            return;
         }
-        catch (TaskCanceledException)
+        catch (OperationCanceledException)
         {
-            ShowAccount();
+            // Se volvio sin entrar. No hay nada que contar: los botones se vuelven a encender solos
+            // en ShowAccount, que es lo que hacia falta.
         }
         catch (Exception ex)
         {
-            await SocShared.ModernDialog.AlertAsync(this, "No se pudo entrar", ex.Message, "OK");
-            ShowAccount();
+            await SocShared.ModernDialog.AlertAsync(
+                this, Localization.Loc.Instance["SignInFailed"], ex.Message, "OK");
         }
-        finally
-        {
-            SignInButton.IsEnabled = _auth.IsConfigured;
-        }
+
+        ShowAccount();
     }
 
     private async void OnSignOutClicked(object? sender, EventArgs e)
     {
-        var confirmed = await SocShared.ModernDialog.AlertAsync(this, "Cerrar sesión",
-            "Sin cuenta no se puede usar la aplicación: volverá a la pantalla de entrada.",
-            "Cerrar sesión", "Cancelar");
+        var confirmed = await SocShared.ModernDialog.AlertAsync(
+            this,
+            Localization.Loc.Instance["SignOut"],
+            Localization.Loc.Instance["SignOutConfirm"],
+            Localization.Loc.Instance["SignOut"],
+            Localization.Loc.Instance["Cancel"]);
 
         if (confirmed)
         {

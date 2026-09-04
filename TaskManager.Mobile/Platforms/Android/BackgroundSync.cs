@@ -102,11 +102,14 @@ public class BackgroundSyncReceiver : BroadcastReceiver
         }
 
         var database = new LocalDatabase(path);
-        var repository = new TaskRepository(database);
-        await repository.InitializeAsync().ConfigureAwait(false);
 
+        // Primero los ajustes: de ahi sale la cuenta que esta dentro, que es de quien se sube y se
+        // baja. Sin ella el repositorio no sabria de quien es ninguna fila.
         var settings = new SettingsService(database);
         await settings.LoadAsync().ConfigureAwait(false);
+
+        var repository = new TaskRepository(database, settings);
+        await repository.InitializeAsync().ConfigureAwait(false);
 
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
 

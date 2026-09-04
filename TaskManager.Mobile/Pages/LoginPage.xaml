@@ -31,6 +31,8 @@
 
             <Button x:Name="MicrosoftButton"
                     Text="{loc:T ContinueMicrosoft}"
+                    ImageSource="ic_microsoft.png"
+                    ContentLayout="Left,10"
                     Style="{StaticResource OutlineButton}"
                     Clicked="OnMicrosoftClicked"
                     HorizontalOptions="Fill" />

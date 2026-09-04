@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:loc="clr-namespace:TaskManager.Mobile.Localization"
+             xmlns:controls="clr-namespace:TaskManager.Mobile.Controls"
              x:Class="TaskManager.Mobile.Pages.CalendarPage"
              Title="{loc:T MenuCalendar}">
 
@@ -71,5 +72,9 @@
                 </CollectionView.ItemTemplate>
             </CollectionView>
         </Grid>
+
+        <!-- Aviso de que se esta hablando con el servidor. Va el ULTIMO: en un Grid el orden del
+             documento es el orden de pintado, y puesto antes lo taparian las filas de arriba. -->
+        <controls:RefreshingBadge x:Name="RefreshingBadge" Grid.Row="0" Grid.RowSpan="4" />
     </Grid>
 </ContentPage>

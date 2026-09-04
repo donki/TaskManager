@@ -27,19 +27,22 @@ recompensas.
   independientes para mantener la organización. Por ejemplo, el grupo "Familia" puede tener las
   listas *Compras del Supermercado*, *Mantenimiento del Hogar* y *Planes de Vacaciones*.
 
-### B. Cuenta de usuario: entrada con Google
+### B. Cuenta de usuario: entrada con Google o con Microsoft
 
-- **El usuario entra con Google** para que su usuario quede guardado: es lo que permite recuperar
-  sus listas en otro dispositivo y ser reconocido dentro de un grupo.
-- La cuenta la gestiona **Supabase Auth** con Google como proveedor. La aplicación no guarda ninguna
-  contraseña; solo el testigo de sesión, en el almacén seguro del dispositivo.
-- Al entrar por primera vez se crea su **perfil** (nombre y foto de Google), que es lo que ven sus
-  compañeros de grupo en el Tablón y en las celebraciones.
+- **Entrar es obligatorio**: es lo que permite recuperar las listas en otro dispositivo y ser
+  reconocido dentro de un grupo. Sin cuenta no hay aplicación: la pantalla de entrada no tiene otra
+  salida que cerrarla.
+- Se entra **con Google o con Microsoft**, hablando con el proveedor directamente (PKCE). La
+  aplicación no guarda ninguna contraseña; solo el testigo, en el almacén seguro del dispositivo.
+- La identidad es el identificador de la cuenta —el `sub` de Google o el `oid` de Microsoft—: el
+  mismo en todos los aparatos, y no cambia aunque el usuario se cambie el nombre o el correo. El
+  nombre de la cuenta es también el nombre en la aplicación, y su foto la que ven sus compañeros de
+  grupo en el Tablón y en las celebraciones.
+- **Cada cuenta tiene sus listas en el mismo aparato.** Cambiar de Google a Microsoft cambia lo que
+  se ve; no borra ni mueve nada, y volver a la anterior lo devuelve todo donde estaba.
 - **Un usuario pertenece a los grupos que quiera** y, por tanto, tiene listas de tareas de varios
   grupos a la vez, además de las suyas privadas. Todas conviven en "Mi Día".
-- Sin cuenta la aplicación sigue funcionando **en local**, pero no se puede compartir nada ni
-  llevarse las tareas a otro dispositivo. Lo hecho antes de entrar (tareas, XP y rachas) se traspasa
-  a la cuenta la primera vez que se entra.
+- Lo escrito antes de que hubiera cuenta (tareas, XP y rachas) se lo queda la primera que entra.
 
 ### C. Acceso por Clave Compartida
 

@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:loc="clr-namespace:TaskManager.Mobile.Localization"
              xmlns:pages="clr-namespace:TaskManager.Mobile.Pages"
+             xmlns:controls="clr-namespace:TaskManager.Mobile.Controls"
              x:Class="TaskManager.Mobile.Pages.ListsPage"
              Title="{loc:T MenuLists}">
 
@@ -11,40 +12,45 @@
         <ToolbarItem IconImageSource="ic_refresh_w.png" Clicked="OnRefreshClicked" />
     </ContentPage.ToolbarItems>
 
-    <CollectionView x:Name="ListsView" SelectionMode="None" Margin="8">
+    <Grid>
+        <CollectionView x:Name="ListsView" SelectionMode="None" Margin="8">
 
-        <CollectionView.EmptyView>
-            <VerticalStackLayout Padding="24" Spacing="8">
-                <Label Text="{loc:T ListsEmptyTitle}" Style="{StaticResource CardTitle}"
-                       HorizontalTextAlignment="Center" />
-                <Label Text="{loc:T ListsEmptyMessage}" Style="{StaticResource HintText}"
-                       HorizontalTextAlignment="Center" />
-            </VerticalStackLayout>
-        </CollectionView.EmptyView>
+            <CollectionView.EmptyView>
+                <VerticalStackLayout Padding="24" Spacing="8">
+                    <Label Text="{loc:T ListsEmptyTitle}" Style="{StaticResource CardTitle}"
+                           HorizontalTextAlignment="Center" />
+                    <Label Text="{loc:T ListsEmptyMessage}" Style="{StaticResource HintText}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
 
-        <CollectionView.ItemTemplate>
-            <DataTemplate x:DataType="pages:ListRow">
-                <Border Style="{StaticResource Card}" Margin="0,0,0,6">
-                    <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="10" Padding="12,10">
-                        <Grid.GestureRecognizers>
-                            <TapGestureRecognizer Tapped="OnListTapped" CommandParameter="{Binding Id}" />
-                        </Grid.GestureRecognizers>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="pages:ListRow">
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,6">
+                        <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="10" Padding="12,10">
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnListTapped" CommandParameter="{Binding Id}" />
+                            </Grid.GestureRecognizers>
 
-                        <Image Grid.Column="0" Source="ic_list.png" WidthRequest="24" HeightRequest="24"
-                               VerticalOptions="Center" />
+                            <Image Grid.Column="0" Source="ic_list.png" WidthRequest="24" HeightRequest="24"
+                                   VerticalOptions="Center" />
 
-                        <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
-                            <Label Text="{Binding Name}" Style="{StaticResource ItemTitle}" />
-                            <Label Text="{Binding Caption}" Style="{StaticResource ItemSubtitle}" />
-                        </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                                <Label Text="{Binding Name}" Style="{StaticResource ItemTitle}" />
+                                <Label Text="{Binding Caption}" Style="{StaticResource ItemSubtitle}" />
+                            </VerticalStackLayout>
 
-                        <ImageButton Grid.Column="2" Style="{StaticResource RowIconButton}"
-                                     Source="ic_delete_danger.png"
-                                     CommandParameter="{Binding Id}"
-                                     Clicked="OnDeleteListClicked" />
-                    </Grid>
-                </Border>
-            </DataTemplate>
-        </CollectionView.ItemTemplate>
-    </CollectionView>
+                            <ImageButton Grid.Column="2" Style="{StaticResource RowIconButton}"
+                                         Source="ic_delete_danger.png"
+                                         CommandParameter="{Binding Id}"
+                                         Clicked="OnDeleteListClicked" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <!-- Aviso de que se esta hablando con el servidor. Flota arriba y no bloquea nada. -->
+        <controls:RefreshingBadge x:Name="RefreshingBadge" />
+    </Grid>
 </ContentPage>

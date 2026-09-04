@@ -41,9 +41,26 @@ param(
     # dominio o el id del tenant si se quiere fijar donde se crea.
     [string]$Tenant = 'organizations',
 
-    # Redirecciones. La del movil es el esquema propio de la app; la de escritorio
-    # es el servidor local de un solo uso que levanta la aplicacion.
-    [string[]]$Redirecciones = @('com.socratic.taskmanager://auth', 'http://localhost')
+    # Redirecciones.
+    #
+    # La PRIMERA es la que usa la entrada con cuenta, en Windows y en Android: el
+    # servidor local de un solo uso que levanta la aplicacion, que escucha en
+    # http://127.0.0.1:<puerto>/auth/. En las direcciones de loopback Entra ignora
+    # el PUERTO —por eso aqui no se pone ninguno— pero compara la RUTA byte a byte,
+    # asi que sin /auth/ la vuelta se rechaza con AADSTS50011. Un `http://localhost`
+    # a secas, que es lo que se registraba antes, NO vale.
+    #
+    # La segunda es el esquema propio, que usa el lector de correo en Android.
+    [string[]]$Redirecciones = @('http://127.0.0.1/auth/', 'com.socratic.taskmanager://auth'),
+
+    # Con quien se puede entrar.
+    #
+    # 'AzureADandPersonalMicrosoftAccount' = cualquier organizacion Y las cuentas
+    # personales (Outlook, Hotmail, Live). Antes se creaba como
+    # 'AzureADMultipleOrgs', que deja fuera a las personales: entrando con una,
+    # Entra responde «unauthorized_client: The client does not exist or is not
+    # enabled for consumers» y no hay forma de pasar de ahi.
+    [string]$Audiencia = 'AzureADandPersonalMicrosoftAccount'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -85,10 +102,16 @@ while ($null -eq $token -and (Get-Date) -lt $limite) {
     catch {
         # authorization_pending es lo normal mientras no has aprobado todavia.
         # Cualquier otro error si es de verdad y se para aqui.
-        $detalle = $_.ErrorDetails.Message | ConvertFrom-Json -ErrorAction SilentlyContinue
+        #
+        # El cuerpo se mira COMO TEXTO: ConvertFrom-Json revienta de forma terminante
+        # —y -ErrorAction no lo tapa— si la respuesta no es JSON, y entonces la
+        # excepcion sale del propio catch y mata el sondeo sin decir por que.
+        $texto = ''
+        try { $texto = [string]$_.ErrorDetails.Message } catch { }
+        if (-not $texto) { $texto = [string]$_.Exception.Message }
 
-        if ($detalle -and $detalle.error -ne 'authorization_pending' -and $detalle.error -ne 'slow_down') {
-            throw "Entra ha rechazado la entrada: $($detalle.error_description)"
+        if ($texto -notmatch 'authorization_pending' -and $texto -notmatch 'slow_down') {
+            throw "Entra ha rechazado la entrada: $texto"
         }
     }
 }
@@ -100,40 +123,58 @@ Write-Host 'Dentro.' -ForegroundColor Green
 # ---------------------------------------------------------------- 3. Crear el registro
 $cabeceras = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
 
-$cuerpo = @{
-    displayName = $Nombre
-
-    # AzureADMultipleOrgs = cualquier organizacion. Es lo que permite que la use
-    # una empresa distinta sin registrar nada alli.
-    signInAudience = 'AzureADMultipleOrgs'
-
-    # Cliente publico: la aplicacion vive en el dispositivo del usuario y no puede
-    # guardar un secreto, asi que se apoya en PKCE.
-    publicClient = @{ redirectUris = $Redirecciones }
-
-    requiredResourceAccess = @(
-        @{
-            # Microsoft Graph
-            resourceAppId = '00000003-0000-0000-c000-000000000000'
-            resourceAccess = @(
-                @{ id = 'e1fe6dd8-ba31-4d61-89e7-88639da4683d'; type = 'Scope' }  # User.Read
-                @{ id = '7427e0e9-2fba-42fe-b0c0-848c9e6a8182'; type = 'Scope' }  # offline_access
-            )
-        },
-        @{
-            # Office 365 Exchange Online, para IMAP con XOAUTH2
-            resourceAppId = '00000002-0000-0ff1-ce00-000000000000'
-            resourceAccess = @(
-                @{ id = 'a4b5e23c-3e5b-4f28-9d4a-1a6b0a2fd0a5'; type = 'Scope' }  # IMAP.AccessAsUser.All
-            )
-        }
+# Los permisos que se piden. El de Exchange es del lector de correo (IMAP con XOAUTH2) y solo
+# tiene sentido en cuentas de empresa; se pide aparte para poder crear el registro sin el si
+# Graph lo rechaza por admitir tambien cuentas personales.
+$graph = @{
+    resourceAppId = '00000003-0000-0000-c000-000000000000'
+    resourceAccess = @(
+        @{ id = 'e1fe6dd8-ba31-4d61-89e7-88639da4683d'; type = 'Scope' }  # User.Read
+        @{ id = '7427e0e9-2fba-42fe-b0c0-848c9e6a8182'; type = 'Scope' }  # offline_access
     )
-} | ConvertTo-Json -Depth 8
+}
+
+$exchange = @{
+    resourceAppId = '00000002-0000-0ff1-ce00-000000000000'
+    resourceAccess = @(
+        @{ id = 'a4b5e23c-3e5b-4f28-9d4a-1a6b0a2fd0a5'; type = 'Scope' }  # IMAP.AccessAsUser.All
+    )
+}
+
+function Nuevo-Cuerpo($permisos) {
+    @{
+        displayName = $Nombre
+
+        # Ver el parametro -Audiencia: por defecto, cualquier organizacion y ademas las
+        # cuentas personales.
+        signInAudience = $Audiencia
+
+        # Cliente publico: la aplicacion vive en el dispositivo del usuario y no puede
+        # guardar un secreto, asi que se apoya en PKCE.
+        publicClient = @{ redirectUris = $Redirecciones }
+
+        requiredResourceAccess = $permisos
+    } | ConvertTo-Json -Depth 8
+}
 
 Write-Host 'Creando el registro...' -ForegroundColor Cyan
 
-$app = Invoke-RestMethod -Method Post -Uri 'https://graph.microsoft.com/v1.0/applications' `
-                         -Headers $cabeceras -Body $cuerpo
+try {
+    $app = Invoke-RestMethod -Method Post -Uri 'https://graph.microsoft.com/v1.0/applications' `
+                             -Headers $cabeceras -Body (Nuevo-Cuerpo @($graph, $exchange))
+}
+catch {
+    # Lo que NO puede fallar es la entrada con cuenta, que es para lo que existe el registro. Si
+    # el permiso del correo estorba, se crea sin el y se dice: se puede añadir despues en el
+    # portal, y hasta entonces lo unico que no va es el lector de correo, que ademas esta oculto.
+    Write-Host ''
+    Write-Host 'Graph no ha aceptado el registro con el permiso de correo:' -ForegroundColor Yellow
+    Write-Host ([string]$_.ErrorDetails.Message)
+    Write-Host 'Se reintenta sin el.' -ForegroundColor Yellow
+
+    $app = Invoke-RestMethod -Method Post -Uri 'https://graph.microsoft.com/v1.0/applications' `
+                             -Headers $cabeceras -Body (Nuevo-Cuerpo @($graph))
+}
 
 Write-Host ''
 Write-Host 'Registro creado.' -ForegroundColor Green
@@ -141,6 +182,7 @@ Write-Host ''
 Write-Host "  Nombre        : $($app.displayName)"
 Write-Host "  Client ID     : " -NoNewline; Write-Host $app.appId -ForegroundColor Yellow
 Write-Host "  Audiencia     : $($app.signInAudience)"
+Write-Host "  Redirecciones : $($app.publicClient.redirectUris -join ', ')"
 Write-Host ''
 Write-Host 'Pegalo en oauth.local.props:' -ForegroundColor Cyan
 Write-Host "  <TmMicrosoftClientId>$($app.appId)</TmMicrosoftClientId>"

@@ -2,6 +2,43 @@
 
 Formato de versión `AAAA.MM.DD.N` (constitución Mobile 3).
 
+## 2026.09.04 — Entrar con Microsoft, y cada cuenta con sus listas
+
+Windows `2026.9.4.3` · Android `2026.09.04.3`
+
+- **La entrada con Microsoft ya se ofrece.** El flujo estaba escrito desde el 2026-08-31 pero oculto
+  (`AuthOptions.MicrosoftSignInEnabled`). Lo que faltaba no era el flujo: era lo de debajo.
+- **Cada cuenta tiene sus listas en el mismo aparato.** La base local era de un solo usuario, así que
+  entrar con la segunda cuenta enseñaba las tareas de la primera mezcladas con las que bajaban de su
+  servidor. Ahora cada lista, cada tarea y cada grupo llevan escrito de quién son
+  (`AccountId`), y el repositorio filtra por la cuenta que está dentro: si se olvidara el filtro en
+  una pantalla se verían las tareas de la otra sin que nada chirriara, así que no lo decide ninguna
+  pantalla.
+- **Se cambia de cuenta desde los ajustes**, con un botón por proveedor, en Windows y en Android.
+  Cambiar no borra ni mueve nada: volver a la anterior lo devuelve todo donde estaba.
+- **Nada de una cuenta sube a nombre de la otra.** La sesión del servidor se tira antes de poner la
+  identidad nueva —un canje fallido dejaba el token de la cuenta anterior junto al usuario nuevo— y
+  la cola de subida es por cuenta: lo escrito sin cobertura con una espera a que vuelva la suya en
+  vez de subirse a la que entre después. El corte de la última bajada también es de cada cuenta.
+- **Al actualizar no se pierde nada**: lo que ya había no es de ninguna cuenta todavía y se lo queda
+  la que esté dentro, con su autoría, su XP y sus rachas.
+- **Actualizar ahora se ve.** El botón habla con el servidor y espera a que termine, y hasta ahora
+  no cambiaba nada en pantalla: con la red lenta parecía que no hacía nada y se pulsaba otra vez.
+  En Android sale una pastilla flotante con la rueda («Actualizando…») y en Windows gira el propio
+  icono. Tirar hacia abajo ya tenía rueda, pero se quedaba girando para siempre si fallaba la red.
+- **Se recuerda el filtro.** «Mis tareas» vuelve a abrirse con el filtro y la etiqueta que se
+  dejaron puestos, en Windows y en Android; el panel rápido guarda su etiqueta aparte. El buscador
+  no se guarda: reabrir con la búsqueda de ayer parece que se han perdido tareas.
+- **Volver a la aplicación sin terminar en el navegador ya cancela la entrada.** Cuando el proveedor
+  rechaza la petición enseña *su* página de error y no redirige nunca a la loopback, así que la
+  espera no terminaba jamás: en Android la rueda se quedaba girando para siempre y solo se salía
+  matando la aplicación. Ahora se corta al volver (y hay un tope de tres minutos, como en Windows).
+- **El registro de Entra se rehízo** (`tools\Registrar-Entra.ps1`). El que había no existía en
+  ningún directorio —de ahí el `unauthorized_client: The client does not exist`— y el script lo
+  creaba con dos defectos: solo cuentas de organización, y `http://localhost` como redirección
+  cuando la aplicación vuelve a `http://127.0.0.1:<puerto>/auth/`. Ahora nace admitiendo **cuentas
+  personales y de empresa** y con la ruta correcta.
+
 ## 2026.08.31 — Entrada obligatoria, sincronización de verdad y una sola interfaz
 
 Windows `2026.8.31.3` · Android `2026.08.31.6`

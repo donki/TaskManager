@@ -127,6 +127,9 @@
             </RefreshView>
         </Grid>
 
+        <!-- Aviso de que se esta hablando con el servidor. Flota arriba y no bloquea nada. -->
+        <controls:RefreshingBadge x:Name="RefreshingBadge" />
+
         <!-- Barra de acciones de la seleccion. Va abajo y por encima de la lista: es donde llega
              el pulgar, y asi no empuja la lista hacia arriba al aparecer. -->
         <Border x:Name="SelectionBar" IsVisible="False"

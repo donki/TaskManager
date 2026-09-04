@@ -25,6 +25,9 @@ public partial class FlyoutWindow : Window
 
     /// <summary>Etiqueta por la que se esta acotando, o null si se ven todas.</summary>
     private string? _activeTag;
+
+    /// <summary>Hay un refresco en marcha; el boton no puede pedir otro encima.</summary>
+    private bool _refreshing;
     private string? _search;
     private readonly Dictionary<Guid, string> _listNames = [];
 
@@ -38,6 +41,10 @@ public partial class FlyoutWindow : Window
         _settings = settings;
         _syncing = syncing;
         TaskList.ItemsSource = _rows;
+
+        // La etiqueta con la que se dejo el panel. Se guarda aparte de la de «Mis tareas»: son dos
+        // sitios distintos y acotar en uno no tiene por que acotar en el otro.
+        _activeTag = _settings.FlyoutTag;
 
         // La fecha va en el idioma elegido: en ingles «de» sobra y el dia de la semana cambia.
         DateLabel.Text = DateTime.Now.ToString(
@@ -56,7 +63,20 @@ public partial class FlyoutWindow : Window
     /// </remarks>
     private async void OnRefreshClick(object sender, RoutedEventArgs e)
     {
-        RefreshButton.IsEnabled = false;
+        // El icono gira mientras dura, que es lo unico que se ve de una espera que puede irse a
+        // varios segundos con la red lenta: apagar el boton a secas no se distingue de un boton que
+        // no ha hecho nada.
+        //
+        // Y por eso el boton NO se apaga, que es lo que hacia antes: apagado se queda al 40% de
+        // opacidad y el giro casi no se aprecia, justo lo contrario de lo que se busca. Que no se
+        // pueda pedir dos veces a la vez lo garantiza la bandera.
+        if (_refreshing)
+        {
+            return;
+        }
+
+        _refreshing = true;
+        Controls.Spinner.Start(RefreshButton);
 
         try
         {
@@ -69,7 +89,8 @@ public partial class FlyoutWindow : Window
         }
         finally
         {
-            RefreshButton.IsEnabled = true;
+            Controls.Spinner.Stop(RefreshButton);
+            _refreshing = false;
         }
     }
 
@@ -322,6 +343,7 @@ public partial class FlyoutWindow : Window
         chip.Click += async (_, _) =>
         {
             _activeTag = tag;
+            await _settings.SetFlyoutTagAsync(tag);
             await ReloadAsync();
         };
 

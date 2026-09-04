@@ -38,6 +38,9 @@ public partial class MainWindow : Window
 
     private TaskFilter _filter = TaskFilters.Default;
 
+    /// <summary>Hay un refresco en marcha; los botones no pueden pedir otro encima.</summary>
+    private bool _refreshing;
+
     private Point _dragStart;
     private TaskRow? _dragging;
     private ListBox? _dragList;
@@ -53,6 +56,11 @@ public partial class MainWindow : Window
         _tasks = tasks;
         _settings = settings;
         _syncing = syncing;
+
+        // Se vuelve a lo ultimo que se dejo puesto: el filtro es una forma de trabajar, no una
+        // consulta suelta, y ponerlo otra vez en cada arranque sobraba.
+        _filter = _settings.TaskFilter;
+        _activeTag = _settings.TaskTag;
 
         ListsBox.ItemsSource = _lists;
         ListTasksBox.ItemsSource = _listTasks;
@@ -108,6 +116,7 @@ public partial class MainWindow : Window
             chip.Checked += async (s, _) =>
             {
                 _filter = (TaskFilter)((ToggleButton)s).Tag;
+                await _settings.SetTaskFilterAsync(_filter);
 
                 foreach (var other in FilterBox.Children.OfType<ToggleButton>())
                 {
@@ -204,6 +213,7 @@ public partial class MainWindow : Window
         chip.Click += async (_, _) =>
         {
             _activeTag = tag;
+            await _settings.SetTaskTagAsync(tag);
             await ReloadAllTasksAsync();
         };
 
@@ -221,9 +231,19 @@ public partial class MainWindow : Window
     private async void OnRefreshClick(object sender, RoutedEventArgs e)
     {
         // Los dos botones de refrescar (el de «Mis tareas» y el de «Mis listas») llaman aqui y los
-        // dos se apagan: da igual desde cual se pidiera, lo que se esta refrescando es lo mismo.
-        RefreshButton.IsEnabled = false;
-        ListsRefreshButton.IsEnabled = false;
+        // dos giran: da igual desde cual se pidiera, lo que se esta refrescando es lo mismo. El giro
+        // es la unica señal de que se esta esperando al servidor.
+        //
+        // Antes se apagaban los dos. Un boton apagado se queda al 40% de opacidad y el giro casi no
+        // se aprecia, asi que ahora se quedan encendidos y lo que impide pedirlo dos veces a la vez
+        // es la bandera.
+        if (_refreshing)
+        {
+            return;
+        }
+
+        _refreshing = true;
+        Controls.Spinner.Start(RefreshButton, ListsRefreshButton);
 
         try
         {
@@ -236,8 +256,8 @@ public partial class MainWindow : Window
         }
         finally
         {
-            RefreshButton.IsEnabled = true;
-            ListsRefreshButton.IsEnabled = true;
+            Controls.Spinner.Stop(RefreshButton, ListsRefreshButton);
+            _refreshing = false;
         }
     }
 

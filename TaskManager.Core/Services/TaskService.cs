@@ -41,18 +41,32 @@ public sealed class TaskService
         await _repository.InitializeAsync().ConfigureAwait(false);
         await _settings.LoadAsync().ConfigureAwait(false);
 
-        // Primer arranque: sin ninguna lista no hay donde escribir, y una app vacia no se entiende.
-        var lists = await _repository.GetPrivateListsAsync().ConfigureAwait(false);
-        if (lists.Count == 0)
+        // Al actualizar desde una version sin cuentas separadas, lo que ya habia no es de nadie:
+        // se lo queda quien esta dentro. Sin esto, sus listas de siempre no las veria nadie.
+        // AdoptAccountAsync ya se encarga tambien de la lista por defecto; si no ha entrado nadie
+        // todavia, se crea igual y la adoptara la primera cuenta que entre.
+        if (_repository.AccountId.Length > 0)
         {
-            await _repository.CreateListAsync("Tareas", null, "ic_list").ConfigureAwait(false);
+            await AdoptAccountAsync(_repository.AccountId).ConfigureAwait(false);
+            return;
         }
+
+        await EnsureDefaultListAsync().ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Se llama al entrar con Google: lo hecho antes de tener cuenta (tareas, autoria y XP) pasa a
-    /// nombre de la cuenta, en vez de quedarse huerfano bajo el identificador provisional.
+    /// Deja la cuenta lista para usarse: adopta lo que no es de nadie y se asegura de que tenga
+    /// donde escribir.
     /// </summary>
+    /// <remarks>
+    /// <para>Se llama al entrar y al <b>cambiar de cuenta</b>. Lo hecho antes de tener cuenta
+    /// —tareas, autoria y XP— pasa a nombre de la que entra en vez de quedarse huerfano bajo el
+    /// identificador provisional del aparato.</para>
+    ///
+    /// <para><b>No toca lo de la otra cuenta.</b> Cada una tiene sus listas
+    /// (<see cref="Data.TaskRepository.ClaimOrphansAsync"/>): cambiar de Google a Microsoft no se
+    /// lleva nada de una a la otra, solo cambia lo que se ve.</para>
+    /// </remarks>
     public async Task AdoptAccountAsync(string accountUserId)
     {
         if (string.IsNullOrEmpty(accountUserId))
@@ -60,8 +74,31 @@ public sealed class TaskService
             return;
         }
 
-        await _repository.ReassignUserAsync(_settings.LocalUserId, accountUserId).ConfigureAwait(false);
-        await _settings.SetAsync(SettingsService.KeyLocalUserId, accountUserId).ConfigureAwait(false);
+        var claimed = await _repository
+            .ClaimOrphansAsync(accountUserId, _settings.LocalUserId)
+            .ConfigureAwait(false);
+
+        // Ya no queda nada provisional que traspasar: dejarlo apuntando a esta cuenta haria que la
+        // siguiente entrada se llevara lo suyo, que es justo lo que no puede pasar.
+        if (claimed > 0)
+        {
+            await _settings.SetAsync(SettingsService.KeyLocalUserId, string.Empty).ConfigureAwait(false);
+        }
+
+        await EnsureDefaultListAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Sin ninguna lista no hay donde escribir, y una cuenta recien estrenada no puede aparecer
+    /// vacia del todo.
+    /// </summary>
+    private async Task EnsureDefaultListAsync()
+    {
+        var lists = await _repository.GetPrivateListsAsync().ConfigureAwait(false);
+        if (lists.Count == 0)
+        {
+            await _repository.CreateListAsync("Tareas", null, "ic_list").ConfigureAwait(false);
+        }
     }
 
     // -----------------------------------------------------------------------

@@ -203,7 +203,15 @@ public class ReminderReceiver : BroadcastReceiver
         }
 
         var database = new TaskManager.Core.Data.LocalDatabase(path);
-        var repository = new TaskManager.Core.Data.TaskRepository(database);
+
+        // El aviso puede saltar con la aplicacion cerrada, asi que no hay contenedor del que sacar
+        // los servicios: se construyen aqui sobre la misma base de datos. Los ajustes van primero
+        // porque de ahi sale la cuenta que esta dentro, y solo se cuentan sus tareas: con dos
+        // cuentas en el aparato, contarlas todas avisaria de pendientes que no son de quien mira.
+        var settings = new TaskManager.Core.Services.SettingsService(database);
+        await settings.LoadAsync();
+
+        var repository = new TaskManager.Core.Data.TaskRepository(database, settings);
         await repository.InitializeAsync();
 
         // Todo lo que queda por hacer, no solo lo de «Mi Dia»: esa pantalla ya no existe, asi que
@@ -214,10 +222,6 @@ public class ReminderReceiver : BroadcastReceiver
             return;
         }
 
-        // El aviso puede saltar con la aplicacion cerrada, asi que no hay contenedor del que sacar
-        // el servicio: se construye aqui sobre la misma base de datos.
-        var settings = new TaskManager.Core.Services.SettingsService(database);
-        await settings.LoadAsync();
         var texts = new TaskManager.Core.Services.LocalizationService(settings);
 
         var text = pending == 1 ? texts["NotifyOnePending"] : texts.Format("NotifyManyPending", pending);

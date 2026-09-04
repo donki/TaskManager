@@ -61,22 +61,34 @@ Decisiones:
 - Si Supabase no está configurado (URL vacía), la app funciona **entera en local**. Es lo que permite
   desarrollar y probar sin backend.
 
-## 4. Cuenta: entrada con Google
+## 4. Cuenta: entrada con Google o con Microsoft
 
-La identidad la pone **Supabase Auth con proveedor Google**. La aplicación no habla con Google
-directamente: pide a Supabase que abra el consentimiento y recoge la sesión de vuelta.
+La identidad la pone **el proveedor, hablando con él directamente** (`IdentitySignInService`), no
+Supabase. Antes se abría `/auth/v1/authorize` y era Supabase quien reenviaba, y eso hacía depender la
+entrada de un ajuste del servidor: con el proveedor sin dar de alta en el proyecto, el navegador se
+plantaba en una página de error de Supabase. La sesión del proyecto se consigue **después**,
+canjeando el `id_token`, y es lo único que hace falta para sincronizar.
 
-**Flujo (PKCE, el mismo en las dos aplicaciones):**
+**Flujo (PKCE, el mismo en las dos aplicaciones y con los dos proveedores):**
 
-1. `SupabaseAuthService` genera un `code_verifier`, calcula su `code_challenge` (S256) y abre
-   `/auth/v1/authorize?provider=google&redirect_to=…&code_challenge=…&code_challenge_method=s256`.
+1. `IdentitySignInService` genera un `code_verifier`, calcula su `code_challenge` (S256) y abre el
+   `authorize` del proveedor (Google o `login.microsoftonline.com/common`).
 2. La ventana la abre el **navegador del sistema**, nunca un WebView incrustado: Google rechaza los
-   WebView desde 2021. En Android es `WebAuthenticator` (Chrome Custom Tabs); en Windows, el
-   navegador por defecto contra un `HttpListener` en `127.0.0.1`.
-3. La vuelta trae `?code=…`. Se canjea en `/auth/v1/token?grant_type=pkce` junto con el verificador
-   y se obtienen `access_token` y `refresh_token`.
-4. El perfil se lee de `/auth/v1/user`; en el servidor, el disparador `handle_new_user` deja la fila
-   de `profiles` al día con el nombre y la foto de Google.
+   WebView desde 2021. La vuelta se recoge en un **servidor local en `127.0.0.1`** en las dos
+   plataformas: `HttpListener` en Windows y un `TcpListener` en Android, donde `HttpListener` no
+   existe. Volver a la aplicación sin terminar cuenta como cancelar.
+3. La vuelta trae `?code=…`, que se canjea contra el proveedor por el `id_token` con la identidad.
+   Es el `sub` de Google o el `oid` de Microsoft —no el `sub` de Microsoft, que es distinto por
+   aplicación—.
+4. Ese `id_token` se cambia por una sesión del proyecto en
+   `/auth/v1/token?grant_type=id_token` (proveedor `google` o `azure`). Si falla, se entra igual y la
+   aplicación funciona en local.
+
+**Cada cuenta, sus datos.** En el mismo aparato conviven las dos: cada lista, tarea y grupo lleva un
+`AccountId` local con el identificador de la cuenta, y `TaskRepository` filtra por él. Esa columna no
+viaja al servidor —allí cada fila ya es de quien la subió, y el identificador es otro
+(`auth.uid()`)—. La cola de subida también va por cuenta: lo escrito sin cobertura con una espera a
+que vuelva la suya en vez de subirse a nombre de la otra.
 
 **Por qué PKCE y no el flujo implícito.** En el implícito los tokens vuelven en el *fragmento* de la
 URL, y el fragmento no se envía nunca al servidor: en Windows, donde la vuelta la recoge un servidor
@@ -166,13 +178,13 @@ que el día que se decida usar un modelo en la nube basta con añadir una tercer
 | 1 | Documentación, esquema SQL + RLS, `TaskManager.Core` (modelo, SQLite, XP, IA) | hecho |
 | 2 | App Android: Mi Día, listas privadas, grupos, tablón, celebración | esqueleto funcional |
 | 3 | App Windows: bandeja, flyout, atajo global, captura rápida | esqueleto funcional |
-| 4 | Supabase real: proyecto y migraciones, **entrada con Google (hecha)**, cola de sincronización y Realtime | a medias |
+| 4 | Supabase real: proyecto y migraciones, **entrada con cuenta (hecha)**, cola de sincronización y Realtime | a medias |
 | 5 | Widget de Android, sonidos, temas desbloqueables, reacciones grupales | pendiente |
 | 6 | Ficha de Play Console, iconos y capturas, subida a `alpha` | pendiente |
 
 ## 9. Lo que hay que decidir antes de la fase 4
 
-- Crear el proyecto de Supabase (URL + `anon key`), activar el proveedor **Google** y dar de alta
+- Crear el proyecto de Supabase (URL + `anon key`), activar los proveedores **Google** y **azure** (Microsoft) y dar de alta
   las dos redirecciones. Los pasos están en [supabase/README.md](supabase/README.md).
 - Si el desglose por IA en Android se queda en heurístico o se acepta depender del PC o de la nube.
 - Nombre de paquete definitivo: por ahora `com.socratic.taskmanager`.

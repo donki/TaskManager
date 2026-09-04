@@ -36,8 +36,8 @@ public partial class LoginWindow : Window
         // se enseña: un boton que siempre falla es peor que no tenerlo.
         GoogleButton.Visibility = Visible(auth.IsConfiguredFor(IdentityProvider.Google));
 
-        // Microsoft esta oculto de momento (AuthOptions.MicrosoftSignInEnabled): el flujo esta
-        // escrito y probado, pero no se ofrece hasta comprobarlo de verdad en un dispositivo.
+        // Y otro para Microsoft. Cada cuenta tiene sus listas: con cual se entre decide lo que se
+        // ve, y se puede cambiar despues desde los ajustes sin perder nada de la otra.
         MicrosoftButton.Visibility = Visible(
             TaskManager.Core.AuthOptions.MicrosoftSignInEnabled &&
             auth.IsConfiguredFor(IdentityProvider.Microsoft));
@@ -67,8 +67,10 @@ public partial class LoginWindow : Window
             // Asignar DialogResult ya cierra la ventana modal: no hace falta Close().
             DialogResult = true;
         }
-        catch (TaskCanceledException)
+        catch (OperationCanceledException)
         {
+            // Vale para las dos formas de cortar: el tope de tres minutos y la vuelta a la ventana
+            // sin haber terminado en el navegador.
             StatusLabel.Text = Localization.Loc.Get("SignInCancelled");
         }
         catch (Exception ex)

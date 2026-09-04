@@ -32,7 +32,7 @@ namespace TaskManager.Mobile.Services;
 /// </remarks>
 public sealed class AndroidLoopbackBrowser : IOAuthBrowser
 {
-    private readonly TcpListener _listener;
+    private TcpListener _listener;
 
     public AndroidLoopbackBrowser()
     {
@@ -48,24 +48,115 @@ public sealed class AndroidLoopbackBrowser : IOAuthBrowser
     public string RedirectUri => $"http://127.0.0.1:{Port}/auth/";
 
     /// <remarks>
-    /// El servidor <b>no se cierra</b> al terminar: el puerto se reserva una vez y vale para todas
-    /// las entradas que haga la aplicacion. Cerrarlo daria un puerto distinto en cada intento, y
-    /// entonces <see cref="RedirectUri"/> —que se lee antes de abrir el navegador— dejaria de
-    /// coincidir con el sitio donde se espera la vuelta.
+    /// El <b>puerto</b> se reserva una vez y vale para todas las entradas que haga la aplicacion.
+    /// Uno distinto en cada intento no serviria: <see cref="RedirectUri"/> se lee —y se manda al
+    /// navegador— antes de ponerse a escuchar, asi que la vuelta llegaria a un sitio donde ya no
+    /// hay nadie. El servidor si se puede rehacer, y se rehace cuando una espera se corta
+    /// (<see cref="Reiniciar"/>), pero siempre sobre ese mismo puerto.
     /// </remarks>
     public async Task<Uri> AuthenticateAsync(Uri authorizeUrl, CancellationToken cancellationToken = default)
     {
-        await Browser.Default.OpenAsync(authorizeUrl, BrowserLaunchMode.SystemPreferred);
+        // Volver a la aplicacion sin haber terminado ES cancelar.
+        //
+        // Aqui se espera a que el navegador redirija a la loopback, y hay respuestas que NO
+        // redirigen nunca: cuando el proveedor rechaza la peticion —el `unauthorized_client` de
+        // Entra del 2026-09-03, por ejemplo— enseña su propia pagina de error y ahi se acaba. Sin
+        // esto, la espera no terminaba jamas y la pantalla se quedaba con la rueda girando para
+        // siempre, sin manera de salir mas que matando la aplicacion.
+        //
+        // Se pide que la aplicacion se haya ido de la pantalla ANTES (Stopped) para no confundir
+        // con un Resumed suelto: lo que cuenta como abandono es irse al navegador y volver de vacio.
+        using var abandonada = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var ventana = Application.Current?.Windows.FirstOrDefault();
+        var fuera = false;
 
-        using var socket = await _listener.AcceptSocketAsync(cancellationToken).ConfigureAwait(false);
-        var target = await ReadRequestTargetAsync(socket, cancellationToken).ConfigureAwait(false);
-        await RespondAsync(socket, cancellationToken).ConfigureAwait(false);
+        void SeVa(object? sender, EventArgs e) => fuera = true;
+        void Vuelve(object? sender, EventArgs e)
+        {
+            if (fuera)
+            {
+                abandonada.Cancel();
+            }
+        }
 
-        // El navegador se queda delante con la pagina de cortesia: hay que devolver la aplicacion
-        // al frente o el usuario se queda mirando una pestaña que ya no hace nada.
-        BringToFront();
+        void DejarDeMirar()
+        {
+            if (ventana is not null)
+            {
+                ventana.Stopped -= SeVa;
+                ventana.Resumed -= Vuelve;
+            }
+        }
 
-        return new Uri(new Uri($"http://127.0.0.1:{Port}"), target);
+        if (ventana is not null)
+        {
+            ventana.Stopped += SeVa;
+            ventana.Resumed += Vuelve;
+        }
+
+        try
+        {
+            await Browser.Default.OpenAsync(authorizeUrl, BrowserLaunchMode.SystemPreferred);
+
+            Socket socket;
+            try
+            {
+                socket = await _listener.AcceptSocketAsync(abandonada.Token).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                // Una espera que se corta deja el servidor en un estado que no se puede dar por
+                // bueno: la aceptacion cancelada puede seguir viva por debajo y quedarse con la
+                // vuelta del SIGUIENTE intento, que entonces espera para siempre una conexion que
+                // ya se ha llevado otro. Paso justo eso: tras dejar a medias una entrada con
+                // Microsoft, la siguiente con Google se colgaba.
+                //
+                // Se rehace en el MISMO puerto, que es lo que no puede cambiar: la redireccion se
+                // manda al navegador antes de llegar aqui (RedirectUri) y tiene que seguir
+                // apuntando a donde se escucha.
+                Reiniciar();
+                throw;
+            }
+
+            using (socket)
+            {
+
+            // Ya ha llegado. A partir de aqui volver a la aplicacion es lo normal —lo hace ella
+            // sola con BringToFront— y no puede cancelar nada, asi que se deja de mirar y lo que
+            // queda usa la cancelacion de quien llamo.
+            DejarDeMirar();
+
+                var target = await ReadRequestTargetAsync(socket, cancellationToken).ConfigureAwait(false);
+                await RespondAsync(socket, cancellationToken).ConfigureAwait(false);
+
+                // El navegador se queda delante con la pagina de cortesia: hay que devolver la
+                // aplicacion al frente o el usuario se queda mirando una pestaña que ya no hace
+                // nada.
+                BringToFront();
+
+                return new Uri(new Uri($"http://127.0.0.1:{Port}"), target);
+            }
+        }
+        finally
+        {
+            DejarDeMirar();
+        }
+    }
+
+    /// <summary>Levanta otra vez el servidor local, en el mismo puerto de siempre.</summary>
+    private void Reiniciar()
+    {
+        try
+        {
+            _listener.Stop();
+        }
+        catch (SocketException)
+        {
+            // Ya estaba caido: lo unico que importa es que despues haya uno escuchando.
+        }
+
+        _listener = new TcpListener(IPAddress.Loopback, Port);
+        _listener.Start();
     }
 
     /// <summary>

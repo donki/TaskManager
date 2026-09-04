@@ -12,6 +12,10 @@ public class TaskGroup
     [PrimaryKey]
     public Guid Id { get; set; } = Guid.NewGuid();
 
+    /// <summary>Con que cuenta se entro en este grupo. Ver <see cref="TaskList.AccountId"/>.</summary>
+    [Indexed]
+    public string AccountId { get; set; } = string.Empty;
+
     public string Name { get; set; } = string.Empty;
 
     /// <summary>Codigo publico de 6 caracteres, el que se dicta por telefono.</summary>
@@ -56,6 +60,29 @@ public class TaskList
     [Indexed]
     public Guid? GroupId { get; set; }
 
+    /// <summary>
+    /// De que cuenta es esta lista: el identificador que da el proveedor (el <c>sub</c> de Google o
+    /// el <c>oid</c> de Microsoft), el mismo que <see cref="Services.AuthUser.Id"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Es lo que separa una cuenta de otra en el mismo aparato.</b> Se puede entrar con
+    /// Google o con Microsoft y cada una tiene sus listas: sin esta columna, la base local es de un
+    /// solo usuario y al cambiar de cuenta se veria lo de la anterior mezclado con lo que baja del
+    /// servidor.</para>
+    ///
+    /// <para><b>No viaja al servidor.</b> Alli cada fila ya es de quien la subio —la RLS solo
+    /// devuelve las suyas— y ademas el identificador de alli es otro (<c>auth.uid()</c>, ver
+    /// <see cref="OwnerId"/>). Esta columna es la version local de esa misma idea, y por eso se
+    /// rellena con la cuenta que este dentro cuando la fila entra en el dispositivo.</para>
+    ///
+    /// <para>Vacia significa <i>de nadie todavia</i>: lo escrito antes de que existiera esta
+    /// separacion. La primera cuenta que entra lo adopta (ver
+    /// <c>TaskRepository.ClaimOrphansAsync</c>).</para>
+    /// </remarks>
+    [Indexed]
+    public string AccountId { get; set; } = string.Empty;
+
+    /// <summary>El <c>auth.uid()</c> de quien la subio, que es el identificador del servidor.</summary>
     public string OwnerId { get; set; } = string.Empty;
 
     public string Name { get; set; } = string.Empty;
@@ -80,6 +107,19 @@ public class TaskItem
 
     [Indexed]
     public Guid ListId { get; set; }
+
+    /// <summary>
+    /// De que cuenta es, copiado de su lista. Ver <see cref="TaskList.AccountId"/>.
+    /// </summary>
+    /// <remarks>
+    /// Se repite aqui en vez de mirar la lista cada vez porque las pantallas que cruzan listas
+    /// —«Mis tareas», «Mi Dia», el calendario, el buscador y los contadores— preguntan por la tabla
+    /// de tareas entera: sin esta columna, cada una de esas consultas tendria que cruzar con
+    /// <c>task_lists</c>. Una tarea nunca cambia de cuenta, porque solo se puede mover a una lista
+    /// de la cuenta que este dentro.
+    /// </remarks>
+    [Indexed]
+    public string AccountId { get; set; } = string.Empty;
 
     public string Title { get; set; } = string.Empty;
 
@@ -297,6 +337,17 @@ public class SyncOp
 {
     [PrimaryKey, AutoIncrement]
     public int Id { get; set; }
+
+    /// <summary>
+    /// Con que cuenta se hizo el cambio. Solo se sube lo de la cuenta que este dentro.
+    /// </summary>
+    /// <remarks>
+    /// Sin esto, un cambio hecho sin cobertura con una cuenta se subiria a la siguiente que
+    /// entrara: las tareas de una acabarian en el servidor —y en los demas aparatos— de la otra.
+    /// Lo que no toca ahora no se tira: se queda en la cola esperando a que vuelva su cuenta.
+    /// </remarks>
+    [Indexed]
+    public string AccountId { get; set; } = string.Empty;
 
     public string Entity { get; set; } = string.Empty;   // task_lists, tasks, task_steps, xp_events
 

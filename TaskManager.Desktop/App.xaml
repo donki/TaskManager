@@ -46,6 +46,10 @@
             <SolidColorBrush x:Key="TextSecondary" Color="#464555" />
             <SolidColorBrush x:Key="Success" Color="#27AE60" />
             <SolidColorBrush x:Key="Danger" Color="#BA1A1A" />
+
+            <!-- Fondo del aviso legal. Lo sustituye ThemeManager segun el tema; aqui esta
+                 el claro, que es el de partida. -->
+            <SolidColorBrush x:Key="WarningSurface" Color="#FFF4E5" />
             <SolidColorBrush x:Key="Gold" Color="#F5C542" />
 
             <!-- ============================ Texto ============================ -->

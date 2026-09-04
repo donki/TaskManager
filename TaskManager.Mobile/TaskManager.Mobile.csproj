@@ -16,8 +16,8 @@
     <ApplicationId>com.socratic.taskmanager</ApplicationId>
 
     <!-- Versions (constitucion A.4: ambos valores en sincronia, esquema de fecha) -->
-    <ApplicationDisplayVersion>2026.09.02.4</ApplicationDisplayVersion>
-    <ApplicationVersion>202609028</ApplicationVersion>
+    <ApplicationDisplayVersion>2026.09.04.5</ApplicationDisplayVersion>
+    <ApplicationVersion>202609035</ApplicationVersion>
 
     <AcceptAndroidSDKLicenses>true</AcceptAndroidSDKLicenses>
 
@@ -40,8 +40,8 @@
     <AndroidUseLatestPlatformSdk>false</AndroidUseLatestPlatformSdk>
     <AndroidCreatePackagePerAbi>false</AndroidCreatePackagePerAbi>
 
-    <AssemblyVersion>2026.9.2.4</AssemblyVersion>
-    <FileVersion>2026.9.2.4</FileVersion>
+    <AssemblyVersion>2026.9.4.5</AssemblyVersion>
+    <FileVersion>2026.9.4.5</FileVersion>
   </PropertyGroup>
 
   <!--
