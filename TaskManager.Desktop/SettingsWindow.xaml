@@ -41,14 +41,25 @@
             <TextBlock Grid.Column="1" x:Name="AccountLabel" VerticalAlignment="Center"
                        TextWrapping="Wrap" />
         </Grid>
+        <!-- Un boton por cuenta: pulsar uno entra con ese proveedor, se estuviera dentro con el
+             otro o con ninguno. Cada cuenta tiene sus listas, asi que esto es lo que hace de
+             interruptor entre una y otra. -->
         <StackPanel Orientation="Horizontal">
-            <Button x:Name="SignInButton" Style="{StaticResource IconButton}"
-                    Content="&#xE77B;" ToolTip="{loc:T SignInGoogle}" Margin="0,0,8,0" Click="OnSignInClick" />
+            <Button x:Name="GoogleButton" Style="{StaticResource IconButton}"
+                    Content="&#xE77B;" ToolTip="{loc:T SignInGoogle}" Margin="0,0,8,0"
+                    Click="OnGoogleClick" />
+            <Button x:Name="MicrosoftButton" Style="{StaticResource IconButton}"
+                    Content="&#xE902;" ToolTip="{loc:T SignInMicrosoft}" Margin="0,0,8,0"
+                    Click="OnMicrosoftClick" />
             <Button x:Name="SignOutButton" Style="{StaticResource GhostIconButton}"
                     Content="&#xE7E8;" ToolTip="{loc:T SignOut}" Click="OnSignOutClick" />
         </StackPanel>
 
-        <!-- El nombre lo pone la cuenta de Google (AuthOptions): se enseña, no se edita. -->
+        <TextBlock x:Name="AccountHintLabel" Text="{loc:T AccountListsHint}"
+                   Foreground="{DynamicResource TextSecondary}"
+                   FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0" />
+
+        <!-- El nombre lo pone la cuenta con la que se entro (AuthOptions): se enseña, no se edita. -->
         <TextBlock Text="{loc:T DisplayNameLabel}" />
         <TextBox x:Name="DisplayNameBox" IsReadOnly="True" IsTabStop="False"
                  Background="Transparent" BorderThickness="0"

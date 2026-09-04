@@ -46,6 +46,18 @@ public sealed class SupabaseSyncService : ISyncService
     /// <summary>Huella del perfil que ya se subio, para no repetir la subida en cada vuelta.</summary>
     private const string KeyProfilePushed = "sync.profile_v1";
 
+    /// <summary>
+    /// La misma marca, pero de cada cuenta. En el mismo aparato se puede entrar con Google o con
+    /// Microsoft, y cada una tiene su servidor y su historia: con una marca unica, entrar con la
+    /// segunda se saltaba todo lo que en su servidor fuera anterior al ultimo corte de la primera
+    /// —o sea, casi todo— y la lista aparecia a medias sin ninguna explicacion.
+    /// </summary>
+    private string KeyFor(string key)
+    {
+        var account = _repository.AccountId;
+        return account.Length == 0 ? key : $"{key}.{account}";
+    }
+
     /// <remarks>
     /// <para><b>Los nulos se escriben.</b> Antes se omitian (<c>WhenWritingNull</c>) y eso rompia la
     /// subida en cuanto habia mas de una fila: una tarea sin plazo se serializaba sin
@@ -213,7 +225,7 @@ public sealed class SupabaseSyncService : ISyncService
         }
 
         var stamp = $"{user.DisplayName}|{user.Email}|{user.AvatarUrl}";
-        if (_settings.Get(KeyProfilePushed) == stamp)
+        if (_settings.Get(KeyFor(KeyProfilePushed)) == stamp)
         {
             return;
         }
@@ -230,7 +242,7 @@ public sealed class SupabaseSyncService : ISyncService
 
         if (await UpsertAsync("profiles", [row], token, cancellationToken).ConfigureAwait(false))
         {
-            await _settings.SetAsync(KeyProfilePushed, stamp).ConfigureAwait(false);
+            await _settings.SetAsync(KeyFor(KeyProfilePushed), stamp).ConfigureAwait(false);
         }
     }
 
@@ -435,7 +447,7 @@ public sealed class SupabaseSyncService : ISyncService
             return;
         }
 
-        var since = _settings.Get(KeyLastPull, string.Empty);
+        var since = _settings.Get(KeyFor(KeyLastPull), string.Empty);
 
         // Las bajas primero: si llegara antes una tarea que el borrado de su lista, se guardaria
         // una tarea huerfana que luego habria que volver a limpiar.
@@ -504,7 +516,7 @@ public sealed class SupabaseSyncService : ISyncService
 
         if (newest is { } corte)
         {
-            await _settings.SetAsync(KeyLastPull, corte.UtcDateTime.ToString("O", CultureInfo.InvariantCulture))
+            await _settings.SetAsync(KeyFor(KeyLastPull), corte.UtcDateTime.ToString("O", CultureInfo.InvariantCulture))
                            .ConfigureAwait(false);
         }
     }

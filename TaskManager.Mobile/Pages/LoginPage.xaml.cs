@@ -60,16 +60,22 @@ public partial class LoginPage : ContentPage
         SetBusy(true);
         try
         {
-            var user = await _auth.SignInAsync(provider);
+            // Tres minutos, como en Windows: lo que puede tardar alguien en entrar con dos pasos.
+            // Es el ultimo tope; lo normal es que la espera se corte antes, en cuanto se vuelve a
+            // la aplicacion sin haber terminado (ver AndroidLoopbackBrowser).
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+            var user = await _auth.SignInAsync(provider, cts.Token);
 
             // Lo hecho antes de entrar pasa a la cuenta: el nivel y las rachas no se pierden.
             await _tasks.AdoptAccountAsync(user.Id);
 
             await Shell.Current.GoToAsync("//MyTasksPage");
         }
-        catch (TaskCanceledException)
+        catch (OperationCanceledException)
         {
-            ShowStatus("Entrada cancelada.");
+            // TaskCanceledException no basta: la espera de la loopback corta con la de base, y con
+            // el catch estrecho el mensaje que salia era «No se pudo entrar: A task was canceled».
+            ShowStatus(Localization.Loc.Instance["SignInCancelled"]);
         }
         catch (AuthException ex)
         {
@@ -77,7 +83,7 @@ public partial class LoginPage : ContentPage
         }
         catch (Exception ex)
         {
-            ShowStatus($"No se pudo entrar: {ex.Message}");
+            ShowStatus($"{Localization.Loc.Instance["SignInFailed"]}: {ex.Message}");
         }
         finally
         {
@@ -91,8 +97,8 @@ public partial class LoginPage : ContentPage
         Busy.IsVisible = busy;
         GoogleButton.IsEnabled = !busy;
 
-        // Microsoft esta oculto de momento (AuthOptions.MicrosoftSignInEnabled): el flujo esta
-        // escrito y probado, pero no se ofrece hasta que se compruebe de verdad en un dispositivo.
+        // Con cual se entre decide que listas se ven: cada cuenta tiene las suyas, y se cambia de
+        // una a otra desde los ajustes sin perder nada.
         MicrosoftButton.IsVisible = TaskManager.Core.AuthOptions.MicrosoftSignInEnabled;
         MicrosoftButton.IsEnabled = !busy;
     }

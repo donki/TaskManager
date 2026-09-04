@@ -57,9 +57,9 @@ public static class MauiProgram
             services.GetRequiredService<ITokenStore>()));
         builder.Services.AddSingleton<TaskService>();
 
-        // Entrada con Google: navegador del sistema y un servidor local de un solo uso, igual que
-        // en Windows. No se usa el esquema de identificador invertido porque eso obliga a un cliente
-        // OAuth de tipo Android, que valida paquete y huella SHA-1 y responde
+        // Entrada con Google o con Microsoft: navegador del sistema y un servidor local de un solo
+        // uso, igual que en Windows. No se usa el esquema de identificador invertido porque eso
+        // obliga a un cliente OAuth de tipo Android, que valida paquete y huella SHA-1 y responde
         // «Error 400: invalid_request» en cuanto una de las dos no cuadra (visto el 2026-08-31).
         // Con la loopback vale el mismo cliente de escritorio que ya funciona.
         //

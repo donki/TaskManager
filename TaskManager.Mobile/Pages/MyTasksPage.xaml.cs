@@ -23,6 +23,11 @@ public partial class MyTasksPage : ContentPage
     private readonly SettingsService _settings;
     private readonly Dictionary<Guid, string> _listNames = [];
 
+    /// <summary>
+    /// El filtro y la etiqueta salen de lo ultimo que se dejo puesto (<see cref="SettingsService"/>):
+    /// quien trabaja con «caducadas» o con «#Casa» vuelve a lo mismo al abrir. El texto del
+    /// buscador no se guarda: reabrir con la busqueda de ayer parece que se han perdido tareas.
+    /// </summary>
     private TaskFilter _filter = TaskFilters.Default;
     private string? _activeTag;
     private string? _search;
@@ -43,6 +48,9 @@ public partial class MyTasksPage : ContentPage
 
         _tasks = tasks;
         _settings = settings;
+
+        _filter = _settings.TaskFilter;
+        _activeTag = _settings.TaskTag;
 
         BuildFilters();
     }
@@ -103,20 +111,35 @@ public partial class MyTasksPage : ContentPage
     /// </remarks>
     private async void OnRefreshing(object? sender, EventArgs e)
     {
-        await Helpers.ServiceHelper.GetRequiredService<SyncCoordinator>().RefreshNowAsync();
-        await ReloadAsync();
-        Refresher.IsRefreshing = false;
+        try
+        {
+            await Helpers.ServiceHelper.GetRequiredService<SyncCoordinator>().RefreshNowAsync();
+            await ReloadAsync();
+        }
+        finally
+        {
+            // Pase lo que pase: un fallo de red antes de esta linea dejaba la rueda del gesto
+            // girando para siempre, y solo se quitaba saliendo de la pantalla.
+            Refresher.IsRefreshing = false;
+        }
     }
 
     /// <summary>
     /// Refrescar: habla con el servidor y vuelve a pintar. No es solo repintar lo de aqui — lo que
     /// se quiere saber al pulsarlo es si hay algo nuevo del otro dispositivo.
     /// </summary>
-    private async void OnRefreshClicked(object? sender, EventArgs e)
-    {
-        await Helpers.ServiceHelper.GetRequiredService<SyncCoordinator>().RefreshNowAsync();
-        await ReloadAsync();
-    }
+    /// <remarks>
+    /// Con la rueda a la vista mientras dura (<see cref="Controls.RefreshingBadge"/>): el boton
+    /// espera a que la sincronizacion termine de verdad, y sin ningun aviso parecia que no hacia
+    /// nada. Tirar hacia abajo ya tenia la suya, asi que el mismo gesto respondia por un camino y
+    /// por el otro no.
+    /// </remarks>
+    private async void OnRefreshClicked(object? sender, EventArgs e) =>
+        await RefreshingBadge.WhileAsync(async () =>
+        {
+            await Helpers.ServiceHelper.GetRequiredService<SyncCoordinator>().RefreshNowAsync();
+            await ReloadAsync();
+        });
 
     private async Task ReloadAsync()
     {
@@ -191,6 +214,7 @@ public partial class MyTasksPage : ContentPage
         button.Clicked += async (_, _) =>
         {
             _filter = filter;
+            await _settings.SetTaskFilterAsync(filter);
 
             foreach (var chip in FilterBox.OfType<Button>())
             {
@@ -252,6 +276,7 @@ public partial class MyTasksPage : ContentPage
         button.Clicked += async (_, _) =>
         {
             _activeTag = tag;
+            await _settings.SetTaskTagAsync(tag);
             await ReloadAsync();
         };
 

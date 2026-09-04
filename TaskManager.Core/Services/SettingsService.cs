@@ -48,6 +48,24 @@ public sealed class SettingsService
     public const string KeyHotkey = "desktop.hotkey";
     public const string KeyStartWithWindows = "desktop.autostart";
 
+    /// <summary>
+    /// El filtro de «Mis tareas» que estaba puesto la ultima vez, y su etiqueta.
+    /// </summary>
+    /// <remarks>
+    /// <para>Se guardan porque el filtro <b>es una forma de trabajar</b>, no una consulta suelta:
+    /// quien mira «caducadas» o «#Casa» lo vuelve a mirar al abrir, y sin esto habia que ponerlo
+    /// otra vez cada vez. Vale igual en Windows y en Android, con las mismas claves, aunque cada
+    /// aparato tenga las suyas: no viajan al servidor.</para>
+    ///
+    /// <para>El buscador NO se guarda a proposito: reabrir la aplicacion con un texto de ayer
+    /// escondiendo casi todo se lee como que las tareas han desaparecido.</para>
+    /// </remarks>
+    public const string KeyTaskFilter = "filter.tasks";
+    public const string KeyTaskTag = "filter.tasks_tag";
+
+    /// <summary>La etiqueta del panel rapido, que tiene su propia fila de etiquetas.</summary>
+    public const string KeyFlyoutTag = "filter.flyout_tag";
+
     private readonly LocalDatabase _db;
     private readonly Dictionary<string, string> _cache = new(StringComparer.Ordinal);
     private bool _loaded;
@@ -143,6 +161,42 @@ public sealed class SettingsService
     /// servidor antes de ofrecer entrar o unirse a un grupo.
     /// </summary>
     public bool IsSupabaseConfigured => SupabaseConfig.IsConfigured;
+
+    // -----------------------------------------------------------------------
+    // Lo ultimo que se estaba mirando
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// El filtro con el que se dejo «Mis tareas». Si lo guardado no se entiende —una version
+    /// anterior, o un filtro que ya no existe— se vuelve al de partida en vez de fallar.
+    /// </summary>
+    public TaskFilter TaskFilter =>
+        Enum.TryParse<TaskFilter>(Get(KeyTaskFilter), out var filter) && Enum.IsDefined(filter)
+            ? filter
+            : TaskFilters.Default;
+
+    public Task SetTaskFilterAsync(TaskFilter filter) => SetAsync(KeyTaskFilter, filter.ToString());
+
+    /// <summary>La etiqueta que estaba puesta, o <c>null</c> si no habia ninguna.</summary>
+    public string? TaskTag => Tag(KeyTaskTag);
+
+    public Task SetTaskTagAsync(string? tag) => SetAsync(KeyTaskTag, tag ?? string.Empty);
+
+    /// <summary>La etiqueta del panel rapido, aparte de la de «Mis tareas».</summary>
+    public string? FlyoutTag => Tag(KeyFlyoutTag);
+
+    public Task SetFlyoutTagAsync(string? tag) => SetAsync(KeyFlyoutTag, tag ?? string.Empty);
+
+    /// <summary>
+    /// Una etiqueta guardada. Vacio significa «sin filtro», que es distinto de la etiqueta
+    /// <see cref="Data.TaskRepository.NoTag"/> —«las que no llevan ninguna»—, y por eso se guarda
+    /// como cadena vacia y no como texto.
+    /// </summary>
+    private string? Tag(string key)
+    {
+        var tag = Get(key);
+        return tag.Length == 0 ? null : tag;
+    }
 }
 
 /// <summary>

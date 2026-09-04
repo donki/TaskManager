@@ -28,8 +28,19 @@
     <TmGoogleAndroidRedirectScheme>com.googleusercontent.apps.$(TmGoogleAndroidClientId.Replace('.apps.googleusercontent.com', ''))</TmGoogleAndroidRedirectScheme>
   </PropertyGroup>
 
-  <Target Name="GenerateOAuthSecrets" BeforeTargets="BeforeCompile;CoreCompile"
-          Inputs="$(MSBuildThisFileFullPath)" Outputs="$(IntermediateOutputPath)OAuthSecrets.g.cs">
+  <!--
+    El fichero se rehace SIEMPRE, sin Inputs/Outputs.
+
+    Antes decia `Inputs="$(MSBuildThisFileFullPath)"`, o sea este mismo fichero, y los valores de
+    verdad no estan aqui: estan en oauth.local.props. Asi que cambiar un identificador no invalidaba
+    nada y MSBuild se saltaba la generacion por «esta al dia»: se seguia compilando con el anterior.
+    Costo una tarde el 2026-09-04 —el registro de Entra nuevo estaba bien y la aplicacion mandaba el
+    viejo, que ya no existia—, y no habia forma de verlo desde fuera.
+
+    No cuesta nada: WriteOnlyWhenDifferent hace que solo se escriba cuando el contenido cambia, asi
+    que la compilacion incremental sigue funcionando igual.
+  -->
+  <Target Name="GenerateOAuthSecrets" BeforeTargets="BeforeCompile;CoreCompile">
     <ItemGroup>
       <TmOAuthLine Include="// Generado por oauth.props. No editar ni subir al repositorio." />
       <TmOAuthLine Include="namespace TaskManager.Core.Services%3B" />

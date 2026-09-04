@@ -119,6 +119,9 @@
             </CollectionView>
         </Grid>
 
+        <!-- Aviso de que se esta hablando con el servidor. Flota arriba y no bloquea nada. -->
+        <controls:RefreshingBadge x:Name="RefreshingBadge" />
+
         <controls:CelebrationView x:Name="Celebration" />
     </Grid>
 </ContentPage>

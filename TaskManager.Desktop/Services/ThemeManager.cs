@@ -28,6 +28,10 @@ public static class ThemeManager
             Set(resources, "Separator", "#48454F");
             Set(resources, "TextPrimary", "#E6E1E9");
             Set(resources, "TextSecondary", "#C7C4D8");
+
+            // Fondo del aviso legal. Los mismos dos tonos que en Android
+            // (WarningSurfaceLight / WarningSurfaceDark), para que la tarjeta se vea igual.
+            Set(resources, "WarningSurface", "#33291A");
         }
         else
         {
@@ -37,6 +41,7 @@ public static class ThemeManager
             Set(resources, "Separator", "#C7C4D8");
             Set(resources, "TextPrimary", "#191C1D");
             Set(resources, "TextSecondary", "#464555");
+            Set(resources, "WarningSurface", "#FFF4E5");
         }
     }
 

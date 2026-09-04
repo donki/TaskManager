@@ -7,13 +7,14 @@ namespace TaskManager.Core.Services;
 /// Usuario autenticado.
 /// </summary>
 /// <param name="Id">
-/// El <c>sub</c> de Google: el identificador de la cuenta, igual en todos los dispositivos. Es lo
-/// que la aplicacion usa como usuario en su base local (autoria, XP, rachas).
+/// El identificador de la cuenta que da el proveedor —el <c>sub</c> de Google o el <c>oid</c> de
+/// Microsoft—, igual en todos los dispositivos. Es lo que la aplicacion usa como usuario en su base
+/// local (autoria, XP, rachas).
 /// </param>
 /// <param name="RemoteId">
 /// El <c>auth.uid()</c> de Supabase, cuando hay sesion en el servidor. Es distinto del
 /// <paramref name="Id"/> y solo sirve para las filas que suben: la RLS esta escrita contra el.
-/// Vacio mientras el proyecto no tenga dado de alta el proveedor de Google.
+/// Vacio mientras el proyecto no tenga dado de alta ese proveedor.
 /// </param>
 public sealed record AuthUser(string Id, string Email, string DisplayName, string AvatarUrl, string RemoteId = "");
 
@@ -31,7 +32,7 @@ public interface ITokenStore
 /// <summary>Abre el navegador del sistema y devuelve la URL de vuelta con el codigo.</summary>
 public interface IOAuthBrowser
 {
-    /// <summary>A donde vuelve Google. Tiene que estar dado de alta en el cliente OAuth.</summary>
+    /// <summary>A donde vuelve el proveedor. Tiene que estar dado de alta en el cliente OAuth.</summary>
     string RedirectUri { get; }
 
     Task<Uri> AuthenticateAsync(Uri authorizeUrl, CancellationToken cancellationToken = default);
@@ -40,26 +41,26 @@ public interface IOAuthBrowser
 public sealed class AuthException(string message) : Exception(message);
 
 /// <summary>
-/// La entrada de la aplicacion: <b>identidad de Google</b> y, encima, la sesion de Supabase que
-/// hace falta para sincronizar.
+/// La entrada de la aplicacion: <b>identidad del proveedor</b> —Google o Microsoft— y, encima, la
+/// sesion de Supabase que hace falta para sincronizar.
 /// </summary>
 /// <remarks>
-/// <para><b>Quien eres lo dice Google.</b> Se habla con Google directamente
+/// <para><b>Quien eres lo dice el proveedor.</b> Se habla con el directamente
 /// (<see cref="IdentitySignInService"/>) y de ahi salen el identificador de la cuenta y el nombre,
 /// que es lo que la aplicacion usa como usuario y como nombre visible. Antes se pasaba por
 /// <c>/auth/v1/authorize</c> de Supabase, y con el proveedor sin dar de alta en el proyecto el
 /// navegador se quedaba en una pagina de Supabase con un error: la entrada no puede depender de un
 /// ajuste del servidor.</para>
 ///
-/// <para><b>La sesion de Supabase es aparte, y opcional.</b> El id_token que firma Google se canjea
-/// por un JWT del proyecto (<c>grant_type=id_token</c>), que es lo unico que la RLS entiende. Si el
-/// proyecto todavia no tiene Google dado de alta, ese canje falla y no pasa nada: se entra igual y
-/// la aplicacion funciona en local, que es lo que hacia hasta ahora. Cuando se active, la
-/// sincronizacion empieza a funcionar sola sin tocar el cliente.</para>
+/// <para><b>La sesion de Supabase es aparte, y opcional.</b> El id_token que firma el proveedor se
+/// canjea por un JWT del proyecto (<c>grant_type=id_token</c>), que es lo unico que la RLS entiende.
+/// Si el proyecto todavia no tiene ese proveedor dado de alta, el canje falla y no pasa nada: se
+/// entra igual y la aplicacion funciona en local. Cuando se active, la sincronizacion empieza a
+/// funcionar sola sin tocar el cliente.</para>
 ///
 /// <para><b>Al arrancar no se pide red.</b> La identidad guardada vale desde el primer momento y la
 /// renovacion va detras: un equipo sin conexion no puede dejar al usuario fuera de sus propias
-/// tareas. Solo se cierra la sesion cuando Google dice que el permiso ya no vale.</para>
+/// tareas. Solo se cierra la sesion cuando el proveedor dice que el permiso ya no vale.</para>
 /// </remarks>
 public sealed class SupabaseAuthService
 {
@@ -107,8 +108,8 @@ public sealed class SupabaseAuthService
 
     /// <summary>
     /// Recupera la sesion guardada al arrancar. Devuelve el usuario en cuanto lo tiene de la base
-    /// local, sin esperar a la red; la renovacion contra Google va despues y solo cierra la sesion
-    /// si el permiso ha dejado de valer.
+    /// local, sin esperar a la red; la renovacion contra el proveedor va despues y solo cierra la
+    /// sesion si el permiso ha dejado de valer.
     /// </summary>
     public async Task<AuthUser?> RestoreSessionAsync(CancellationToken cancellationToken = default)
     {
@@ -192,7 +193,7 @@ public sealed class SupabaseAuthService
     }
 
     // -----------------------------------------------------------------------
-    // Entrar con Google
+    // Entrar (y cambiar de cuenta)
     // -----------------------------------------------------------------------
 
     /// <summary>
@@ -200,11 +201,23 @@ public sealed class SupabaseAuthService
     /// sesion de Supabase va detras y no puede tumbar la entrada: se entra aunque el servidor no
     /// responda.
     /// </summary>
+    /// <remarks>
+    /// Sirve igual para <b>entrar</b> y para <b>cambiar de cuenta</b>: entrar con la otra es
+    /// exactamente esto, y lo de la anterior no se toca —cada cuenta tiene sus listas en el mismo
+    /// aparato (<see cref="Models.TaskList.AccountId"/>)—, asi que volver a ella es entrar otra vez
+    /// y encontrarlo todo donde estaba.
+    /// </remarks>
     public async Task<AuthUser> SignInAsync(
         IdentityProvider provider,
         CancellationToken cancellationToken = default)
     {
         var account = await _identity.SignInAsync(provider, cancellationToken).ConfigureAwait(false);
+
+        // La sesion del servidor que hubiera es de la cuenta anterior y ya no vale: se tira ANTES
+        // de poner la identidad nueva. Si no, un canje que fallara —el proveedor sin dar de alta en
+        // el proyecto, o sin red— dejaria el token y el `auth.uid()` de la cuenta de antes junto al
+        // usuario nuevo, y lo de este subiria a nombre de aquel.
+        await ClearRemoteSessionAsync().ConfigureAwait(false);
 
         await _tokens.SetAsync(KeyRefresh, account.RefreshToken).ConfigureAwait(false);
         await ApplyAccountAsync(account).ConfigureAwait(false);
@@ -216,17 +229,26 @@ public sealed class SupabaseAuthService
     public async Task SignOutAsync()
     {
         await _tokens.SetAsync(KeyRefresh, null).ConfigureAwait(false);
-        await _tokens.SetAsync(KeyAccessToken, null).ConfigureAwait(false);
-        await _tokens.SetAsync(KeyRefreshToken, null).ConfigureAwait(false);
-        await _tokens.SetAsync(KeyExpiresAt, null).ConfigureAwait(false);
+        await ClearRemoteSessionAsync().ConfigureAwait(false);
 
         CurrentUser = null;
         await _settings.SetAsync(SettingsService.KeyGoogleSub, string.Empty).ConfigureAwait(false);
         await _settings.SetAsync(SettingsService.KeyAuthProvider, string.Empty).ConfigureAwait(false);
-        await _settings.SetAsync(SettingsService.KeyRemoteUserId, string.Empty).ConfigureAwait(false);
         await _settings.SetAsync(SettingsService.KeyAccountEmail, string.Empty).ConfigureAwait(false);
         await _settings.SetAsync(SettingsService.KeyAvatarUrl, string.Empty).ConfigureAwait(false);
         UserChanged?.Invoke(this, null);
+    }
+
+    /// <summary>
+    /// Tira la sesion del proyecto: los tokens y el <c>auth.uid()</c>, que es con lo que se firma y
+    /// se cifra lo que sube. Lo local no se toca.
+    /// </summary>
+    private async Task ClearRemoteSessionAsync()
+    {
+        await _tokens.SetAsync(KeyAccessToken, null).ConfigureAwait(false);
+        await _tokens.SetAsync(KeyRefreshToken, null).ConfigureAwait(false);
+        await _tokens.SetAsync(KeyExpiresAt, null).ConfigureAwait(false);
+        await _settings.SetAsync(SettingsService.KeyRemoteUserId, string.Empty).ConfigureAwait(false);
     }
 
     // -----------------------------------------------------------------------
@@ -236,7 +258,7 @@ public sealed class SupabaseAuthService
     private static string AnonKey => SupabaseConfig.PublishableKey;
 
     /// <summary>
-    /// Guarda la identidad que acaba de dar Google.
+    /// Guarda la identidad que acaba de dar el proveedor.
     /// </summary>
     /// <remarks>
     /// El nombre de la cuenta pasa a ser <b>el nombre en la aplicacion</b>, se sobreescriba lo que
@@ -276,8 +298,8 @@ public sealed class SupabaseAuthService
     }
 
     /// <summary>
-    /// Canjea el id_token de Google por una sesion del proyecto de Supabase, que es lo unico que la
-    /// RLS entiende. <b>De cortesia</b>: si el proyecto no tiene el proveedor dado de alta responde
+    /// Canjea el id_token del proveedor por una sesion del proyecto de Supabase, que es lo unico que
+    /// la RLS entiende. <b>De cortesia</b>: si el proyecto no tiene el proveedor dado de alta responde
     /// un 400 y la aplicacion sigue funcionando en local, sin sincronizar.
     /// </summary>
     private async Task TryLinkSupabaseAsync(IdentityAccount account, CancellationToken cancellationToken)

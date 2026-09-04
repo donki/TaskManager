@@ -75,6 +75,41 @@
                 </VerticalStackLayout>
             </Border>
 
+            <!-- Aviso legal. Es obligatorio y va el ultimo (constitucion 6 y A.9): el descargo de
+                 responsabilidad sobre fondo de aviso, rematado con el recuadro rojo. La misma
+                 tarjeta, con las mismas palabras, que en las demas aplicaciones. -->
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Padding="25,20" Spacing="12">
+                    <Label Text="{loc:T LegalTitle}" Style="{StaticResource CardTitle}"
+                           TextColor="{StaticResource Danger}" />
+
+                    <Border BackgroundColor="{AppThemeBinding Light={StaticResource WarningSurfaceLight}, Dark={StaticResource WarningSurfaceDark}}"
+                            Stroke="Transparent"
+                            StrokeThickness="0"
+                            Padding="15">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="8" />
+                        </Border.StrokeShape>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="{loc:T LegalText1}" Style="{StaticResource BodyText}" FontSize="13" />
+                            <Label Text="{loc:T LegalText2}" Style="{StaticResource BodyText}" FontSize="13" />
+
+                            <Border BackgroundColor="{StaticResource Danger}" Stroke="Transparent"
+                                    StrokeThickness="0" Padding="12">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="6" />
+                                </Border.StrokeShape>
+                                <Label Text="{loc:T WarningText}"
+                                       FontSize="13"
+                                       FontAttributes="Bold"
+                                       TextColor="{StaticResource White}"
+                                       HorizontalOptions="Center" />
+                            </Border>
+                        </VerticalStackLayout>
+                    </Border>
+                </VerticalStackLayout>
+            </Border>
+
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>

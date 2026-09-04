@@ -1,4 +1,5 @@
 using TaskManager.Core.Models;
+using TaskManager.Core.Services;
 
 namespace TaskManager.Core.Data;
 
@@ -6,13 +7,36 @@ namespace TaskManager.Core.Data;
 /// Acceso a listas, tareas y pasos. Todo cambio deja ademas una fila en <c>sync_queue</c> para que
 /// la sincronizacion pueda subirlo cuando haya red.
 /// </summary>
+/// <remarks>
+/// <para><b>Todo lo que sale de aqui es de la cuenta que este dentro</b> (<see cref="AccountId"/>).
+/// En el mismo aparato se puede entrar con Google o con Microsoft, y cada una tiene sus listas, sus
+/// tareas, sus grupos y su nivel: la base de datos es una sola, pero cada fila lleva escrito de
+/// quien es. Lo hace el repositorio y no cada pantalla, porque una consulta que se olvidara del
+/// filtro enseñaria las tareas de la otra cuenta sin que nada chirriara.</para>
+/// </remarks>
 public sealed class TaskRepository
 {
     private readonly LocalDatabase _db;
+    private readonly SettingsService _settings;
 
-    public TaskRepository(LocalDatabase db) => _db = db;
+    public TaskRepository(LocalDatabase db, SettingsService settings)
+    {
+        _db = db;
+        _settings = settings;
+    }
 
     private SQLite.SQLiteAsyncConnection Db => _db.Connection;
+
+    /// <summary>
+    /// La cuenta que esta dentro, que es de quien es todo lo que se lee y se escribe.
+    /// </summary>
+    /// <remarks>
+    /// Se lee de los ajustes en cada consulta en vez de guardarla aparte: la entrada y la salida ya
+    /// la escriben ahi (<see cref="SupabaseAuthService"/>), asi que no hay que acordarse de avisar
+    /// al repositorio cuando se cambia de cuenta —que es justo el aviso que se olvida—. Vacia
+    /// mientras no ha entrado nadie.
+    /// </remarks>
+    public string AccountId => _settings.Get(SettingsService.KeyGoogleSub);
 
     public Task InitializeAsync() => _db.InitializeAsync();
 
@@ -20,17 +44,23 @@ public sealed class TaskRepository
     // Listas
     // -----------------------------------------------------------------------
 
-    public Task<List<TaskList>> GetPrivateListsAsync() =>
-        Db.Table<TaskList>()
-          .Where(l => l.GroupId == null && !l.Deleted)
-          .OrderBy(l => l.SortOrder)
-          .ToListAsync();
+    public Task<List<TaskList>> GetPrivateListsAsync()
+    {
+        var account = AccountId;
+        return Db.Table<TaskList>()
+                 .Where(l => l.GroupId == null && !l.Deleted && l.AccountId == account)
+                 .OrderBy(l => l.SortOrder)
+                 .ToListAsync();
+    }
 
-    public Task<List<TaskList>> GetGroupListsAsync(Guid groupId) =>
-        Db.Table<TaskList>()
-          .Where(l => l.GroupId == groupId && !l.Deleted)
-          .OrderBy(l => l.SortOrder)
-          .ToListAsync();
+    public Task<List<TaskList>> GetGroupListsAsync(Guid groupId)
+    {
+        var account = AccountId;
+        return Db.Table<TaskList>()
+                 .Where(l => l.GroupId == groupId && !l.Deleted && l.AccountId == account)
+                 .OrderBy(l => l.SortOrder)
+                 .ToListAsync();
+    }
 
     public async Task<TaskList?> GetListAsync(Guid id) =>
         await Db.Table<TaskList>().Where(l => l.Id == id).FirstOrDefaultAsync().ConfigureAwait(false);
@@ -56,6 +86,7 @@ public sealed class TaskRepository
         {
             Name = name.Trim(),
             GroupId = groupId,
+            AccountId = AccountId,
             Icon = icon,
             SortOrder = order,
         };
@@ -402,7 +433,8 @@ public sealed class TaskRepository
     public async Task<List<string>> GetTagsAsync()
     {
         var stored = await Db.QueryScalarsAsync<string>(
-            "SELECT Tags FROM tasks WHERE Deleted = 0 AND Tags <> ''").ConfigureAwait(false);
+            "SELECT Tags FROM tasks WHERE Deleted = 0 AND Tags <> '' AND AccountId = ?",
+            AccountId).ConfigureAwait(false);
 
         return stored
             .SelectMany(TaskTags.Split)
@@ -417,8 +449,9 @@ public sealed class TaskRepository
     public async Task<List<TaskItem>> GetMyDayAsync(DateTime? day = null, string? tag = null)
     {
         var date = (day ?? DateTime.Now).Date;
+        var account = AccountId;
         var tasks = await Db.Table<TaskItem>()
-                            .Where(t => !t.Deleted && t.MyDayOn == date)
+                            .Where(t => !t.Deleted && t.MyDayOn == date && t.AccountId == account)
                             .OrderBy(t => t.IsDone)
                             .ThenBy(t => t.SortOrder)
                             .ThenByDescending(t => t.CreatedAt)
@@ -446,9 +479,10 @@ public sealed class TaskRepository
     {
         var start = from.Date;
         var end = to.Date;
+        var account = AccountId;
 
         var tasks = await Db.Table<TaskItem>()
-                            .Where(t => !t.Deleted)
+                            .Where(t => !t.Deleted && t.AccountId == account)
                             .ToListAsync().ConfigureAwait(false);
 
         tasks = FilterByTag(tasks, tag);
@@ -497,8 +531,9 @@ public sealed class TaskRepository
     public async Task<List<TaskItem>> GetAllTasksAsync(
         TaskFilter filter, string? tag = null, string? search = null)
     {
+        var account = AccountId;
         var tasks = await Db.Table<TaskItem>()
-                            .Where(t => !t.Deleted)
+                            .Where(t => !t.Deleted && t.AccountId == account)
                             .ToListAsync().ConfigureAwait(false);
 
         var today = DateTime.Now.Date;
@@ -528,13 +563,21 @@ public sealed class TaskRepository
     }
 
     /// <summary>Cuantas quedan por hacer en total. Es lo que cuenta el icono de la bandeja.</summary>
-    public Task<int> CountPendingAsync() =>
-        Db.Table<TaskItem>().Where(t => !t.Deleted && !t.IsDone).CountAsync();
+    public Task<int> CountPendingAsync()
+    {
+        var account = AccountId;
+        return Db.Table<TaskItem>()
+                 .Where(t => !t.Deleted && !t.IsDone && t.AccountId == account)
+                 .CountAsync();
+    }
 
     public Task<int> CountMyDayPendingAsync()
     {
         var date = DateTime.Now.Date;
-        return Db.Table<TaskItem>().Where(t => !t.Deleted && !t.IsDone && t.MyDayOn == date).CountAsync();
+        var account = AccountId;
+        return Db.Table<TaskItem>()
+                 .Where(t => !t.Deleted && !t.IsDone && t.MyDayOn == date && t.AccountId == account)
+                 .CountAsync();
     }
 
     public async Task<TaskItem?> GetTaskAsync(Guid id) =>
@@ -545,6 +588,7 @@ public sealed class TaskRepository
         var task = new TaskItem
         {
             ListId = listId,
+            AccountId = AccountId,
             Title = title.Trim(),
             MyDayOn = inMyDay ? DateTime.Now.Date : null,
             // Lo nuevo entra arriba, que es donde estaba antes por fecha de creacion.
@@ -602,6 +646,9 @@ public sealed class TaskRepository
     /// <summary>Da de alta una tarea ya construida (la siguiente vuelta de una repetitiva).</summary>
     public async Task<TaskItem> AddTaskCopyAsync(TaskItem task)
     {
+        // La copia es de quien la hace: si viniera con el hueco de una fila antigua, naceria
+        // huerfana y no la veria nadie.
+        task.AccountId = AccountId;
         await Db.InsertAsync(task).ConfigureAwait(false);
         await QueueAsync("tasks", task.Id, "upsert").ConfigureAwait(false);
         return task;
@@ -816,8 +863,15 @@ public sealed class TaskRepository
     // Grupos (en local; el alta real contra Supabase la hace ISyncService)
     // -----------------------------------------------------------------------
 
-    public Task<List<TaskGroup>> GetGroupsAsync() =>
-        Db.Table<TaskGroup>().Where(g => !g.Deleted).OrderBy(g => g.Name).ToListAsync();
+    /// <summary>Los grupos de la cuenta que esta dentro: cada una entra en los suyos.</summary>
+    public Task<List<TaskGroup>> GetGroupsAsync()
+    {
+        var account = AccountId;
+        return Db.Table<TaskGroup>()
+                 .Where(g => !g.Deleted && g.AccountId == account)
+                 .OrderBy(g => g.Name)
+                 .ToListAsync();
+    }
 
     public async Task<TaskGroup?> GetGroupAsync(Guid id) =>
         await Db.Table<TaskGroup>().Where(g => g.Id == id).FirstOrDefaultAsync().ConfigureAwait(false);
@@ -825,6 +879,7 @@ public sealed class TaskRepository
     public async Task<TaskGroup> SaveGroupAsync(TaskGroup group)
     {
         group.UpdatedAt = DateTime.UtcNow;
+        group.AccountId = AccountId;
         await Db.InsertOrReplaceAsync(group).ConfigureAwait(false);
         return group;
     }
@@ -852,19 +907,32 @@ public sealed class TaskRepository
         await QueueAsync("xp_events", xp.Id, "upsert").ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// El XP de la cuenta que esta dentro. <c>UserId</c> ya es el identificador de la cuenta, asi
+    /// que aqui no hace falta otra columna: el nivel de una no cuenta para el de la otra.
+    /// </summary>
     public async Task<int> GetTotalXpAsync(Guid? groupId = null)
     {
-        var sql = groupId is null
-            ? "SELECT COALESCE(SUM(Amount), 0) FROM xp_events"
-            : "SELECT COALESCE(SUM(Amount), 0) FROM xp_events WHERE GroupId = ?";
+        var account = AccountId;
 
         return groupId is null
-            ? await Db.ExecuteScalarAsync<int>(sql).ConfigureAwait(false)
-            : await Db.ExecuteScalarAsync<int>(sql, groupId.Value).ConfigureAwait(false);
+            ? await Db.ExecuteScalarAsync<int>(
+                "SELECT COALESCE(SUM(Amount), 0) FROM xp_events WHERE UserId = ?",
+                account).ConfigureAwait(false)
+            : await Db.ExecuteScalarAsync<int>(
+                "SELECT COALESCE(SUM(Amount), 0) FROM xp_events WHERE GroupId = ? AND UserId = ?",
+                groupId.Value, account).ConfigureAwait(false);
     }
 
-    public Task<List<XpEvent>> GetRecentXpAsync(int take = 20) =>
-        Db.Table<XpEvent>().OrderByDescending(x => x.CreatedAt).Take(take).ToListAsync();
+    public Task<List<XpEvent>> GetRecentXpAsync(int take = 20)
+    {
+        var account = AccountId;
+        return Db.Table<XpEvent>()
+                 .Where(x => x.UserId == account)
+                 .OrderByDescending(x => x.CreatedAt)
+                 .Take(take)
+                 .ToListAsync();
+    }
 
     /// <summary>Dias distintos (hora local) con al menos una tarea completada, mas reciente primero.</summary>
     public async Task<List<DateTime>> GetActiveDaysAsync(int take = 90)
@@ -872,8 +940,9 @@ public sealed class TaskRepository
         // Las fechas se guardan como ticks, asi que DATE() de SQLite no sirve: hay que traer los
         // DateTime y agrupar en memoria. Con un historial de 90 dias el coste es irrelevante.
         var since = DateTime.UtcNow.AddDays(-take);
+        var account = AccountId;
         var done = await Db.Table<TaskItem>()
-                           .Where(t => t.IsDone && !t.Deleted && t.DoneAt >= since)
+                           .Where(t => t.IsDone && !t.Deleted && t.DoneAt >= since && t.AccountId == account)
                            .ToListAsync().ConfigureAwait(false);
 
         return done
@@ -887,31 +956,85 @@ public sealed class TaskRepository
     public async Task<int> CountCompletedAsync(DateTime since)
     {
         return await Db.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM tasks WHERE IsDone = 1 AND Deleted = 0 AND DoneAt >= ?",
-            since).ConfigureAwait(false);
+            "SELECT COUNT(*) FROM tasks WHERE IsDone = 1 AND Deleted = 0 AND DoneAt >= ? AND AccountId = ?",
+            since, AccountId).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Traspasa autoria y XP del identificador provisional a la cuenta de Google recien entrada.
-    /// Sin esto, entrar por primera vez borraria de un plumazo el nivel y las rachas conseguidas
-    /// antes de tener cuenta.
+    /// Pone a nombre de <paramref name="accountId"/> todo lo que no es de ninguna cuenta todavia, y
+    /// devuelve cuantas filas ha adoptado.
     /// </summary>
-    public async Task ReassignUserAsync(string oldUserId, string newUserId)
+    /// <remarks>
+    /// <para>Huerfano es lo escrito <b>antes de que existiera la separacion por cuenta</b>: lo de
+    /// una version anterior de la aplicacion y lo hecho con el identificador provisional del propio
+    /// aparato. Sin esto, actualizar dejaria las listas de siempre invisibles —estan ahi, pero no
+    /// son de nadie— y el nivel y las rachas volverian a cero.</para>
+    ///
+    /// <para><b>Solo alcanza a lo huerfano, nunca a lo de otra cuenta.</b> Antes esto era un
+    /// <c>ReassignUserAsync(anterior, nueva)</c> a secas, que con dos cuentas en el mismo aparato
+    /// se llevaba las tareas de la primera a la segunda en cuanto se cambiaba de una a otra. Lo que
+    /// ya tiene dueño se queda donde esta.</para>
+    /// </remarks>
+    /// <param name="provisionalUserId">
+    /// El identificador de antes de tener cuenta, con el que estan firmadas la autoria y el XP de
+    /// esas filas. Vacio si ya no queda ninguno.
+    /// </param>
+    public async Task<int> ClaimOrphansAsync(string accountId, string provisionalUserId)
     {
-        if (string.IsNullOrEmpty(oldUserId) || string.IsNullOrEmpty(newUserId) || oldUserId == newUserId)
+        if (string.IsNullOrEmpty(accountId))
         {
-            return;
+            return 0;
         }
 
-        await Db.ExecuteAsync("UPDATE tasks SET CreatedBy = ? WHERE CreatedBy = ?", newUserId, oldUserId)
-                .ConfigureAwait(false);
-        await Db.ExecuteAsync("UPDATE tasks SET DoneBy = ? WHERE DoneBy = ?", newUserId, oldUserId)
-                .ConfigureAwait(false);
-        await Db.ExecuteAsync("UPDATE xp_events SET UserId = ? WHERE UserId = ?", newUserId, oldUserId)
-                .ConfigureAwait(false);
-        await Db.ExecuteAsync("UPDATE task_lists SET OwnerId = ? WHERE OwnerId = ?", newUserId, oldUserId)
-                .ConfigureAwait(false);
+        // Se pregunta antes de tocar nada: esto se llama al abrir cada pantalla y, pasada la
+        // primera vez, no queda ni una fila huerfana. Una cuenta sale mas barata que cuatro
+        // escrituras que no cambiarian nada.
+        var orphans = await Db.ExecuteScalarAsync<int>($@"
+            SELECT (SELECT COUNT(*) FROM task_lists WHERE {Orphan})
+                 + (SELECT COUNT(*) FROM tasks      WHERE {Orphan})
+                 + (SELECT COUNT(*) FROM groups     WHERE {Orphan})").ConfigureAwait(false);
+
+        if (orphans == 0)
+        {
+            return 0;
+        }
+
+        // La autoria y el XP van primero, mientras las filas todavia se reconocen por el
+        // identificador provisional: despues de sellarlas ya no habria como distinguirlas.
+        if (provisionalUserId.Length > 0 && provisionalUserId != accountId)
+        {
+            await Db.ExecuteAsync(
+                $"UPDATE tasks SET CreatedBy = ? WHERE CreatedBy = ? AND {Orphan}",
+                accountId, provisionalUserId).ConfigureAwait(false);
+            await Db.ExecuteAsync(
+                $"UPDATE tasks SET DoneBy = ? WHERE DoneBy = ? AND {Orphan}",
+                accountId, provisionalUserId).ConfigureAwait(false);
+            await Db.ExecuteAsync(
+                "UPDATE xp_events SET UserId = ? WHERE UserId = ?",
+                accountId, provisionalUserId).ConfigureAwait(false);
+        }
+
+        await Db.ExecuteAsync($"UPDATE task_lists SET AccountId = ? WHERE {Orphan}", accountId).ConfigureAwait(false);
+        await Db.ExecuteAsync($"UPDATE tasks SET AccountId = ? WHERE {Orphan}", accountId).ConfigureAwait(false);
+        await Db.ExecuteAsync($"UPDATE groups SET AccountId = ? WHERE {Orphan}", accountId).ConfigureAwait(false);
+
+        // La cola pendiente tambien: son cambios de esas mismas filas, y sin dueño no los subiria
+        // nadie.
+        await Db.ExecuteAsync($"UPDATE sync_queue SET AccountId = ? WHERE {Orphan}", accountId).ConfigureAwait(false);
+
+        return orphans;
     }
+
+    /// <summary>
+    /// Como se reconoce una fila que no es de ninguna cuenta.
+    /// </summary>
+    /// <remarks>
+    /// <b>Nula tambien cuenta</b>: la columna se añade a una base que ya existe
+    /// (<c>ALTER TABLE ADD COLUMN</c>), y ahi todas las filas de antes nacen a <c>NULL</c>, no a
+    /// cadena vacia. Buscando solo la cadena vacia, la actualizacion dejaba invisible todo lo que
+    /// ya habia.
+    /// </remarks>
+    private const string Orphan = "(AccountId IS NULL OR AccountId = '')";
 
     // -----------------------------------------------------------------------
     // Cola de sincronizacion
@@ -927,8 +1050,13 @@ public sealed class TaskRepository
 
     private async Task QueueAsync(string entity, Guid id, string operation)
     {
-        await Db.InsertAsync(new SyncOp { Entity = entity, EntityId = id.ToString(), Operation = operation })
-                .ConfigureAwait(false);
+        await Db.InsertAsync(new SyncOp
+        {
+            AccountId = AccountId,
+            Entity = entity,
+            EntityId = id.ToString(),
+            Operation = operation,
+        }).ConfigureAwait(false);
 
         LocalChangeQueued?.Invoke(this, EventArgs.Empty);
     }
@@ -941,9 +1069,28 @@ public sealed class TaskRepository
     /// acabaria devolviendole al servidor lo que el servidor acaba de mandar. Ademas se respeta la
     /// marca de tiempo que trae, en vez de ponerle la de ahora, que es lo que permite que la regla
     /// de "gana lo mas reciente" siga teniendo sentido en la siguiente vuelta.
+    ///
+    /// <para>Lo que baja es <b>de la cuenta que lo ha bajado</b>: el servidor solo devuelve las
+    /// filas de quien pregunta, asi que sellarlas aqui —en el unico sitio por el que entran— evita
+    /// que cada fusion tenga que acordarse de hacerlo.</para>
     /// </remarks>
-    public Task SaveFromRemoteAsync<T>(T row, bool isNew) where T : notnull =>
-        isNew ? Db.InsertAsync(row) : Db.UpdateAsync(row);
+    public Task SaveFromRemoteAsync<T>(T row, bool isNew) where T : notnull
+    {
+        switch (row)
+        {
+            case TaskList list:
+                list.AccountId = AccountId;
+                break;
+            case TaskItem task:
+                task.AccountId = AccountId;
+                break;
+            case TaskGroup group:
+                group.AccountId = AccountId;
+                break;
+        }
+
+        return isNew ? Db.InsertAsync(row) : Db.UpdateAsync(row);
+    }
 
     /// <summary>
     /// Mete en la cola <b>todo lo que ya hay aqui</b>, para que suba al servidor.
@@ -959,17 +1106,28 @@ public sealed class TaskRepository
     /// </remarks>
     public async Task<int> QueueEverythingAsync()
     {
-        var lists = await Db.Table<TaskList>().ToListAsync().ConfigureAwait(false);
-        var tasks = await Db.Table<TaskItem>().ToListAsync().ConfigureAwait(false);
-        var steps = await Db.Table<TaskStep>().ToListAsync().ConfigureAwait(false);
-        var attachments = await Db.Table<TaskAttachment>().ToListAsync().ConfigureAwait(false);
+        // Solo lo de la cuenta que esta dentro: subir lo de la otra la mezclaria en el servidor de
+        // esta, que es de donde bajaria despues a todos sus aparatos.
+        var account = AccountId;
+        var lists = await Db.Table<TaskList>().Where(l => l.AccountId == account)
+                            .ToListAsync().ConfigureAwait(false);
+        var tasks = await Db.Table<TaskItem>().Where(t => t.AccountId == account)
+                            .ToListAsync().ConfigureAwait(false);
+
+        // Los pasos y los adjuntos no llevan cuenta: cuelgan de una tarea, y las que quedan aqui
+        // ya son las suyas.
+        var mine = tasks.Select(t => t.Id).ToHashSet();
+        var steps = (await Db.Table<TaskStep>().ToListAsync().ConfigureAwait(false))
+                    .Where(s => mine.Contains(s.TaskId)).ToList();
+        var attachments = (await Db.Table<TaskAttachment>().ToListAsync().ConfigureAwait(false))
+                          .Where(a => mine.Contains(a.TaskId)).ToList();
 
         // Las listas primero: una tarea cuya lista aun no existe arriba no tendria donde colgarse.
         var ops = new List<SyncOp>(lists.Count + tasks.Count + steps.Count);
-        ops.AddRange(lists.Select(l => new SyncOp { Entity = "task_lists", EntityId = l.Id.ToString(), Operation = "upsert" }));
-        ops.AddRange(tasks.Select(t => new SyncOp { Entity = "tasks", EntityId = t.Id.ToString(), Operation = "upsert" }));
-        ops.AddRange(steps.Select(s => new SyncOp { Entity = "task_steps", EntityId = s.Id.ToString(), Operation = "upsert" }));
-        ops.AddRange(attachments.Select(a => new SyncOp { Entity = "task_attachments", EntityId = a.Id.ToString(), Operation = "upsert" }));
+        ops.AddRange(lists.Select(l => new SyncOp { AccountId = account, Entity = "task_lists", EntityId = l.Id.ToString(), Operation = "upsert" }));
+        ops.AddRange(tasks.Select(t => new SyncOp { AccountId = account, Entity = "tasks", EntityId = t.Id.ToString(), Operation = "upsert" }));
+        ops.AddRange(steps.Select(s => new SyncOp { AccountId = account, Entity = "task_steps", EntityId = s.Id.ToString(), Operation = "upsert" }));
+        ops.AddRange(attachments.Select(a => new SyncOp { AccountId = account, Entity = "task_attachments", EntityId = a.Id.ToString(), Operation = "upsert" }));
 
         if (ops.Count > 0)
         {
@@ -980,8 +1138,19 @@ public sealed class TaskRepository
         return ops.Count;
     }
 
-    public Task<List<SyncOp>> GetPendingSyncAsync(int take = 200) =>
-        Db.Table<SyncOp>().OrderBy(o => o.Id).Take(take).ToListAsync();
+    /// <summary>
+    /// Lo que queda por subir <b>de la cuenta que esta dentro</b>. Lo de la otra se queda en la
+    /// cola esperando a que vuelva, en vez de subirse a nombre de quien no lo escribio.
+    /// </summary>
+    public Task<List<SyncOp>> GetPendingSyncAsync(int take = 200)
+    {
+        var account = AccountId;
+        return Db.Table<SyncOp>()
+                 .Where(o => o.AccountId == account)
+                 .OrderBy(o => o.Id)
+                 .Take(take)
+                 .ToListAsync();
+    }
 
     public Task ClearSyncAsync(IEnumerable<SyncOp> ops)
     {

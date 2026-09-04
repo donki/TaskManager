@@ -76,18 +76,42 @@ public partial class SettingsWindow : Window
     private void ShowAccount()
     {
         var user = _auth.CurrentUser;
+        var provider = CurrentProvider();
 
         AccountLabel.Text = user is not null
-            ? $"{user.DisplayName} · {user.Email}"
+            ? $"{user.DisplayName} · {user.Email} ({provider})"
             : Localization.Loc.Get("NoAccountDesktop");
 
         ShowAvatar(user is null ? string.Empty : _settings.AvatarUrl);
 
-        // El nombre de la aplicacion es el de la cuenta de Google: se enseña, no se edita.
+        // El nombre de la aplicacion es el de la cuenta: se enseña, no se edita.
         DisplayNameBox.Text = user?.DisplayName ?? _settings.DisplayName;
 
-        SignInButton.IsEnabled = user is null && _auth.IsConfigured;
+        // El boton de la cuenta con la que ya se esta dentro se apaga: pulsarlo abriria el
+        // navegador para acabar donde ya se estaba.
+        GoogleButton.IsEnabled = _auth.IsConfiguredFor(IdentityProvider.Google)
+            && provider != IdentityProvider.Google;
+        MicrosoftButton.Visibility = TaskManager.Core.AuthOptions.MicrosoftSignInEnabled
+            && _auth.IsConfiguredFor(IdentityProvider.Microsoft)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        MicrosoftButton.IsEnabled = provider != IdentityProvider.Microsoft;
+
         SignOutButton.IsEnabled = user is not null;
+    }
+
+    /// <summary>Con que proveedor se entro, o null si no hay nadie dentro.</summary>
+    private IdentityProvider? CurrentProvider()
+    {
+        if (_auth.CurrentUser is null)
+        {
+            return null;
+        }
+
+        return Enum.TryParse<IdentityProvider>(
+            _settings.Get(SettingsService.KeyAuthProvider, nameof(IdentityProvider.Google)), out var parsed)
+            ? parsed
+            : IdentityProvider.Google;
     }
 
     /// <summary>
@@ -127,31 +151,61 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private async void OnSignInClick(object sender, RoutedEventArgs e)
+    private async void OnGoogleClick(object sender, RoutedEventArgs e) =>
+        await SignInAsync(IdentityProvider.Google);
+
+    private async void OnMicrosoftClick(object sender, RoutedEventArgs e) =>
+        await SignInAsync(IdentityProvider.Microsoft);
+
+    /// <summary>
+    /// Entra con el proveedor elegido, que es tambien como se <b>cambia de cuenta</b>.
+    /// </summary>
+    /// <remarks>
+    /// <para>Cada cuenta tiene sus listas en este mismo aparato, asi que cambiar no borra ni mueve
+    /// nada: lo de la anterior se queda donde estaba y vuelve a aparecer entero al entrar otra vez
+    /// con ella.</para>
+    ///
+    /// <para>Al volver hay que rehacer la interfaz (<see cref="App.ReloadForAccount"/>): el panel,
+    /// el contador de la bandeja y las ventanas abiertas estan enseñando las listas de la cuenta
+    /// que acaba de salir.</para>
+    /// </remarks>
+    private async Task SignInAsync(IdentityProvider provider)
     {
-        SignInButton.IsEnabled = false;
+        GoogleButton.IsEnabled = false;
+        MicrosoftButton.IsEnabled = false;
         StatusLabel.Text = Localization.Loc.Get("SigningInBrowser");
+
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
-            var user = await _auth.SignInAsync(IdentityProvider.Google, cts.Token);
+            var user = await _auth.SignInAsync(provider, cts.Token);
 
-            // Lo hecho con la cuenta anterior pasa a la nueva: el nivel y las rachas no se pierden.
+            // Lo que no era de ninguna cuenta pasa a esta, y si no tiene ninguna lista se le crea
+            // la primera: una cuenta recien estrenada no puede aparecer sin nada donde escribir.
             await _tasks.AdoptAccountAsync(user.Id);
             StatusLabel.Text = Localization.Loc.Format("SignedInAs", user.Email);
+
+            ShowAccount();
+
+            if (Application.Current is App app)
+            {
+                app.ReloadForAccount();
+            }
+
+            return;
         }
-        catch (TaskCanceledException)
+        catch (OperationCanceledException)
         {
+            // Vale para las dos formas de cortar: el tope de tres minutos y la vuelta a la ventana
+            // sin haber terminado en el navegador.
             StatusLabel.Text = Localization.Loc.Get("SignInCancelled");
         }
         catch (Exception ex)
         {
             StatusLabel.Text = ex.Message;
         }
-        finally
-        {
-            ShowAccount();
-        }
+
+        ShowAccount();
     }
 
     /// <summary>
@@ -170,6 +224,12 @@ public partial class SettingsWindow : Window
         if (login.User is not null)
         {
             await _tasks.AdoptAccountAsync(login.User.Id);
+
+            // Puede haber entrado con la otra cuenta: lo que hay en pantalla es de la anterior.
+            if (Application.Current is App app)
+            {
+                app.ReloadForAccount();
+            }
         }
 
         ShowAccount();
@@ -177,7 +237,7 @@ public partial class SettingsWindow : Window
 
     private async void OnSaveClick(object sender, RoutedEventArgs e)
     {
-        // El nombre no se guarda: viene de la cuenta de Google y se refresca en cada entrada.
+        // El nombre no se guarda: viene de la cuenta con la que se entro y se refresca al entrar.
         await _settings.SetBoolAsync(SettingsService.KeySound, SoundBox.IsChecked == true);
         await _settings.SetBoolAsync(SettingsService.KeyNotifyEnabled, NotifyBox.IsChecked == true);
         await _settings.SetAsync(SettingsService.KeySnoozeMinutes,

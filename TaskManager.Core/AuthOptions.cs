@@ -30,11 +30,17 @@ public static class AuthOptions
     /// Entrada con Microsoft, ademas de con Google.
     /// </summary>
     /// <remarks>
-    /// PKCE contra Entra, <c>oid</c> como identidad —y no <c>sub</c>, que es distinto por
+    /// <para>PKCE contra Entra, <c>oid</c> como identidad —y no <c>sub</c>, que es distinto por
     /// aplicacion— y canje del id_token por la sesion del proyecto como proveedor «azure», que es
-    /// como Supabase sigue llamando a Entra ID.
+    /// como Supabase sigue llamando a Entra ID.</para>
+    ///
+    /// <para><b>Activo desde el 2026-09-03.</b> Estuvo escrito y oculto mientras no se hubiera
+    /// entrado de verdad con el. Lo que faltaba no era el flujo sino lo de debajo: en el mismo
+    /// aparato conviven las dos cuentas y <b>cada una tiene sus listas</b>
+    /// (<see cref="Models.TaskList.AccountId"/>). Sin esa separacion, cambiar de cuenta enseñaba
+    /// las tareas de la anterior mezcladas con las que bajaban del servidor de la nueva.</para>
     /// </remarks>
-    public const bool MicrosoftSignInEnabled = false;
+    public const bool MicrosoftSignInEnabled = true;
 
     /// <summary>
     /// No se puede usar la aplicacion sin entrar: la pantalla de entrada no tiene salida y el

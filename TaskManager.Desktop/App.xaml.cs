@@ -43,9 +43,13 @@ public partial class App : Application
         Directory.CreateDirectory(folder);
 
         _database = new LocalDatabase(Path.Combine(folder, "taskmanager.db3"));
-        var repository = new TaskRepository(_database);
+
+        // Los ajustes van antes que el repositorio: de ahi sale la cuenta que esta dentro, y con
+        // ella sabe el repositorio de quien es lo que lee y lo que escribe.
         _settings = new SettingsService(_database);
         await _settings.LoadAsync();
+
+        var repository = new TaskRepository(_database, _settings);
 
         // El idioma se resuelve antes de crear ninguna ventana: los textos del XAML se fijan al
         // construirla, asi que leerlo despues dejaria la primera ventana en el idioma equivocado.
@@ -68,7 +72,8 @@ public partial class App : Application
         _tasks = new TaskService(repository, _settings, breakdown);
         await _tasks.InitializeAsync();
 
-        // Entrada con Google: navegador del sistema + servidor local de un solo uso, y los tokens
+        // Entrada con Google o con Microsoft: navegador del sistema + servidor local de un solo
+        // uso, y los tokens
         // cifrados con DPAPI. La sesion se recupera sola mientras el refresco siga siendo valido.
         _auth = new SupabaseAuthService(_http, _settings, new DpapiTokenStore(folder), new LoopbackOAuthBrowser());
         await _auth.RestoreSessionAsync();
@@ -203,6 +208,30 @@ public partial class App : Application
 
         _tray.RebuildMenu();
         _tray.SetPending(pending);
+    }
+
+    /// <summary>
+    /// Vuelve a montar la interfaz con las listas de la cuenta que acaba de entrar.
+    /// </summary>
+    /// <remarks>
+    /// <para>Cambiar de cuenta cambia <b>todo</b> lo que se ve: las listas, las tareas, el contador
+    /// de la bandeja y el nivel. Las ventanas abiertas siguen enseñando lo de la anterior, y
+    /// refrescarlas una a una seria acordarse de todas cada vez que se añada una; se cierran y se
+    /// rehacen, que es la misma decision que con el cambio de idioma
+    /// (<see cref="RebuildUi"/>).</para>
+    ///
+    /// <para>La sincronizacion no se pide aqui: el coordinador ya arranca una vuelta al cambiar el
+    /// usuario (<c>SyncCoordinator.OnUserChanged</c>), y lo que baje repinta el panel solo.</para>
+    /// </remarks>
+    public void ReloadForAccount()
+    {
+        _main?.Close();
+        _calendar?.Close();
+
+        RebuildUi();
+
+        _ = Dispatcher.InvokeAsync(async () =>
+            _tray.SetPending(await _tasks.Repository.CountPendingAsync()));
     }
 
     /// <summary>
