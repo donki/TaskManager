@@ -22,10 +22,13 @@
                    Style="{StaticResource HintText}"
                    HorizontalTextAlignment="Center" />
 
+            <!-- Los dos con su logotipo de verdad y el mismo estilo: son dos opciones iguales,
+                 y una marca sobre fondo claro es lo que piden las normas de uso de las dos. -->
             <Button x:Name="GoogleButton"
                     Text="{loc:T ContinueGoogle}"
-                    ImageSource="ic_google_w.png"
+                    ImageSource="ic_google.png"
                     ContentLayout="Left,10"
+                    Style="{StaticResource OutlineButton}"
                     Clicked="OnGoogleClicked"
                     HorizontalOptions="Fill" />
 

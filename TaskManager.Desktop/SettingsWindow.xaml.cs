@@ -87,17 +87,13 @@ public partial class SettingsWindow : Window
         // El nombre de la aplicacion es el de la cuenta: se enseña, no se edita.
         DisplayNameBox.Text = user?.DisplayName ?? _settings.DisplayName;
 
-        // El boton de la cuenta con la que ya se esta dentro se apaga: pulsarlo abriria el
-        // navegador para acabar donde ya se estaba.
-        GoogleButton.IsEnabled = _auth.IsConfiguredFor(IdentityProvider.Google)
-            && provider != IdentityProvider.Google;
-        MicrosoftButton.Visibility = TaskManager.Core.AuthOptions.MicrosoftSignInEnabled
-            && _auth.IsConfiguredFor(IdentityProvider.Microsoft)
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-        MicrosoftButton.IsEnabled = provider != IdentityProvider.Microsoft;
+        // Para cambiar de cuenta hay que CERRAR SESION, que es lo que vuelve a abrir la puerta con
+        // los dos proveedores: aqui lo unico que se puede hacer es salir.
+        var dentro = user is not null;
 
-        SignOutButton.IsEnabled = user is not null;
+        SignOutButton.IsEnabled = dentro;
+
+        AccountHintLabel.Text = Localization.Loc.Get(dentro ? "SwitchAccountHint" : "AccountListsHint");
     }
 
     /// <summary>Con que proveedor se entro, o null si no hay nadie dentro.</summary>
@@ -149,63 +145,6 @@ public partial class SettingsWindow : Window
         {
             AvatarCircle.Visibility = Visibility.Collapsed;
         }
-    }
-
-    private async void OnGoogleClick(object sender, RoutedEventArgs e) =>
-        await SignInAsync(IdentityProvider.Google);
-
-    private async void OnMicrosoftClick(object sender, RoutedEventArgs e) =>
-        await SignInAsync(IdentityProvider.Microsoft);
-
-    /// <summary>
-    /// Entra con el proveedor elegido, que es tambien como se <b>cambia de cuenta</b>.
-    /// </summary>
-    /// <remarks>
-    /// <para>Cada cuenta tiene sus listas en este mismo aparato, asi que cambiar no borra ni mueve
-    /// nada: lo de la anterior se queda donde estaba y vuelve a aparecer entero al entrar otra vez
-    /// con ella.</para>
-    ///
-    /// <para>Al volver hay que rehacer la interfaz (<see cref="App.ReloadForAccount"/>): el panel,
-    /// el contador de la bandeja y las ventanas abiertas estan enseñando las listas de la cuenta
-    /// que acaba de salir.</para>
-    /// </remarks>
-    private async Task SignInAsync(IdentityProvider provider)
-    {
-        GoogleButton.IsEnabled = false;
-        MicrosoftButton.IsEnabled = false;
-        StatusLabel.Text = Localization.Loc.Get("SigningInBrowser");
-
-        try
-        {
-            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
-            var user = await _auth.SignInAsync(provider, cts.Token);
-
-            // Lo que no era de ninguna cuenta pasa a esta, y si no tiene ninguna lista se le crea
-            // la primera: una cuenta recien estrenada no puede aparecer sin nada donde escribir.
-            await _tasks.AdoptAccountAsync(user.Id);
-            StatusLabel.Text = Localization.Loc.Format("SignedInAs", user.Email);
-
-            ShowAccount();
-
-            if (Application.Current is App app)
-            {
-                app.ReloadForAccount();
-            }
-
-            return;
-        }
-        catch (OperationCanceledException)
-        {
-            // Vale para las dos formas de cortar: el tope de tres minutos y la vuelta a la ventana
-            // sin haber terminado en el navegador.
-            StatusLabel.Text = Localization.Loc.Get("SignInCancelled");
-        }
-        catch (Exception ex)
-        {
-            StatusLabel.Text = ex.Message;
-        }
-
-        ShowAccount();
     }
 
     /// <summary>
