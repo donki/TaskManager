@@ -117,17 +117,18 @@ public partial class SettingsPage : ContentPage
             ? Localization.Loc.Instance["NoAccountMobile"]
             : $"{user.Email} · {provider}";
 
-        // El boton de la cuenta con la que ya se esta dentro se apaga: pulsarlo abriria el
-        // navegador para acabar donde ya se estaba.
-        GoogleButton.IsEnabled = _auth.IsConfiguredFor(IdentityProvider.Google)
-            && provider != IdentityProvider.Google;
-        MicrosoftButton.IsVisible = AuthOptions.MicrosoftSignInEnabled
-            && _auth.IsConfiguredFor(IdentityProvider.Microsoft);
-        MicrosoftButton.IsEnabled = provider != IdentityProvider.Microsoft;
+        // Para cambiar de cuenta hay que CERRAR SESION, y elegir despues en la puerta: aqui lo
+        // unico que se puede hacer es salir.
+        //
+        // Se intento el camino directo —pulsar el otro proveedor desde aqui— y no valia: la
+        // pantalla se quedaba a medias con lo de la cuenta anterior y habia que matar la
+        // aplicacion. LoginPage es el unico sitio por el que se entra, y el que ya sabe llevarte a
+        // tus tareas.
+        var dentro = user is not null;
 
-        SignOutButton.IsVisible = user is not null;
+        SignOutButton.IsVisible = dentro;
 
-        AccountHintLabel.Text = Localization.Loc.Instance["AccountListsHint"];
+        AccountHintLabel.Text = Localization.Loc.Instance[dentro ? "SwitchAccountHint" : "AccountListsHint"];
     }
 
     /// <summary>Con que proveedor se entro, o null si no hay nadie dentro.</summary>
@@ -142,65 +143,6 @@ public partial class SettingsPage : ContentPage
             _settings.Get(SettingsService.KeyAuthProvider, nameof(IdentityProvider.Google)), out var parsed)
             ? parsed
             : IdentityProvider.Google;
-    }
-
-    private async void OnGoogleClicked(object? sender, EventArgs e) =>
-        await SignInAsync(IdentityProvider.Google);
-
-    private async void OnMicrosoftClicked(object? sender, EventArgs e) =>
-        await SignInAsync(IdentityProvider.Microsoft);
-
-    /// <summary>
-    /// Entra con el proveedor elegido, que es tambien como se <b>cambia de cuenta</b>.
-    /// </summary>
-    /// <remarks>
-    /// <para>Cada cuenta tiene sus listas en este mismo aparato, asi que cambiar no borra ni mueve
-    /// nada: lo de la anterior se queda donde estaba y vuelve a aparecer entero al entrar otra vez
-    /// con ella.</para>
-    ///
-    /// <para>Al volver se rehace el Shell: el menu, los contadores y las paginas que ya estan
-    /// construidas siguen enseñando las listas de la cuenta que acaba de salir, y refrescarlas una
-    /// a una seria acordarse de todas. Es la misma decision que con el cambio de idioma.</para>
-    /// </remarks>
-    private async Task SignInAsync(IdentityProvider provider)
-    {
-        GoogleButton.IsEnabled = false;
-        MicrosoftButton.IsEnabled = false;
-
-        try
-        {
-            // Tres minutos de tope; lo habitual es que se corte antes, al volver a la aplicacion
-            // sin haber terminado en el navegador (ver AndroidLoopbackBrowser).
-            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
-            var user = await _auth.SignInAsync(provider, cts.Token);
-
-            // Lo que no era de ninguna cuenta pasa a esta, y si no tiene ninguna lista se le crea
-            // la primera: una cuenta recien estrenada no puede aparecer sin nada donde escribir.
-            await _tasks.AdoptAccountAsync(user.Id);
-
-            ShowAccount();
-
-            // La sincronizacion no se pide aqui: el coordinador ya arranca una vuelta al cambiar el
-            // usuario, y lo que baje aparece en cuanto se rehace el Shell.
-            if (Application.Current?.Windows.FirstOrDefault() is { } window)
-            {
-                window.Page = new AppShell();
-            }
-
-            return;
-        }
-        catch (OperationCanceledException)
-        {
-            // Se volvio sin entrar. No hay nada que contar: los botones se vuelven a encender solos
-            // en ShowAccount, que es lo que hacia falta.
-        }
-        catch (Exception ex)
-        {
-            await SocShared.ModernDialog.AlertAsync(
-                this, Localization.Loc.Instance["SignInFailed"], ex.Message, "OK");
-        }
-
-        ShowAccount();
     }
 
     private async void OnSignOutClicked(object? sender, EventArgs e)

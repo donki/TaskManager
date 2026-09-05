@@ -35,24 +35,10 @@
                         </VerticalStackLayout>
                     </Grid>
 
-                    <!-- Un boton por cuenta: pulsar uno entra con ese proveedor, se estuviera
-                         dentro con el otro o con ninguno. Cada cuenta tiene sus listas, asi que
-                         esto es lo que hace de interruptor entre una y otra. -->
-                    <Button x:Name="GoogleButton"
-                            Text="{loc:T ContinueGoogle}"
-                            ImageSource="ic_google_w.png"
-                            ContentLayout="Left,10"
-                            Clicked="OnGoogleClicked"
-                            HorizontalOptions="Fill" />
-
-                    <Button x:Name="MicrosoftButton"
-                            Text="{loc:T ContinueMicrosoft}"
-                            ImageSource="ic_microsoft.png"
-                            ContentLayout="Left,10"
-                            Style="{StaticResource OutlineButton}"
-                            Clicked="OnMicrosoftClicked"
-                            HorizontalOptions="Fill" />
-
+                    <!-- Aqui no se elige cuenta: para cambiar hay que CERRAR SESION, y la
+                         eleccion se hace en la puerta, que es el unico sitio por el que se entra.
+                         Los dos botones de proveedor estaban aqui y no se podian pulsar nunca:
+                         adornaban una pantalla donde la unica accion posible es salir. -->
                     <Button x:Name="SignOutButton"
                             Text="{loc:T SignOut}"
                             Style="{StaticResource OutlineButton}"

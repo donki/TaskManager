@@ -41,16 +41,10 @@
             <TextBlock Grid.Column="1" x:Name="AccountLabel" VerticalAlignment="Center"
                        TextWrapping="Wrap" />
         </Grid>
-        <!-- Un boton por cuenta: pulsar uno entra con ese proveedor, se estuviera dentro con el
-             otro o con ninguno. Cada cuenta tiene sus listas, asi que esto es lo que hace de
-             interruptor entre una y otra. -->
+        <!-- Aqui no se elige cuenta: para cambiar hay que CERRAR SESION, y al salir se abre la
+             puerta con los dos proveedores. Los botones de proveedor estaban aqui y no se podian
+             pulsar nunca. -->
         <StackPanel Orientation="Horizontal">
-            <Button x:Name="GoogleButton" Style="{StaticResource IconButton}"
-                    Content="&#xE77B;" ToolTip="{loc:T SignInGoogle}" Margin="0,0,8,0"
-                    Click="OnGoogleClick" />
-            <Button x:Name="MicrosoftButton" Style="{StaticResource IconButton}"
-                    Content="&#xE902;" ToolTip="{loc:T SignInMicrosoft}" Margin="0,0,8,0"
-                    Click="OnMicrosoftClick" />
             <Button x:Name="SignOutButton" Style="{StaticResource GhostIconButton}"
                     Content="&#xE7E8;" ToolTip="{loc:T SignOut}" Click="OnSignOutClick" />
         </StackPanel>

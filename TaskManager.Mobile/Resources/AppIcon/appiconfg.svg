@@ -1,6 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="456" height="456" viewBox="0 0 456 456">
-  <path d="M150 232 L206 288 L312 172" fill="none" stroke="#FFFFFF" stroke-width="34"
+  <!-- Los dos checks suben 34 px sobre el sitio que tenian.
+       El grupo se apoyaba en y 172-356 y su centro caia en 264, con el lienzo centrado en 228: la
+       marca se veia hundida y el check de arriba, que es el que manda, quedaba por debajo del
+       medio. Subidos, el conjunto se centra y el blanco cae donde tiene que caer. -->
+  <path d="M150 198 L206 254 L312 138" fill="none" stroke="#FFFFFF" stroke-width="34"
         stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M150 300 L206 356 L312 240" fill="none" stroke="#C3C0FF" stroke-width="22"
+  <path d="M150 266 L206 322 L312 206" fill="none" stroke="#C3C0FF" stroke-width="22"
         stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
 </svg>
