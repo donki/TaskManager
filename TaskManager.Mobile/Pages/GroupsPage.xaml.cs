@@ -81,6 +81,22 @@ public partial class GroupsPage : ContentPage
 
     // -----------------------------------------------------------------------
 
+    /// <summary>
+    /// Refrescar: habla con el servidor y vuelve a pintar.
+    /// </summary>
+    /// <remarks>
+    /// No es repintar lo de aqui: lo que se quiere saber al pulsarlo es si hay algo nuevo del otro
+    /// aparato —una lista que ha añadido otro del grupo, o el grupo entero en el que se acaba de
+    /// entrar—. Con la rueda a la vista mientras dura, igual que en «Mis tareas»: el boton espera a
+    /// que la sincronizacion termine de verdad, y sin ningun aviso parece que no hace nada.
+    /// </remarks>
+    private async void OnRefreshClicked(object? sender, EventArgs e) =>
+        await RefreshingBadge.WhileAsync(async () =>
+        {
+            await ServiceHelper.GetRequiredService<SyncCoordinator>().RefreshNowAsync();
+            await ReloadAsync();
+        });
+
     private async void OnNewGroupClicked(object? sender, EventArgs e)
     {
         var name = await SocShared.ModernDialog.PromptAsync(this, "Nuevo grupo", null, "Crear", "Cancelar",
@@ -146,18 +162,9 @@ public partial class GroupsPage : ContentPage
             return;
         }
 
-        var seguir = await SocShared.ModernDialog.AlertAsync(
-            this,
-            Localization.Loc.Instance["InviteTitle"],
-            Localization.Loc.Instance["InviteWarning"],
-            Localization.Loc.Instance["InviteCreate"],
-            Localization.Loc.Instance["Cancel"]);
-
-        if (!seguir)
-        {
-            return;
-        }
-
+        // Sin preguntar antes: el aviso de que la invitacion anterior deja de valer era un paso
+        // mas para llegar a lo unico que se venia a hacer —enseñar el codigo—, y a quien ya esta
+        // dentro no le afecta. Se va derecho al QR.
         try
         {
             var invite = await _sync.RenewInviteAsync(group.Id, group.JoinCode);

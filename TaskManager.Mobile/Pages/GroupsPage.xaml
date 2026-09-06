@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:loc="clr-namespace:TaskManager.Mobile.Localization"
              xmlns:pages="clr-namespace:TaskManager.Mobile.Pages"
+             xmlns:controls="clr-namespace:TaskManager.Mobile.Controls"
              x:Class="TaskManager.Mobile.Pages.GroupsPage"
              Title="{loc:T MenuGroups}">
 
@@ -12,7 +13,10 @@
         <!-- Escondido de momento: mientras se prueba el QR, entrar en un grupo se hace solo
              escaneandolo. El codigo por teclado sigue programado (OnJoinGroupClicked). -->
         <!--<ToolbarItem IconImageSource="ic_key_w.png" Clicked="OnJoinGroupClicked" />-->
+        <ToolbarItem IconImageSource="ic_refresh_w.png" Clicked="OnRefreshClicked" />
     </ContentPage.ToolbarItems>
+
+    <Grid>
 
     <CollectionView x:Name="GroupsView" SelectionMode="None" Margin="8">
 
@@ -75,4 +79,8 @@
             </DataTemplate>
         </CollectionView.ItemTemplate>
     </CollectionView>
+
+        <!-- Aviso de que se esta hablando con el servidor. Flota arriba y no bloquea nada. -->
+        <controls:RefreshingBadge x:Name="RefreshingBadge" />
+    </Grid>
 </ContentPage>

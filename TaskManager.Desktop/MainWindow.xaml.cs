@@ -1083,11 +1083,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!Controls.ModernDialog.Confirm(this, T("InviteTitle"), T("InviteWarning")))
-        {
-            return;
-        }
-
+        // Sin preguntar antes: el aviso de que la invitacion anterior deja de valer era un paso
+        // mas para llegar a lo unico que se venia a hacer —enseñar el codigo—, y a quien ya esta
+        // dentro no le afecta. Se va derecho al QR.
         try
         {
             var invite = _sync is null
