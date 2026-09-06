@@ -82,22 +82,11 @@ public partial class GroupsPage : ContentPage
 
     private async void OnNewGroupClicked(object? sender, EventArgs e)
     {
-        var name = await SocShared.ModernDialog.PromptAsync(this, "Nuevo grupo", null, "Siguiente", "Cancelar",
+        var name = await SocShared.ModernDialog.PromptAsync(this, "Nuevo grupo", null, "Crear", "Cancelar",
             placeholder: "Familia, Piso compartido, Proyecto...");
 
         if (string.IsNullOrWhiteSpace(name))
         {
-            return;
-        }
-
-        var key = await SocShared.ModernDialog.PromptAsync(this, "Clave compartida",
-            "Quien tenga esta clave y el código del grupo podrá entrar. Mínimo 6 caracteres.",
-            "Crear", "Cancelar", placeholder: "clave del grupo");
-
-        if (string.IsNullOrWhiteSpace(key) || key.Trim().Length < 6)
-        {
-            await SocShared.ModernDialog.AlertAsync(this, "Clave demasiado corta",
-                "La clave compartida necesita al menos 6 caracteres.", "OK");
             return;
         }
 
@@ -106,22 +95,54 @@ public partial class GroupsPage : ContentPage
         // dos identificadores distintos).
         var group = await _tasks.Repository.SaveGroupAsync(new TaskGroup { Name = name.Trim() });
 
-        var code = await _sync.CreateGroupAsync(group.Id, name.Trim(), key.Trim());
+        // La clave compartida ya no se pide: la genera la aplicacion (ver GroupInvite) y sale una
+        // sola vez, aqui.
+        var invite = await _sync.CreateGroupAsync(group.Id, name.Trim());
 
-        group.JoinCode = code;
+        group.JoinCode = invite.JoinCode;
         await _tasks.Repository.SaveGroupAsync(group);
 
         // Un grupo sin lista no sirve de nada: se crea la primera con el nombre del grupo.
         await _tasks.Repository.CreateListAsync("General", group.Id);
         await ReloadAsync();
 
-        await SocShared.ModernDialog.AlertAsync(this, "Grupo creado",
-            _sync.IsConfigured
-                ? $"Código del grupo: {code}\n\nQuien quiera entrar necesita ese código y la clave compartida."
-                : $"Código del grupo: {code}\n\nTodavía no hay servidor configurado, así que el grupo existe " +
-                  "solo en este dispositivo. En cuanto se configure Supabase, la clave pasará a comprobarse allí.",
-            "OK");
+        // La invitacion se copia sola: es lo que hay que pasarle a quien vaya a entrar, y la
+        // clave NO se guarda en ninguna parte (ARQUITECTURA.md seccion 4), asi que este es el
+        // unico momento en que se puede coger.
+        var texto = Localization.Loc.Instance.Format(
+            "GroupInviteBody", group.Name, invite.JoinCode, invite.SharedKey);
+
+        await Clipboard.SetTextAsync(texto);
+
+        var aviso = texto + Environment.NewLine + Environment.NewLine +
+                    Localization.Loc.Instance["GroupInviteSaved"];
+
+        if (!_sync.IsConfigured)
+        {
+            aviso += Environment.NewLine + Environment.NewLine +
+                     "Todavía no hay servidor configurado: el grupo existe solo en este dispositivo.";
+        }
+
+        // Y se ofrece mandarla por donde sea: la hoja del sistema trae WhatsApp, el correo,
+        // Telegram y lo que tenga puesto el usuario, que es mejor que elegir nosotros tres.
+        var compartir = await SocShared.ModernDialog.AlertAsync(
+            this,
+            Localization.Loc.Instance["GroupCreated"],
+            aviso,
+            Localization.Loc.Instance["Share"],
+            Localization.Loc.Instance["Ok"]);
+
+        if (compartir)
+        {
+            await Share.Default.RequestAsync(new ShareTextRequest
+            {
+                Text = texto,
+                Subject = Localization.Loc.Instance["GroupInviteSubject"],
+                Title = Localization.Loc.Instance["ShareTitle"],
+            });
+        }
     }
+
 
     private async void OnJoinGroupClicked(object? sender, EventArgs e)
     {

@@ -1,4 +1,5 @@
 using System.IO;
+using System.Threading;
 using System.Net.Http;
 using System.Windows;
 using System.Windows.Interop;
@@ -31,9 +32,32 @@ public partial class App : Application
     private IMailReader _mail = null!;
     private ReminderScheduler? _reminders;
 
+    /// <summary>
+    /// Una sola aplicacion a la vez, y abrirla otra vez enseña la que ya esta.
+    /// </summary>
+    /// <remarks>
+    /// <para>Es una aplicacion de bandeja: la segunda no se ve por ninguna parte —arranca escondida
+    /// como la primera— asi que lo unico que notaba el usuario era un icono de mas en la bandeja y,
+    /// peor, dos procesos escribiendo en la misma base de SQLite. Pulsar el acceso directo cuando ya
+    /// esta abierta tiene que hacer lo que se espera: traer su ventana al frente.</para>
+    ///
+    /// <para>El nombre lleva el usuario dentro: con dos sesiones de Windows abiertas, cada una tiene
+    /// su aplicacion y su base de datos, y compartir el aviso las mezclaria.</para>
+    /// </remarks>
+    private static readonly string NombreUnica = $"Socratic.TaskManager.unica.{Environment.UserName}";
+    private static readonly string NombreAviso = $"Socratic.TaskManager.abrir.{Environment.UserName}";
+
+    private static Mutex? _unica;
+    private static EventWaitHandle? _aviso;
+
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        if (!TomarLaVez())
+        {
+            return;
+        }
 
         ThemeManager.Apply();
 
@@ -150,6 +174,49 @@ public partial class App : Application
     }
 
     /// <summary>
+    /// Se queda con el turno, o le pide a la que ya esta abierta que se enseñe y se apaga.
+    /// </summary>
+    /// <returns><c>false</c> si ya habia otra: entonces no hay nada mas que hacer aqui.</returns>
+    private bool TomarLaVez()
+    {
+        _unica = new Mutex(true, NombreUnica, out var primera);
+
+        if (!primera)
+        {
+            try
+            {
+                EventWaitHandle.OpenExisting(NombreAviso).Set();
+            }
+            catch (WaitHandleCannotBeOpenedException)
+            {
+                // La otra esta arrancando todavia y aun no ha creado el aviso. Se pierde el «abre la
+                // ventana», que es lo de menos: la aplicacion se esta abriendo igual.
+            }
+
+            Shutdown();
+            return false;
+        }
+
+        // El hilo que espera el aviso es de fondo: no impide que la aplicacion se cierre.
+        _aviso = new EventWaitHandle(false, EventResetMode.AutoReset, NombreAviso);
+
+        var espera = new Thread(() =>
+        {
+            while (_aviso.WaitOne())
+            {
+                Dispatcher.Invoke(OpenMain);
+            }
+        })
+        {
+            IsBackground = true,
+            Name = "TaskManager: segunda instancia",
+        };
+
+        espera.Start();
+        return true;
+    }
+
+    /// <summary>
     /// Deja pasar solo con cuenta. Devuelve <c>false</c> cuando el usuario cierra la ventana sin
     /// entrar, en cuyo caso la propia ventana ya ha pedido apagar la aplicacion y el arranque no
     /// tiene nada mas que hacer.
@@ -246,17 +313,41 @@ public partial class App : Application
     {
         if (_main is { IsLoaded: true })
         {
-            _main.Activate();
+            AlFrente(_main);
             return;
         }
 
-        _main = new MainWindow(_tasks, _settings, _syncing)
+        _main = new MainWindow(_tasks, _settings, _syncing, _sync)
         {
             Icon = TrayIconHost.CreateWindowIcon(),
         };
 
         _main.Closed += (_, _) => _main = null;
         _main.Show();
+        AlFrente(_main);
+    }
+
+    /// <summary>
+    /// Trae una ventana al frente de verdad.
+    /// </summary>
+    /// <remarks>
+    /// <c>Activate()</c> a secas no basta cuando quien pide el cambio no es la aplicacion que tiene
+    /// el foco —que es justo el caso: el clic ha sido en otro proceso, el del acceso directo—.
+    /// Windows lo ignora para que ninguna aplicacion pueda robar el foco. Subirla un instante como
+    /// <c>Topmost</c> y bajarla es la forma de siempre de saltarselo sin dejarla clavada arriba.
+    /// </remarks>
+    private static void AlFrente(Window window)
+    {
+        if (window.WindowState == WindowState.Minimized)
+        {
+            window.WindowState = WindowState.Normal;
+        }
+
+        window.Show();
+        window.Activate();
+        window.Topmost = true;
+        window.Topmost = false;
+        window.Focus();
     }
 
     private void OpenCalendar()

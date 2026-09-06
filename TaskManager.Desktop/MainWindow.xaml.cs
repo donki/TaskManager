@@ -30,6 +30,14 @@ public partial class MainWindow : Window
     /// <summary>Quien sabe hablar con el servidor. Null si la aplicacion va solo en local.</summary>
     private readonly SyncCoordinator? _syncing;
 
+    /// <summary>
+    /// El servicio de sincronizacion en crudo. Hace falta para los grupos: dar de alta uno y
+    /// entrar en otro son llamadas al servidor, no vueltas de sincronizacion, y de eso no entiende
+    /// el coordinador.
+    /// </summary>
+    private readonly ISyncService? _sync;
+
+    private readonly ObservableCollection<GroupRow> _groups = [];
     private readonly ObservableCollection<ListRow> _lists = [];
     private readonly ObservableCollection<TaskRow> _listTasks = [];
     private readonly ObservableCollection<TaskRow> _allTasks = [];
@@ -49,19 +57,22 @@ public partial class MainWindow : Window
     private string? _listSearch;
     private Guid _selectedList;
 
-    public MainWindow(TaskService tasks, SettingsService settings, SyncCoordinator? syncing = null)
+    public MainWindow(TaskService tasks, SettingsService settings, SyncCoordinator? syncing = null,
+        ISyncService? sync = null)
     {
         InitializeComponent();
 
         _tasks = tasks;
         _settings = settings;
         _syncing = syncing;
+        _sync = sync;
 
         // Se vuelve a lo ultimo que se dejo puesto: el filtro es una forma de trabajar, no una
         // consulta suelta, y ponerlo otra vez en cada arranque sobraba.
         _filter = _settings.TaskFilter;
         _activeTag = _settings.TaskTag;
 
+        GroupsBox.ItemsSource = _groups;
         ListsBox.ItemsSource = _lists;
         ListTasksBox.ItemsSource = _listTasks;
         AllTasksBox.ItemsSource = _allTasks;
@@ -81,6 +92,7 @@ public partial class MainWindow : Window
 
         await ReloadListsAsync();
         await ReloadAllTasksAsync();
+        await ReloadGroupsAsync();
         await ReloadBoardAsync();
     }
 
@@ -90,6 +102,7 @@ public partial class MainWindow : Window
         await ReloadListsAsync();
         await ReloadListTasksAsync();
         await ReloadAllTasksAsync();
+        await ReloadGroupsAsync();
         await ReloadBoardAsync();
     }
 
@@ -342,6 +355,22 @@ public partial class MainWindow : Window
             _listNames[list.Id] = list.Name;
             _lists.Add(new ListRow(list.Id, list.Name,
                 pending == 1 ? T("OnePending") : F("ManyPending", pending)));
+        }
+
+        // Y las de los grupos, detras de las privadas y con el nombre del grupo delante. Aqui es
+        // donde se trabajan sus tareas: la pestaña «Grupos» sirve para entrar, salir y añadir
+        // listas, no para repetir este panel.
+        foreach (var group in await _tasks.Repository.GetGroupsAsync())
+        {
+            foreach (var list in await _tasks.Repository.GetGroupListsAsync(group.Id))
+            {
+                var tasks = await _tasks.Repository.GetTasksAsync(list.Id);
+                var pending = tasks.Count(t => !t.IsDone);
+
+                _listNames[list.Id] = list.Name;
+                _lists.Add(new ListRow(list.Id, list.Name,
+                    $"{group.Name} · {(pending == 1 ? T("OnePending") : F("ManyPending", pending))}"));
+            }
         }
 
         if (_lists.Count == 0)
@@ -912,7 +941,240 @@ public partial class MainWindow : Window
 
     // =======================================================================
 
+
+    // =======================================================================
+    // Grupos
+    // =======================================================================
+
+    /// <summary>
+    /// Los grupos de la cuenta que esta dentro, cada uno con sus listas.
+    /// </summary>
+    /// <remarks>
+    /// Un grupo es de la cuenta que entro en el, como todo lo demas: con dos cuentas en el mismo
+    /// equipo, cada una ve los suyos (<see cref="TaskManager.Core.Models.TaskGroup.AccountId"/>).
+    /// </remarks>
+    private async Task ReloadGroupsAsync()
+    {
+        _groups.Clear();
+
+        foreach (var group in await _tasks.Repository.GetGroupsAsync())
+        {
+            var lists = new List<ListRow>();
+
+            foreach (var list in await _tasks.Repository.GetGroupListsAsync(group.Id))
+            {
+                var tasks = await _tasks.Repository.GetTasksAsync(list.Id);
+                var pending = tasks.Count(t => !t.IsDone);
+
+                lists.Add(new ListRow(list.Id, list.Name,
+                    pending == 1 ? T("OnePending") : F("ManyPending", pending)));
+            }
+
+            _groups.Add(new GroupRow(group.Id, group.Name,
+                F("GroupCaption", group.JoinCode, lists.Count), lists));
+        }
+
+        GroupsEmpty.Visibility = _groups.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// Crea un grupo: nombre, clave compartida y, de vuelta, el codigo que se dicta a los demas.
+    /// </summary>
+    /// <remarks>
+    /// <para>El grupo se guarda aqui <b>antes</b> de subirlo para tener su identificador: es la
+    /// clave con la que se cifra su nombre, y tiene que ser el mismo arriba y abajo.</para>
+    ///
+    /// <para>La clave compartida no se guarda en el aparato: se manda una vez al servidor, que es
+    /// quien la comprueba cuando alguien intenta entrar (ARQUITECTURA.md seccion 4).</para>
+    /// </remarks>
+    private async void OnNewGroupClick(object sender, RoutedEventArgs e)
+    {
+        var name = Prompt.Ask(this, T("NewGroupTitle"), T("GroupNamePlaceholder"));
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        try
+        {
+            var group = await _tasks.Repository.SaveGroupAsync(
+                new TaskManager.Core.Models.TaskGroup { Name = name.Trim() });
+
+            var invite = _sync is null
+                ? new GroupInvite(string.Empty, GroupInvite.NewKey())
+                : await _sync.CreateGroupAsync(group.Id, name.Trim());
+
+            group.JoinCode = invite.JoinCode;
+            await _tasks.Repository.SaveGroupAsync(group);
+
+            // Un grupo sin lista no sirve de nada: se crea la primera.
+            await _tasks.Repository.CreateListAsync(T("GroupFirstList"), group.Id);
+
+            await ReloadGroupsAsync();
+            await ReloadListsAsync();
+
+            Compartir(group.Name, invite);
+        }
+        catch (Exception ex)
+        {
+            Controls.ModernDialog.Alert(this, T("NotYetTitle"), ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Enseña la invitacion recien creada y ofrece por donde mandarla.
+    /// </summary>
+    /// <remarks>
+    /// <para>Este es el <b>unico</b> momento en que se puede coger la clave: se genera al crear el
+    /// grupo y no se guarda en el aparato (ARQUITECTURA.md seccion 4), asi que se copia sola al
+    /// portapapeles antes de preguntar nada.</para>
+    ///
+    /// <para>En Android hay hoja de compartir del sistema y sale todo lo que tenga el telefono. En
+    /// Windows no existe nada equivalente que se pueda usar desde WPF, asi que se ofrecen los tres
+    /// caminos que de verdad se usan: el portapapeles, el correo (<c>mailto:</c>, que abre el
+    /// cliente de siempre) y WhatsApp (<c>wa.me</c>, que abre la aplicacion o la web).</para>
+    /// </remarks>
+    private void Compartir(string groupName, GroupInvite invite)
+    {
+        var texto = F("GroupInviteBody", groupName, invite.JoinCode, invite.SharedKey);
+
+        System.Windows.Clipboard.SetText(texto);
+
+        var canal = Controls.ModernDialog.Pick<int>(
+            this,
+            T("GroupCreated"),
+            texto + Environment.NewLine + Environment.NewLine + T("GroupInviteSaved"),
+            [
+                (T("ShareCopy"), 0),
+                (T("ShareMail"), 1),
+                (T("ShareWhatsApp"), 2),
+            ],
+            T("Share"));
+
+        switch (canal)
+        {
+            case 1:
+                Abrir($"mailto:?subject={Uri.EscapeDataString(T("GroupInviteSubject"))}" +
+                      $"&body={Uri.EscapeDataString(texto)}");
+                break;
+
+            case 2:
+                Abrir($"https://wa.me/?text={Uri.EscapeDataString(texto)}");
+                break;
+
+            // 0 y null: ya esta en el portapapeles, que es lo que se hizo antes de preguntar.
+        }
+    }
+
+    /// <summary>
+    /// Abre algo con la aplicacion que le toque. Si no hay ninguna, no pasa nada: la invitacion ya
+    /// esta en el portapapeles y se puede pegar donde sea.
+    /// </summary>
+    private void Abrir(string url)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url)
+            {
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            Controls.ModernDialog.Alert(this, T("NotYetTitle"), ex.Message);
+        }
+    }
+
+    /// <summary>Entra en un grupo con el codigo y la clave. Quien las valida es el servidor.</summary>
+    private async void OnJoinGroupClick(object sender, RoutedEventArgs e)
+    {
+        var code = Prompt.Ask(this, T("JoinGroupTitle"), T("JoinGroupMessage"));
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return;
+        }
+
+        var key = Prompt.Ask(this, T("SharedKeyTitle"), T("SharedKeyPlaceholder"));
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return;
+        }
+
+        try
+        {
+            if (_sync is null)
+            {
+                Controls.ModernDialog.Alert(this, T("NotYetTitle"), T("GroupCodeLocal"));
+                return;
+            }
+
+            await _sync.JoinGroupAsync(code.Trim(), key.Trim());
+
+            // Lo del grupo baja en la siguiente vuelta; se pide ya para que aparezca al momento.
+            if (_syncing is not null)
+            {
+                await _syncing.SyncNowAsync();
+            }
+
+            await ReloadGroupsAsync();
+            await ReloadListsAsync();
+
+            Controls.ModernDialog.Alert(this, T("JoinedTitle"), T("GroupCodeShare"));
+        }
+        catch (Exception ex)
+        {
+            // Sin servidor, o con la clave mal, se dice claro en vez de fingir que ha entrado.
+            Controls.ModernDialog.Alert(this, T("NotYetTitle"), ex.Message);
+        }
+    }
+
+    private async void OnNewGroupListClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Button { Tag: Guid groupId })
+        {
+            return;
+        }
+
+        var name = Prompt.Ask(this, T("NewGroupListTitle"), T("GroupListPlaceholder"));
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        await _tasks.Repository.CreateListAsync(name, groupId);
+        await ReloadGroupsAsync();
+        await ReloadListsAsync();
+    }
+
+    /// <summary>Se sale del grupo <b>en este equipo</b>: alli sigue, con los demas dentro.</summary>
+    private async void OnLeaveGroupClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Button { Tag: Guid groupId })
+        {
+            return;
+        }
+
+        var group = await _tasks.Repository.GetGroupAsync(groupId);
+        if (group is null)
+        {
+            return;
+        }
+
+        if (!Controls.ModernDialog.Confirm(this, T("LeaveGroupTitle"),
+                F("LeaveGroupMessage", group.Name), danger: true))
+        {
+            return;
+        }
+
+        await _tasks.Repository.DeleteGroupAsync(group);
+        await ReloadGroupsAsync();
+        await ReloadListsAsync();
+    }
+
     private sealed record ListRow(Guid Id, string Name, string Caption);
+
+    /// <summary>Un grupo con sus listas, tal como se pinta en la pestaña.</summary>
+    private sealed record GroupRow(Guid Id, string Name, string Caption, IReadOnlyList<ListRow> Lists);
 
     /// <summary>Fila de tarea lista para pintar, con el mismo contenido que la del movil.</summary>
     private sealed record TaskRow

@@ -20,12 +20,17 @@ public static class FeatureOptions
     public const bool MailEnabled = false;
 
     /// <summary>
-    /// Grupos y gremio (listas compartidas, nivel y rachas). <b>Ocultos</b> (2026-09-01).
+    /// Grupos y gremio (listas compartidas, nivel y rachas). <b>Activos</b> (2026-09-06).
     /// </summary>
     /// <remarks>
-    /// Se ocultan, no se borran: las tablas, la RLS y las funciones <c>create_group</c> y
-    /// <c>join_group</c> siguen enteras en el servidor, y volver a ofrecerlo es poner esto a
-    /// <c>true</c>. Se apartan mientras la aplicacion se centra en las tareas de uno.
+    /// <para>Estuvieron ocultos desde el 2026-09-01 mientras la aplicacion se centraba en las
+    /// tareas de uno. Nunca se borraron —las tablas, la RLS y las funciones <c>create_group</c> y
+    /// <c>join_group</c> siguieron enteras en el servidor—, asi que volver a ofrecerlos es
+    /// exactamente esto.</para>
+    ///
+    /// <para>Un grupo es de la <b>cuenta</b> que entro en el, como todo lo demas
+    /// (<see cref="Models.TaskGroup.AccountId"/>): con dos cuentas en el mismo aparato, cada una ve
+    /// los suyos.</para>
     /// </remarks>
-    public const bool GroupsEnabled = false;
+    public const bool GroupsEnabled = true;
 }

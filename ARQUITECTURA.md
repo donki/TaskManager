@@ -142,6 +142,15 @@ quien haga fuerza bruta.
 `join_code` (visible, corto, cómodo de dictar) y clave compartida (secreta) van separados: así se
 puede rotar la clave sin cambiar el código del grupo.
 
+**La clave la genera la aplicación: es un GUID.** Antes se pedía escribirla, con un mínimo de seis
+caracteres, y ése es justo el sitio donde acaba habiendo un «familia2024»: la clave es lo único que
+separa al grupo de quien adivine su código —seis caracteres— y el servidor la comprueba sin poder
+saber si es buena o mala. Un GUID no se adivina ni se reutiliza de otro sitio, y no hay que pensarlo.
+Se enseña **una sola vez**, al crear el grupo, con el código al lado y ya copiados al portapapeles:
+en Android se ofrece además la hoja de compartir del sistema (WhatsApp, correo, lo que haya) y en
+Windows el portapapeles, `mailto:` y `wa.me`. No se guarda en el dispositivo, así que quien la pierda
+crea otro grupo.
+
 ## 6. "Pasos Mágicos": desglose con IA local
 
 `IBreakdownService`, dos implementaciones y una cascada:

@@ -265,6 +265,82 @@
             </TabItem>
 
 
+            <!-- ============================== Grupos ============================== -->
+            <!--
+                Lo mismo que «Mis grupos» en Android: crear un grupo con su clave compartida,
+                entrar en uno con el codigo y la clave, añadirle listas y salirse. Las TAREAS de
+                esas listas se trabajan en «Mis listas», que ahora las trae tambien: duplicar aqui
+                el panel de tareas seria mantener dos veces lo mismo.
+            -->
+            <TabItem Header="{loc:T MenuGroups}">
+                <DockPanel Margin="4,12,4,4">
+
+                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="4,10,0,0">
+                        <Button Style="{StaticResource IconButton}" Content="&#xE710;"
+                                ToolTip="{loc:T NewGroupTitle}" Click="OnNewGroupClick" />
+                        <Button Style="{StaticResource GhostIconButton}" Content="&#xE71B;"
+                                Margin="8,0,0,0" ToolTip="{loc:T JoinGroupTitle}" Click="OnJoinGroupClick" />
+                        <Button x:Name="GroupsRefreshButton" Style="{StaticResource GhostIconButton}"
+                                Content="&#xE72C;" Margin="8,0,0,0"
+                                ToolTip="{loc:T RefreshTooltip}" Click="OnRefreshClick" />
+                    </StackPanel>
+
+                    <!-- Sin grupos, la lista vacia no dice nada: se explica que se puede hacer. -->
+                    <StackPanel x:Name="GroupsEmpty" DockPanel.Dock="Top" Margin="4,20,4,0"
+                                Visibility="Collapsed">
+                        <TextBlock Text="{loc:T GroupsEmptyTitle}" Style="{StaticResource CardTitle}" />
+                        <TextBlock Text="{loc:T GroupsEmptyMessage}" Style="{StaticResource HintText}"
+                                   TextWrapping="Wrap" Margin="0,6,0,0" />
+                    </StackPanel>
+
+                    <ListBox x:Name="GroupsBox" Style="{StaticResource PickRows}" MaxWidth="560"
+                             HorizontalAlignment="Left">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="0,2">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding Caption}" FontSize="11" Opacity="0.75" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                            <Button Style="{StaticResource RowIconButton}"
+                                                    Content="&#xE710;"
+                                                    ToolTip="{loc:T NewGroupListTitle}"
+                                                    Tag="{Binding Id}" Click="OnNewGroupListClick" />
+                                            <Button Style="{StaticResource RowIconButton}"
+                                                    Content="&#xE74D;" Foreground="{DynamicResource Danger}"
+                                                    ToolTip="{loc:T LeaveGroupTitle}"
+                                                    Tag="{Binding Id}" Click="OnLeaveGroupClick" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Las listas del grupo, para ver de un vistazo lo que hay dentro. -->
+                                    <ItemsControl ItemsSource="{Binding Lists}" Margin="10,6,0,2">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid ColumnDefinitions="Auto,*" Margin="0,2">
+                                                    <TextBlock Grid.Column="0" Text="&#xE8FD;"
+                                                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                                               FontSize="12" Margin="0,0,8,0"
+                                                               VerticalAlignment="Center"
+                                                               Foreground="{DynamicResource TextSecondary}" />
+                                                    <StackPanel Grid.Column="1">
+                                                        <TextBlock Text="{Binding Name}" FontSize="13" />
+                                                        <TextBlock Text="{Binding Caption}" FontSize="11"
+                                                                   Opacity="0.75" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </TabItem>
+
             <!-- ============================== Gremio ============================== -->
             <TabItem Header="{loc:T MenuBoard}">
                 <ScrollViewer Margin="4,12,4,4" VerticalScrollBarVisibility="Auto">

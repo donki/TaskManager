@@ -689,11 +689,15 @@ public sealed class SupabaseSyncService : ISyncService
     /// antes de mandarlo —la clave sale de el—, y de paso arregla que el grupo local y el del
     /// servidor tuvieran identificadores distintos.
     /// </param>
-    public async Task<string> CreateGroupAsync(Guid id, string name, string sharedKey,
+    public async Task<GroupInvite> CreateGroupAsync(Guid id, string name,
         CancellationToken cancellationToken = default)
     {
         var token = await _auth.GetAccessTokenAsync(cancellationToken).ConfigureAwait(false)
             ?? throw new AuthException("Hay que entrar con una cuenta para crear un grupo.");
+
+        // La clave compartida se genera aqui y sale una sola vez, en lo que se devuelve: ni se
+        // guarda ni se vuelve a preguntar (ver GroupInvite).
+        var sharedKey = GroupInvite.NewKey();
 
         var key = id.ToString();
 
@@ -720,9 +724,11 @@ public sealed class SupabaseSyncService : ISyncService
         var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         using var json = JsonDocument.Parse(body);
 
-        return json.RootElement.ValueKind == JsonValueKind.Array && json.RootElement.GetArrayLength() > 0
+        var code = json.RootElement.ValueKind == JsonValueKind.Array && json.RootElement.GetArrayLength() > 0
             ? json.RootElement[0].GetProperty("join_code").GetString() ?? string.Empty
             : string.Empty;
+
+        return new GroupInvite(code, sharedKey);
     }
 
     public async Task<Guid> JoinGroupAsync(string joinCode, string sharedKey,

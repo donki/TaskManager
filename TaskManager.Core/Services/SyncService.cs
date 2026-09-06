@@ -28,11 +28,32 @@ public interface ISyncService
 
     Task PullAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Crea el grupo en el servidor y devuelve su codigo de union.</summary>
-    Task<string> CreateGroupAsync(Guid id, string name, string sharedKey, CancellationToken cancellationToken = default);
+    /// <summary>Crea el grupo en el servidor y devuelve lo que hace falta para entrar en el.</summary>
+    Task<GroupInvite> CreateGroupAsync(Guid id, string name, CancellationToken cancellationToken = default);
 
     /// <summary>Canjea codigo + clave compartida por pertenencia. Devuelve el id del grupo.</summary>
     Task<Guid> JoinGroupAsync(string joinCode, string sharedKey, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Lo que hace falta para entrar en un grupo recien creado: el <b>codigo</b>, que es corto y se
+/// puede dictar, y la <b>clave compartida</b>.
+/// </summary>
+/// <remarks>
+/// <para><b>La clave la genera la aplicacion, no el usuario.</b> Antes se pedia escribirla, con un
+/// minimo de seis caracteres, y eso es exactamente el sitio donde acaba habiendo un «familia2024»:
+/// la clave es lo unico que separa a un grupo de cualquiera que adivine su codigo —de seis
+/// caracteres— y el servidor la comprueba sin poder saber si es buena o mala. Un GUID no se
+/// adivina, no se reutiliza de otro sitio y no hay que pensarlo.</para>
+///
+/// <para>No se guarda en el aparato: se enseña una vez al crear el grupo, para copiarla y pasarla a
+/// quien tenga que entrar, y a partir de ahi vive solo en el servidor (hasheada) y en quien la haya
+/// guardado.</para>
+/// </remarks>
+public sealed record GroupInvite(string JoinCode, string SharedKey)
+{
+    /// <summary>Una clave nueva. Un GUID en su forma de siempre, para poder copiarla entera.</summary>
+    public static string NewKey() => Guid.NewGuid().ToString();
 }
 
 /// <summary>
@@ -59,11 +80,11 @@ public sealed class LocalOnlySyncService : ISyncService
     /// En local el grupo existe igual (para poder montar listas y probar la interfaz), pero el
     /// codigo lo genera el dispositivo y la clave no protege nada hasta que haya servidor.
     /// </summary>
-    public Task<string> CreateGroupAsync(Guid id, string name, string sharedKey, CancellationToken cancellationToken = default)
+    public Task<GroupInvite> CreateGroupAsync(Guid id, string name, CancellationToken cancellationToken = default)
     {
         const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
         var code = new string(Enumerable.Range(0, 6).Select(_ => alphabet[Random.Shared.Next(alphabet.Length)]).ToArray());
-        return Task.FromResult(code);
+        return Task.FromResult(new GroupInvite(code, GroupInvite.NewKey()));
     }
 
     public Task<Guid> JoinGroupAsync(string joinCode, string sharedKey, CancellationToken cancellationToken = default) =>
