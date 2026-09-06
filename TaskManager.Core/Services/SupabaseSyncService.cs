@@ -605,10 +605,24 @@ public sealed class SupabaseSyncService : ISyncService
     private static bool LlegaMasNueva(DateTime local, DateTimeOffset remota) =>
         LlegaMasNueva(local, remota.UtcDateTime);
 
+    /// <summary>
+    /// Si lo que hay guardado aqui se quedo <b>sin descifrar</b>.
+    /// </summary>
+    /// <remarks>
+    /// Pasa al entrar en un grupo: sus listas y sus tareas pueden haber bajado antes, cuando este
+    /// aparato todavia no tenia la clave con la que leerlas —el identificador del grupo—, y se
+    /// guardaron tal cual, en «enc1:…». Cuando esa fila vuelve a bajar no trae nada nuevo, asi que
+    /// la regla de siempre («solo si llega mas nueva») la descartaria y el nombre se quedaria en
+    /// clave para siempre. Con la clave ya en la mano, merece la pena reescribirla.
+    /// </remarks>
+    private static bool SigueCifrado(params string?[] textos) =>
+        Array.Exists(textos, TextCipher.IsEncrypted);
+
     private async Task MergeTaskAsync(TaskRowDto row)
     {
         var local = await _repository.GetTaskAsync(row.Id).ConfigureAwait(false);
-        if (local is not null && !LlegaMasNueva(local.UpdatedAt, row.UpdatedAt))
+        if (local is not null && !LlegaMasNueva(local.UpdatedAt, row.UpdatedAt) &&
+            !SigueCifrado(local.Title, local.Notes, local.Tags))
         {
             return;   // Lo de aqui es mas nuevo: ya lo subira el push, no se pisa.
         }
@@ -637,7 +651,8 @@ public sealed class SupabaseSyncService : ISyncService
     private async Task MergeListAsync(ListRow row)
     {
         var local = await _repository.GetListAsync(row.Id).ConfigureAwait(false);
-        if (local is not null && !LlegaMasNueva(local.UpdatedAt, row.UpdatedAt))
+        if (local is not null && !LlegaMasNueva(local.UpdatedAt, row.UpdatedAt) &&
+            !SigueCifrado(local.Name))
         {
             return;
         }
@@ -658,7 +673,8 @@ public sealed class SupabaseSyncService : ISyncService
     private async Task MergeStepAsync(StepRow row)
     {
         var local = await _repository.GetStepAsync(row.Id).ConfigureAwait(false);
-        if (local is not null && !LlegaMasNueva(local.UpdatedAt, row.UpdatedAt))
+        if (local is not null && !LlegaMasNueva(local.UpdatedAt, row.UpdatedAt) &&
+            !SigueCifrado(local.Title))
         {
             return;
         }
@@ -810,7 +826,74 @@ public sealed class SupabaseSyncService : ISyncService
         // vacio a proposito.
         await SetMemberNameAsync(id, token, cancellationToken).ConfigureAwait(false);
 
+        await GuardarGrupoAsync(id, joinCode, token, cancellationToken).ConfigureAwait(false);
+
+        // Y se vuelve a bajar todo desde el principio. Lo del grupo puede haber bajado ya —el
+        // servidor lo deja ver en cuanto se es miembro— y entonces bajo cifrado, porque la clave con
+        // la que se lee es el identificador del grupo y aqui no se tenia. Sin esto, la marca de
+        // «hasta aqui ya lo tengo» impide que vuelva a bajar y los nombres de esas listas se quedan
+        // en «enc1:…» para siempre.
+        await _settings.SetAsync(KeyFor(KeyLastPull), string.Empty).ConfigureAwait(false);
+
         return id;
+    }
+
+    /// <summary>
+    /// Guarda aqui el grupo en el que se acaba de entrar.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Sin esto, entrar en un grupo no se veia por ninguna parte.</b> La sincronizacion
+    /// normal no toca la tabla de grupos —solo listas, tareas y pasos—, asi que el aparato que
+    /// entraba se quedaba sin la fila del grupo: el servidor lo daba por miembro, pero «Mis grupos»
+    /// seguia vacio y parecia que el codigo no habia servido de nada. Es justo lo que se veia al
+    /// escanear el QR: lo leia, decia que si, y despues nada.</para>
+    ///
+    /// <para>El nombre viene cifrado con el identificador del grupo, que es lo que acaba de devolver
+    /// <c>join_group</c>; por eso se puede leer aqui y no antes. Si la ficha no se deja traer, el
+    /// grupo se guarda igual con el codigo por nombre: es preferible un nombre feo a un grupo que no
+    /// aparece.</para>
+    /// </remarks>
+    private async Task GuardarGrupoAsync(Guid id, string joinCode, string token,
+        CancellationToken cancellationToken)
+    {
+        var nombre = string.Empty;
+        var codigo = joinCode.Trim().ToUpperInvariant();
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get,
+                $"{SupabaseConfig.Url}/rest/v1/groups?id=eq.{id}&select=name,join_code");
+
+            Authorize(request, token);
+
+            using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                using var json = JsonDocument.Parse(body);
+
+                if (json.RootElement.ValueKind == JsonValueKind.Array && json.RootElement.GetArrayLength() > 0)
+                {
+                    var fila = json.RootElement[0];
+
+                    nombre = _cipher.Unprotect(
+                        fila.GetProperty("name").GetString() ?? string.Empty, [id.ToString()]);
+
+                    codigo = fila.GetProperty("join_code").GetString() ?? codigo;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or TaskCanceledException)
+        {
+            // Ni el nombre ni el codigo valen una entrada fallida: ya se es miembro.
+        }
+
+        await _repository.SaveGroupAsync(new Models.TaskGroup
+        {
+            Id = id,
+            Name = nombre.Length > 0 ? nombre : codigo,
+            JoinCode = codigo,
+        }).ConfigureAwait(false);
     }
 
     /// <summary>Escribe el apodo de uno mismo dentro de un grupo, cifrado con la clave del grupo.</summary>
@@ -942,7 +1025,8 @@ public sealed class SupabaseSyncService : ISyncService
     private async Task MergeAttachmentAsync(AttachmentRow row)
     {
         var local = await _repository.GetAttachmentAsync(row.Id).ConfigureAwait(false);
-        if (local is not null && !LlegaMasNueva(local.UpdatedAt, row.UpdatedAt))
+        if (local is not null && !LlegaMasNueva(local.UpdatedAt, row.UpdatedAt) &&
+            !SigueCifrado(local.Name, local.Url))
         {
             return;
         }

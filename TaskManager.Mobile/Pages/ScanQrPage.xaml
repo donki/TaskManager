@@ -17,7 +17,9 @@
         <zxing:CameraBarcodeReaderView x:Name="Camara" Grid.Row="0"
                                        BarcodesDetected="OnBarcodesDetected" />
 
-        <Label Grid.Row="1" Text="{loc:T ScanHint}" Style="{StaticResource HintText}"
+        <!-- El aviso lleva ademas la cuenta de imagenes miradas: es lo unico que distingue «no
+             encuentro el codigo» de «la camara no esta dando nada», que desde fuera se ven igual. -->
+        <Label x:Name="HintLabel" Grid.Row="1" Text="{loc:T ScanHint}" Style="{StaticResource HintText}"
                HorizontalTextAlignment="Center" Padding="20,12" />
     </Grid>
 </ContentPage>

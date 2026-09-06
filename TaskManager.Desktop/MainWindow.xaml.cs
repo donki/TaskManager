@@ -1121,39 +1121,15 @@ public partial class MainWindow : Window
 
         System.Windows.Clipboard.SetText(texto);
 
-        var canal = Controls.ModernDialog.Pick<int>(
-            this,
-            T("GroupCreated"),
-            texto + Environment.NewLine + Environment.NewLine + T("GroupInviteSaved"),
-            [
-                (T("QrTitle"), 3),
-                (T("ShareCopy"), 0),
-                (T("ShareMail"), 1),
-                (T("ShareWhatsApp"), 2),
-            ],
-            T("Share"),
-            T("Cancel"));
-
-        switch (canal)
-        {
-            case 3:
-                // El QR es para que lo enfoque OTRO aparato: se le abre la aplicacion con el grupo
-                // puesto, sin teclear el codigo ni la clave.
-                Controls.ModernDialog.ShowQr(this, T("QrTitle"), T("QrHint"),
-                    GroupLink.QrPng(GroupLink.For(invite)));
-                break;
-
-            case 1:
-                Abrir($"mailto:?subject={Uri.EscapeDataString(T("GroupInviteSubject"))}" +
-                      $"&body={Uri.EscapeDataString(texto)}");
-                break;
-
-            case 2:
-                Abrir($"https://wa.me/?text={Uri.EscapeDataString(texto)}");
-                break;
-
-            // 0 y null: ya esta en el portapapeles, que es lo que se hizo antes de preguntar.
-        }
+        // De momento, derecho al QR. Antes se preguntaba primero si mandarlo por correo, por
+        // WhatsApp o copiarlo, y esa pregunta se ha quitado mientras se prueba el escaneo: la
+        // pantalla del ordenador enseña el codigo y el movil lo lee, que es el camino que hay que
+        // dejar limpio. El texto queda igualmente en el portapapeles, sin preguntar nada.
+        //
+        // El QR es para que lo enfoque OTRO aparato: se le abre la aplicacion con el grupo puesto,
+        // sin teclear el codigo ni la clave.
+        Controls.ModernDialog.ShowQr(this, T("QrTitle"), T("QrHint"),
+            GroupLink.QrPng(GroupLink.For(invite)));
     }
 
     /// <summary>

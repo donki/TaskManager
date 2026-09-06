@@ -172,11 +172,13 @@ public partial class GroupsPage : ContentPage
     }
 
     /// <summary>
-    /// Enseña la invitacion, la deja en el portapapeles y ofrece mandarla por donde sea.
+    /// Enseña la invitacion: el QR, y debajo el codigo y la clave por si hay que teclearlos.
     /// </summary>
     /// <remarks>
-    /// La hoja de compartir del sistema trae WhatsApp, el correo, Telegram y lo que tenga puesto el
-    /// usuario, que es mejor que elegir nosotros tres canales.
+    /// <b>De momento solo el QR.</b> Antes se preguntaba primero si mandarla por correo, por
+    /// WhatsApp o copiarla, y esa pregunta se ha quitado mientras se prueba el escaneo: el camino
+    /// que hay que dejar limpio es enseñar el codigo y que el otro aparato lo lea. La invitacion se
+    /// sigue dejando en el portapapeles al pasar por aqui, que no cuesta nada y no pregunta nada.
     /// </remarks>
     private async Task CompartirAsync(string groupName, GroupInvite invite)
     {
@@ -184,29 +186,7 @@ public partial class GroupsPage : ContentPage
             Helpers.ServiceHelper.GetRequiredService<LocalizationService>(), groupName, invite);
 
         await Clipboard.SetTextAsync(texto);
-
-        var aviso = texto + Environment.NewLine + Environment.NewLine +
-                    Localization.Loc.Instance["GroupInviteSaved"];
-
-        if (!_sync.IsConfigured)
-        {
-            aviso += Environment.NewLine + Environment.NewLine +
-                     "Todavía no hay servidor configurado: el grupo existe solo en este dispositivo.";
-        }
-
-        // Se lleva a la pantalla del QR, que es la que de verdad sirve para invitar a alguien que
-        // esta al lado: enfoca con su camara y entra. Desde ahi se puede mandar o copiar.
-        var verQr = await SocShared.ModernDialog.AlertAsync(
-            this,
-            Localization.Loc.Instance["GroupCreated"],
-            aviso,
-            Localization.Loc.Instance["QrTitle"],
-            Localization.Loc.Instance["Ok"]);
-
-        if (verQr)
-        {
-            await Navigation.PushAsync(new GroupQrPage(groupName, invite));
-        }
+        await Navigation.PushAsync(new GroupQrPage(groupName, invite));
     }
 
     /// <summary>
@@ -251,7 +231,23 @@ public partial class GroupsPage : ContentPage
     /// </remarks>
     private async void OnScanQrClicked(object? sender, EventArgs e)
     {
-        if (await ScanQrPage.PedirAsync(this) is not { } invite)
+        GroupInvite? leido;
+        try
+        {
+            leido = await ScanQrPage.PedirAsync(this);
+        }
+        catch (Exception ex)
+        {
+            // Se enseña el fallo en vez de no hacer nada: una pantalla que no reacciona al pulsarla
+            // no se puede ni contar ni arreglar.
+            Android.Util.Log.Error("TMQR", ex.ToString());
+            await SocShared.ModernDialog.AlertAsync(
+                this, Localization.Loc.Instance["ScanTitle"], ex.Message,
+                Localization.Loc.Instance["Ok"]);
+            return;
+        }
+
+        if (leido is not { } invite)
         {
             return;
         }

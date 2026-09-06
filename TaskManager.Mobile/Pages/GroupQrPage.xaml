@@ -33,11 +33,15 @@
                 </VerticalStackLayout>
             </Border>
 
+            <!-- Escondidos de momento: mientras se prueba el escaneo, esta pantalla es solo el
+                 codigo para que lo lea el otro aparato. Mandarlo y copiarlo siguen programados
+                 (OnShareClicked y OnCopyClicked).
             <Button x:Name="ShareButton" Text="{loc:T Share}" Clicked="OnShareClicked"
                     HorizontalOptions="Fill" />
 
             <Button x:Name="CopyButton" Text="{loc:T ShareCopy}" Style="{StaticResource OutlineButton}"
                     Clicked="OnCopyClicked" HorizontalOptions="Fill" />
+            -->
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>

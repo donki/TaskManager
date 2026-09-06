@@ -289,8 +289,11 @@
                     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="4,10,0,0">
                         <Button Style="{StaticResource IconButton}" Content="&#xE710;"
                                 ToolTip="{loc:T NewGroupTitle}" Click="OnNewGroupClick" />
+                        <!-- Escondido de momento: mientras se prueba el QR, entrar en un grupo se
+                             hace leyendolo. El codigo por teclado sigue programado (OnJoinGroupClick).
                         <Button Style="{StaticResource GhostIconButton}" Content="&#xE71B;"
                                 Margin="8,0,0,0" ToolTip="{loc:T JoinGroupTitle}" Click="OnJoinGroupClick" />
+                        -->
                         <Button Style="{StaticResource GhostIconButton}" Content="&#xED14;"
                                 Margin="8,0,0,0" ToolTip="{loc:T ScanTitle}" Click="OnScanQrClick" />
                         <Button x:Name="GroupsRefreshButton" Style="{StaticResource GhostIconButton}"
@@ -318,7 +321,7 @@
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal">
                                             <Button Style="{StaticResource RowIconButton}"
-                                                    Content="&#xE8D7;"
+                                                    Content="&#xE72D;"
                                                     ToolTip="{loc:T InviteTitle}"
                                                     Tag="{Binding Id}" Click="OnInviteClick" />
                                             <Button Style="{StaticResource RowIconButton}"

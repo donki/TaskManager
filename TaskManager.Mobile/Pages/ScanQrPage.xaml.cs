@@ -18,8 +18,24 @@ namespace TaskManager.Mobile.Pages;
 /// </remarks>
 public partial class ScanQrPage : ContentPage
 {
+    /// <summary>Lo que se espera a que la camara empiece a dar imagen antes de sospechar.</summary>
+    private static readonly TimeSpan Paciencia = TimeSpan.FromSeconds(6);
+
     private readonly TaskCompletionSource<GroupInvite?> _resultado = new();
     private int _entregado;
+    private int _imagenes;
+
+    /// <summary>
+    /// Lo leido, guardado aparte de la respuesta.
+    /// </summary>
+    /// <remarks>
+    /// <b>Es lo que arregla el fallo de «lo lee y no hace nada».</b> Al salir de la pantalla se
+    /// responde con esto, y al leer un codigo se guarda aqui <i>antes</i> de cerrarla. Antes se
+    /// respondia <c>null</c> desde <see cref="OnNavigatedFrom"/> y la respuesta buena llegaba
+    /// despues: como la primera respuesta es la que vale, la invitacion recien leida se tiraba y la
+    /// pantalla de grupos se quedaba sin hacer nada, que es exactamente lo que se veia.
+    /// </remarks>
+    private GroupInvite? _leido;
 
     private ScanQrPage()
     {
@@ -31,8 +47,14 @@ public partial class ScanQrPage : ContentPage
             // esta aplicacion no usa, y confunde mas que ayuda.
             Formats = BarcodeFormat.QrCode,
             AutoRotate = true,
+            // Se mira mas fino y tambien en negativo: un QR en la pantalla de otro aparato llega con
+            // reflejos, torcido y a veces en claro sobre oscuro, que es como esta esta aplicacion.
+            TryHarder = true,
+            TryInverted = true,
             Multiple = false,
         };
+
+        Camara.FrameReady += (_, _) => Interlocked.Increment(ref _imagenes);
     }
 
     /// <summary>
@@ -66,6 +88,26 @@ public partial class ScanQrPage : ContentPage
         return await pagina._resultado.Task;
     }
 
+    /// <summary>
+    /// Si a los seis segundos no ha llegado ni una imagen, la camara no esta dando nada.
+    /// </summary>
+    /// <remarks>
+    /// Una pantalla negra donde no pasa nada se ve igual cuando no encuentra el codigo que cuando no
+    /// hay imagen que mirar. Distinguirlo es la diferencia entre «acercalo mas» y «esto no va».
+    /// </remarks>
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+
+        Dispatcher.DispatchDelayed(Paciencia, () =>
+        {
+            if (Volatile.Read(ref _imagenes) == 0)
+            {
+                HintLabel.Text = Localization.Loc.Instance["ScanNoFrames"];
+            }
+        });
+    }
+
     /// <remarks>
     /// El aviso llega desde el hilo de la camara y puede llegar <b>varias veces</b> con el mismo
     /// codigo delante: se atiende una sola vez (<see cref="_entregado"/>), porque si no se apilan
@@ -78,7 +120,8 @@ public partial class ScanQrPage : ContentPage
             return;
         }
 
-        var invite = Uri.TryCreate(e.Results[0].Value, UriKind.Absolute, out var enlace)
+        var texto = e.Results[0].Value;
+        var invite = Uri.TryCreate(texto, UriKind.Absolute, out var enlace)
             ? GroupLink.Read(enlace)
             : null;
 
@@ -88,12 +131,14 @@ public partial class ScanQrPage : ContentPage
 
             if (invite is null)
             {
-                // Un QR cualquiera —el de una wifi, el de un ticket— no es una invitacion. Se dice y
-                // se sigue mirando: cerrar la camara obligaria a volver a abrirla para el bueno.
+                // Un QR cualquiera —el de una wifi, el de un ticket— no es una invitacion. Se dice
+                // con lo que ponia dentro, que es lo unico que distingue «he leido otra cosa» de «he
+                // leido el nuestro y ha llegado roto», y se sigue mirando: cerrar la camara
+                // obligaria a volver a abrirla para el bueno.
                 await SocShared.ModernDialog.AlertAsync(
                     this,
                     Localization.Loc.Instance["ScanTitle"],
-                    Localization.Loc.Instance["ScanNotOurs"],
+                    Localization.Loc.Instance["ScanNotOurs"] + Environment.NewLine + Environment.NewLine + texto,
                     Localization.Loc.Instance["Ok"]);
 
                 Interlocked.Exchange(ref _entregado, 0);
@@ -101,6 +146,9 @@ public partial class ScanQrPage : ContentPage
                 return;
             }
 
+            // Primero se guarda y luego se cierra: al cerrar salta OnNavigatedFrom, que responde con
+            // esto mismo. Al reves se perdia la lectura.
+            _leido = invite;
             await Navigation.PopAsync();
             _resultado.TrySetResult(invite);
         });
@@ -119,6 +167,6 @@ public partial class ScanQrPage : ContentPage
     protected override void OnNavigatedFrom(NavigatedFromEventArgs args)
     {
         base.OnNavigatedFrom(args);
-        _resultado.TrySetResult(null);
+        _resultado.TrySetResult(_leido);
     }
 }
