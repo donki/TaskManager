@@ -237,6 +237,48 @@ public partial class GroupsPage : ContentPage
             return;
         }
 
+        await EntrarAsync(invite);
+    }
+
+    /// <summary>
+    /// Lee el QR de una invitacion con la camara y entra en el grupo.
+    /// </summary>
+    /// <remarks>
+    /// El QR ya se pintaba, pero no habia con que leerlo: los lectores de codigos del movil abren
+    /// direcciones web y una invitacion es un enlace propio que solo entiende esta aplicacion, asi
+    /// que enfocarlo con cualquier otro lector no hacia nada. Se pregunta igual que con un enlace
+    /// recibido, que para el caso es lo mismo: algo de fuera que mete al usuario en un grupo.
+    /// </remarks>
+    private async void OnScanQrClicked(object? sender, EventArgs e)
+    {
+        if (await ScanQrPage.PedirAsync(this) is not { } invite)
+        {
+            return;
+        }
+
+        var entrar = await SocShared.ModernDialog.AlertAsync(
+            this,
+            Localization.Loc.Instance["JoinFromLinkTitle"],
+            Localization.Loc.Instance.Format("JoinFromLinkMessage", invite.JoinCode),
+            Localization.Loc.Instance["Join"],
+            Localization.Loc.Instance["Cancel"]);
+
+        if (entrar)
+        {
+            await EntrarAsync(invite);
+        }
+    }
+
+    /// <summary>
+    /// Entrar en un grupo, venga la invitacion de donde venga: tecleada, de un enlace o de un QR.
+    /// </summary>
+    /// <remarks>
+    /// Se recoge <b>cualquier</b> excepcion: una clave mal escrita llega como un 400, o sea una
+    /// <c>HttpRequestException</c>, y con un catch estrecho no la recogia nadie y la aplicacion se
+    /// cerraba en seco (visto en el Xiaomi el 2026-09-06).
+    /// </remarks>
+    private async Task EntrarAsync(GroupInvite invite)
+    {
         try
         {
             await _sync.JoinGroupAsync(invite.JoinCode, invite.SharedKey);
@@ -257,40 +299,25 @@ public partial class GroupsPage : ContentPage
 
     private async void OnJoinGroupClicked(object? sender, EventArgs e)
     {
-        var code = await SocShared.ModernDialog.PromptAsync(this, "Unirse a un grupo",
-            "Código del grupo (6 caracteres).", "Siguiente", "Cancelar", placeholder: "ABC123");
+        var textos = Localization.Loc.Instance;
+
+        var code = await SocShared.ModernDialog.PromptAsync(this, textos["JoinGroupTitle"],
+            textos["JoinGroupMessage"], textos["Next"], textos["Cancel"], placeholder: "ABC123");
 
         if (string.IsNullOrWhiteSpace(code))
         {
             return;
         }
 
-        var key = await SocShared.ModernDialog.PromptAsync(this, "Clave compartida", null,
-            "Entrar", "Cancelar", placeholder: "clave del grupo");
+        var key = await SocShared.ModernDialog.PromptAsync(this, textos["SharedKeyTitle"], null,
+            textos["Join"], textos["Cancel"], placeholder: textos["SharedKeyPlaceholder"]);
 
         if (string.IsNullOrWhiteSpace(key))
         {
             return;
         }
 
-        try
-        {
-            var groupId = await _sync.JoinGroupAsync(code.Trim(), key.Trim());
-            await _sync.PullAsync();
-            await ReloadAsync();
-
-            await SocShared.ModernDialog.AlertAsync(this, "Ya estás dentro",
-                $"Te has unido al grupo {groupId}.", "OK");
-        }
-        catch (Exception ex)
-        {
-            // TODAS, no solo InvalidOperationException: una clave mal escrita llega como un 400 y
-            // eso es una HttpRequestException, que con el catch estrecho no la recogia nadie y
-            // cerraba la aplicacion en seco (visto en el Xiaomi el 2026-09-06).
-            await SocShared.ModernDialog.AlertAsync(
-                this, Localization.Loc.Instance["NotYetTitle"], ex.Message,
-                Localization.Loc.Instance["Ok"]);
-        }
+        await EntrarAsync(new GroupInvite(code.Trim(), key.Trim()));
     }
 
     private async void OnNewListClicked(object? sender, EventArgs e)

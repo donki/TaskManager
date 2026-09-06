@@ -31,6 +31,12 @@
   -->
   <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+  <!--
+    CAMERA: leer el QR de una invitacion a un grupo. Se pide al pulsar el boton de escanear, no
+    al arrancar, y la imagen no se guarda ni sale del aparato: se busca un codigo y se descarta.
+  -->
+  <uses-permission android:name="android.permission.CAMERA" />
+
   <queries>
     <!-- Boton de contacto de la pantalla Acerca de. -->
     <intent>

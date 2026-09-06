@@ -5,6 +5,7 @@ using TaskManager.Core.Data;
 using TaskManager.Core.Services;
 using TaskManager.Mobile.Helpers;
 using TaskManager.Mobile.Pages;
+using ZXing.Net.Maui.Controls;
 
 namespace TaskManager.Mobile;
 
@@ -14,6 +15,10 @@ public static class MauiProgram
     {
         var builder = MauiApp.CreateBuilder();
         builder.UseMauiApp<App>();
+
+        // El lector de QR de las invitaciones a un grupo. Los lectores de codigos del movil
+        // abren direcciones web y una invitacion no lo es, asi que el lector va aqui dentro.
+        builder.UseBarcodeReader();
 
         // Servicios (constitucion 5 y 7: la logica vive aqui, las paginas solo la orquestan).
         builder.Services.AddSingleton(_ => new LocalDatabase(

@@ -291,6 +291,8 @@
                                 ToolTip="{loc:T NewGroupTitle}" Click="OnNewGroupClick" />
                         <Button Style="{StaticResource GhostIconButton}" Content="&#xE71B;"
                                 Margin="8,0,0,0" ToolTip="{loc:T JoinGroupTitle}" Click="OnJoinGroupClick" />
+                        <Button Style="{StaticResource GhostIconButton}" Content="&#xED14;"
+                                Margin="8,0,0,0" ToolTip="{loc:T ScanTitle}" Click="OnScanQrClick" />
                         <Button x:Name="GroupsRefreshButton" Style="{StaticResource GhostIconButton}"
                                 Content="&#xE72C;" Margin="8,0,0,0"
                                 ToolTip="{loc:T RefreshTooltip}" Click="OnRefreshClick" />

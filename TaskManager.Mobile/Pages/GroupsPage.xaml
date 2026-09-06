@@ -8,6 +8,7 @@
 
     <ContentPage.ToolbarItems>
         <ToolbarItem IconImageSource="ic_add_w.png" Clicked="OnNewGroupClicked" />
+        <ToolbarItem IconImageSource="ic_scan_w.png" Clicked="OnScanQrClicked" />
         <ToolbarItem IconImageSource="ic_key_w.png" Clicked="OnJoinGroupClicked" />
     </ContentPage.ToolbarItems>
 

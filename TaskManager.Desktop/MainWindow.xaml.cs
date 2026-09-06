@@ -1058,30 +1058,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        try
-        {
-            if (_sync is null)
-            {
-                Controls.ModernDialog.Alert(this, T("NotYetTitle"), T("GroupCodeLocal"));
-                return;
-            }
-
-            await _sync.JoinGroupAsync(invite.JoinCode, invite.SharedKey);
-
-            if (_syncing is not null)
-            {
-                await _syncing.SyncNowAsync();
-            }
-
-            await ReloadGroupsAsync();
-            await ReloadListsAsync();
-
-            Controls.ModernDialog.Alert(this, T("JoinedTitle"), T("GroupCodeShare"));
-        }
-        catch (Exception ex)
-        {
-            Controls.ModernDialog.Alert(this, T("NotYetTitle"), ex.Message);
-        }
+        await EntrarEnGrupoAsync(invite);
     }
 
     /// <summary>
@@ -1213,6 +1190,106 @@ public partial class MainWindow : Window
             return;
         }
 
+        await EntrarEnGrupoAsync(new GroupInvite(code.Trim(), key.Trim()));
+    }
+
+    /// <summary>De donde se saca el QR en un ordenador.</summary>
+    private enum DondeEstaElQr
+    {
+        Fichero,
+        Portapapeles,
+        Pantalla,
+    }
+
+    /// <summary>
+    /// Lee el QR de una invitacion y entra en el grupo.
+    /// </summary>
+    /// <remarks>
+    /// <para>Aqui no se pide una webcam: en un ordenador el QR esta en la pantalla del movil de
+    /// quien invita, en un correo abierto al lado o en una imagen que acaba de llegar. Se lee de
+    /// donde de verdad esta.</para>
+    ///
+    /// <para>Para leerlo de la pantalla la ventana se aparta primero: si no, lo unico que se
+    /// captura es la propia aplicacion tapando el codigo.</para>
+    /// </remarks>
+    private async void OnScanQrClick(object sender, RoutedEventArgs e)
+    {
+        var donde = Controls.ModernDialog.Pick(
+            this,
+            T("ScanTitle"),
+            T("ScanWhere"),
+            [
+                (T("ScanFromFile"), DondeEstaElQr.Fichero),
+                (T("ScanFromClipboard"), DondeEstaElQr.Portapapeles),
+                (T("ScanFromScreen"), DondeEstaElQr.Pantalla),
+            ],
+            T("Ok"),
+            T("Cancel"));
+
+        if (donde is not { } elegido)
+        {
+            return;
+        }
+
+        GroupInvite? invite = null;
+
+        switch (elegido)
+        {
+            case DondeEstaElQr.Fichero:
+                var dialogo = new Microsoft.Win32.OpenFileDialog
+                {
+                    Filter = "PNG, JPG, BMP|*.png;*.jpg;*.jpeg;*.bmp;*.gif|*.*|*.*",
+                    CheckFileExists = true,
+                };
+
+                if (dialogo.ShowDialog(this) == true)
+                {
+                    invite = Services.QrReader.DesdeFichero(dialogo.FileName);
+                }
+                else
+                {
+                    return;
+                }
+
+                break;
+
+            case DondeEstaElQr.Portapapeles:
+                invite = Services.QrReader.DesdePortapapeles();
+                break;
+
+            case DondeEstaElQr.Pantalla:
+                var estado = WindowState;
+                WindowState = WindowState.Minimized;
+
+                // Lo justo para que Windows termine de pintar lo que habia debajo: sin esta espera
+                // la captura sale con la ventana todavia encima.
+                await Task.Delay(600);
+                invite = Services.QrReader.DesdePantalla();
+                WindowState = estado;
+                Activate();
+                break;
+        }
+
+        if (invite is null)
+        {
+            Controls.ModernDialog.Alert(this, T("ScanTitle"), T("ScanNotFound"));
+            return;
+        }
+
+        // Se pregunta antes, igual que con un enlace recibido: el codigo puede venir de cualquier
+        // sitio y meter a alguien en un grupo sin decirle nada seria pasarse.
+        if (Controls.ModernDialog.Confirm(this, T("JoinFromLinkTitle"),
+                F("JoinFromLinkMessage", invite.JoinCode)))
+        {
+            await EntrarEnGrupoAsync(invite);
+        }
+    }
+
+    /// <summary>
+    /// Entrar en un grupo, venga la invitacion tecleada, de un enlace o de un QR.
+    /// </summary>
+    private async Task EntrarEnGrupoAsync(GroupInvite invite)
+    {
         try
         {
             if (_sync is null)
@@ -1221,7 +1298,7 @@ public partial class MainWindow : Window
                 return;
             }
 
-            await _sync.JoinGroupAsync(code.Trim(), key.Trim());
+            await _sync.JoinGroupAsync(invite.JoinCode, invite.SharedKey);
 
             // Lo del grupo baja en la siguiente vuelta; se pide ya para que aparezca al momento.
             if (_syncing is not null)
