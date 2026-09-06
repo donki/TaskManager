@@ -103,6 +103,13 @@
                         </Grid>
                     </Border>
 
+                    <!-- El pie: cuantas se ven y cuantas hay. Con un filtro o una busqueda
+                         puestos, «14 tareas» no distingue entre que haya catorce y que el
+                         filtro esconda el resto. -->
+                    <TextBlock x:Name="FooterLabel" DockPanel.Dock="Bottom"
+                               Style="{StaticResource HintText}"
+                               HorizontalAlignment="Center" Margin="0,8,0,0" />
+
                     <ListBox x:Name="AllTasksBox" Style="{StaticResource Rows}" Margin="2,0"
                              SelectionMode="Extended"
                              SelectionChanged="OnTaskSelectionChanged"
@@ -226,6 +233,10 @@
                             </Grid>
                         </Border>
 
+                        <TextBlock x:Name="ListFooterLabel" DockPanel.Dock="Bottom"
+                                   Style="{StaticResource HintText}"
+                                   HorizontalAlignment="Center" Margin="0,8,4,0" />
+
                         <ListBox x:Name="ListTasksBox" Style="{StaticResource Rows}"
                                  SelectionMode="Extended"
                                  SelectionChanged="OnTaskSelectionChanged"
@@ -272,7 +283,7 @@
                 esas listas se trabajan en «Mis listas», que ahora las trae tambien: duplicar aqui
                 el panel de tareas seria mantener dos veces lo mismo.
             -->
-            <TabItem Header="{loc:T MenuGroups}">
+            <TabItem x:Name="GroupsTab" Header="{loc:T MenuGroups}">
                 <DockPanel Margin="4,12,4,4">
 
                     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="4,10,0,0">
@@ -304,6 +315,10 @@
                                             <TextBlock Text="{Binding Caption}" FontSize="11" Opacity="0.75" />
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                            <Button Style="{StaticResource RowIconButton}"
+                                                    Content="&#xE8D7;"
+                                                    ToolTip="{loc:T InviteTitle}"
+                                                    Tag="{Binding Id}" Click="OnInviteClick" />
                                             <Button Style="{StaticResource RowIconButton}"
                                                     Content="&#xE710;"
                                                     ToolTip="{loc:T NewGroupListTitle}"

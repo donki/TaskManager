@@ -168,6 +168,10 @@ public partial class MyTasksPage : ContentPage
         SummaryLabel.Text = tasks.Count == 1
             ? Localization.Loc.Instance["TaskCountOne"]
             : Localization.Loc.Instance.Format("TaskCount", tasks.Count);
+
+        // Y el total de la cuenta, para saber si lo que se ve es todo o es lo que deja ver el filtro.
+        var total = await _tasks.Repository.CountAllAsync();
+        FooterLabel.Text = Localization.Loc.Instance.Format("ShowingOf", tasks.Count, total);
     }
 
     /// <summary>

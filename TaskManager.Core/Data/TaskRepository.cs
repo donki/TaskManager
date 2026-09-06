@@ -562,6 +562,22 @@ public sealed class TaskRepository
         return tasks;
     }
 
+    /// <summary>
+    /// Cuantas tiene la cuenta en total, con filtro o sin el. Es el segundo numero del pie de las
+    /// listas: sin el, «14 tareas» no dice si es que hay catorce o es que el filtro esconde el resto.
+    /// </summary>
+    public Task<int> CountAllAsync()
+    {
+        var account = AccountId;
+        return Db.Table<TaskItem>()
+                 .Where(t => !t.Deleted && t.AccountId == account)
+                 .CountAsync();
+    }
+
+    /// <summary>Cuantas tiene una lista, sin filtros ni busqueda.</summary>
+    public Task<int> CountInListAsync(Guid listId) =>
+        Db.Table<TaskItem>().Where(t => !t.Deleted && t.ListId == listId).CountAsync();
+
     /// <summary>Cuantas quedan por hacer en total. Es lo que cuenta el icono de la bandeja.</summary>
     public Task<int> CountPendingAsync()
     {

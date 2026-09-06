@@ -27,7 +27,7 @@
                 <Border Style="{StaticResource Card}" Margin="0,0,0,8">
                     <VerticalStackLayout Padding="12,10" Spacing="8">
 
-                        <Grid ColumnDefinitions="40,*,Auto,Auto" ColumnSpacing="8">
+                        <Grid ColumnDefinitions="40,*,Auto,Auto,Auto" ColumnSpacing="8">
                             <Image Grid.Column="0" Source="ic_group.png" WidthRequest="24" HeightRequest="24"
                                    VerticalOptions="Center" />
                             <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
@@ -36,10 +36,14 @@
                             </VerticalStackLayout>
 
                             <ImageButton Grid.Column="2" Style="{StaticResource RowIconButton}"
+                                         Source="ic_key.png"
+                                         CommandParameter="{Binding Id}"
+                                         Clicked="OnInviteClicked" />
+                            <ImageButton Grid.Column="3" Style="{StaticResource RowIconButton}"
                                          Source="ic_add.png"
                                          CommandParameter="{Binding Id}"
                                          Clicked="OnNewListClicked" />
-                            <ImageButton Grid.Column="3" Style="{StaticResource RowIconButton}"
+                            <ImageButton Grid.Column="4" Style="{StaticResource RowIconButton}"
                                          Source="ic_delete_danger.png"
                                          CommandParameter="{Binding Id}"
                                          Clicked="OnDeleteGroupClicked" />

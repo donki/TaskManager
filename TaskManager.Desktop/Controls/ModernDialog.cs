@@ -28,6 +28,63 @@ public static class ModernDialog
     /// Si lo que se va a hacer no tiene vuelta atras. Pinta el boton de aceptar en rojo, que es lo
     /// unico que distingue «borrar» de «guardar» cuando se lee en diagonal.
     /// </param>
+    /// <summary>
+    /// Enseña un codigo QR, grande y sobre blanco.
+    /// </summary>
+    /// <remarks>
+    /// <para>El QR se escanea desde OTRO aparato, asi que lo unico que importa es que se vea: fondo
+    /// blanco pase lo que pase —aunque Windows este en modo oscuro— y tamaño generoso. Un QR
+    /// pequeño o sobre gris es justo lo que hace que la camara no lo pille.</para>
+    ///
+    /// <para>Los bytes vienen en PNG desde el nucleo (<c>GroupLink.QrPng</c>), que es quien sabe
+    /// que hay que dibujar; aqui solo se pinta.</para>
+    /// </remarks>
+    public static void ShowQr(Window owner, string title, string message, byte[] png)
+    {
+        var window = Build(owner, title, message, out var content);
+
+        var imagen = new System.Windows.Controls.Image
+        {
+            Width = 260,
+            Height = 260,
+            Stretch = System.Windows.Media.Stretch.Uniform,
+            Source = Bitmap(png),
+        };
+
+        content.Children.Add(new Border
+        {
+            Background = System.Windows.Media.Brushes.White,
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(14),
+            Margin = new Thickness(0, 16, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Child = imagen,
+        });
+
+        var accept = IconButton(owner, "", title, "IconButton");
+        accept.HorizontalAlignment = HorizontalAlignment.Right;
+        accept.Margin = new Thickness(0, 16, 0, 0);
+        accept.Click += (_, _) => window.DialogResult = true;
+        content.Children.Add(accept);
+
+        window.ShowDialog();
+    }
+
+    /// <summary>Los bytes de un PNG, listos para pintar. Se congela: se comparte entre hilos.</summary>
+    private static System.Windows.Media.Imaging.BitmapImage Bitmap(byte[] png)
+    {
+        var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+
+        using var stream = new System.IO.MemoryStream(png);
+        bitmap.BeginInit();
+        bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+        bitmap.StreamSource = stream;
+        bitmap.EndInit();
+        bitmap.Freeze();
+
+        return bitmap;
+    }
+
     public static bool Confirm(Window owner, string title, string message, bool danger = false)
     {
         var window = Build(owner, title, message, out var content);
@@ -176,7 +233,8 @@ public static class ModernDialog
         string title,
         string message,
         IReadOnlyList<(string Label, T Value)> options,
-        string acceptTooltip)
+        string acceptTooltip,
+        string cancelTooltip = "")
         where T : struct
     {
         var window = Build(owner, title, message, out var content);
@@ -192,11 +250,26 @@ public static class ModernDialog
 
         content.Children.Add(list);
 
+        // Salir sin hacer nada tiene que verse. Estas ventanas no llevan barra de titulo, asi
+        // que sin esta X lo unico que cerraba era la tecla Escape, que no esta escrita en
+        // ninguna parte.
+        var cancel = IconButton(owner, "", cancelTooltip, "GhostIconButton");
+        cancel.Click += (_, _) => window.DialogResult = false;
+
         var accept = IconButton(owner, "", acceptTooltip, "IconButton");
-        accept.HorizontalAlignment = HorizontalAlignment.Right;
-        accept.Margin = new Thickness(0, 16, 0, 0);
+        accept.Margin = new Thickness(8, 0, 0, 0);
         accept.Click += (_, _) => window.DialogResult = true;
-        content.Children.Add(accept);
+
+        var botones = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 16, 0, 0),
+        };
+
+        botones.Children.Add(cancel);
+        botones.Children.Add(accept);
+        content.Children.Add(botones);
 
         // Doble clic sobre una fila: elegir y cerrar. Es el gesto de siempre en una lista.
         list.MouseDoubleClick += (_, _) => window.DialogResult = true;

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:TaskManager.Mobile.Localization"
+             x:Class="TaskManager.Mobile.Pages.GroupQrPage"
+             Title="{loc:T InviteTitle}">
+
+    <!-- Cerrar sin hacer nada, a un toque: la flecha de volver esta arriba a la izquierda, donde no
+         se mira cuando lo que tienes delante es un codigo para que alguien lo escanee. -->
+    <ContentPage.ToolbarItems>
+        <ToolbarItem IconImageSource="ic_close_w.png" Clicked="OnCloseClicked" />
+    </ContentPage.ToolbarItems>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+
+            <!-- El QR, grande y sobre blanco: se escanea desde otro telefono, y un fondo oscuro o
+                 pequeño es justo lo que hace que la camara no lo pille. -->
+            <Border Style="{StaticResource Card}" BackgroundColor="{StaticResource White}"
+                    HorizontalOptions="Center">
+                <Image x:Name="QrImage" WidthRequest="260" HeightRequest="260" Margin="16" />
+            </Border>
+
+            <Label x:Name="HintLabel" Style="{StaticResource HintText}"
+                   HorizontalTextAlignment="Center" />
+
+            <!-- El codigo y la clave, escritos: si la camara falla o el otro no tiene la
+                 aplicacion, se meten a mano. -->
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Padding="16" Spacing="6">
+                    <Label x:Name="CodeLabel" Style="{StaticResource ItemTitle}" />
+                    <Label x:Name="KeyLabel" Style="{StaticResource ItemSubtitle}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Button x:Name="ShareButton" Text="{loc:T Share}" Clicked="OnShareClicked"
+                    HorizontalOptions="Fill" />
+
+            <Button x:Name="CopyButton" Text="{loc:T ShareCopy}" Style="{StaticResource OutlineButton}"
+                    Clicked="OnCopyClicked" HorizontalOptions="Fill" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

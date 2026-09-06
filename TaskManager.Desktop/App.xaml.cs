@@ -61,6 +61,10 @@ public partial class App : Application
 
         ThemeManager.Apply();
 
+        // Que Windows sepa abrir los enlaces de invitacion a un grupo. Se rehace en cada arranque
+        // porque apunta al .exe, y este se entrega copiandolo a mano.
+        GroupLinkProtocol.Registrar();
+
         var folder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Socratic", "TaskManager");
@@ -171,6 +175,18 @@ public partial class App : Application
         // con el clic en el icono o con el atajo global.
         _tray.Notify("Task Manager", Localization.Loc.Format("TrayRunning",
             _settings.Get(SettingsService.KeyHotkey, "Ctrl+Alt+T")));
+
+        // Abierta desde un enlace de invitacion: se enseña la ventana y se entra en el grupo.
+        if (GroupLinkProtocol.EnLosArgumentos(e.Args) is not null || File.Exists(GroupLinkProtocol.BuzonPath))
+        {
+            if (GroupLinkProtocol.EnLosArgumentos(e.Args) is { } invite)
+            {
+                GroupLinkProtocol.Dejar(invite);
+            }
+
+            OpenMain();
+            _main?.AtenderInvitacion();
+        }
     }
 
     /// <summary>
@@ -183,6 +199,13 @@ public partial class App : Application
 
         if (!primera)
         {
+            // Si venia con una invitacion (taskmanager://join?...), se la deja escrita a la que ya
+            // esta corriendo: esta copia se apaga en un segundo y con ella se irian los argumentos.
+            if (GroupLinkProtocol.EnLosArgumentos(Environment.GetCommandLineArgs()) is { } invite)
+            {
+                GroupLinkProtocol.Dejar(invite);
+            }
+
             try
             {
                 EventWaitHandle.OpenExisting(NombreAviso).Set();
@@ -204,7 +227,11 @@ public partial class App : Application
         {
             while (_aviso.WaitOne())
             {
-                Dispatcher.Invoke(OpenMain);
+                Dispatcher.Invoke(() =>
+                {
+                    OpenMain();
+                    _main?.AtenderInvitacion();
+                });
             }
         })
         {

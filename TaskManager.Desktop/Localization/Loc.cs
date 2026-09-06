@@ -24,6 +24,18 @@ public static class Loc
 
     public static string Format(string key, params object[] args) =>
         _service is null ? key : _service.Format(key, args);
+
+    /// <summary>
+    /// El servicio en crudo, para lo que necesita los textos <b>del nucleo</b> —como el mensaje de
+    /// invitacion a un grupo, que se arma alli para que sea el mismo en Windows y en Android—.
+    /// </summary>
+    /// <remarks>
+    /// Revienta si nadie ha llamado a <see cref="Use"/>, que solo puede pasar por un error de
+    /// programacion: el arranque lo hace antes de crear ninguna ventana. Un servicio de mentira
+    /// devolveria textos vacios y el fallo aparecería mucho mas lejos.
+    /// </remarks>
+    public static LocalizationService Texts => _service
+        ?? throw new InvalidOperationException("Loc.Use no se ha llamado todavia.");
 }
 
 /// <summary>

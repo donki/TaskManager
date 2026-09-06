@@ -175,6 +175,9 @@ public partial class MainWindow : Window
             _ => $"{T(TaskFilters.KeyOf(_filter))}  ·  #{_activeTag}",
         };
         SummaryLabel.Text = tasks.Count == 1 ? T("TaskCountOne") : F("TaskCount", tasks.Count);
+
+        // Y el total de la cuenta, para saber si lo que se ve es todo o es lo que deja ver el filtro.
+        FooterLabel.Text = F("ShowingOf", tasks.Count, await _tasks.Repository.CountAllAsync());
         NoTasksLabel.Text = string.IsNullOrWhiteSpace(_search)
             ? T("NoTasksForFilter")
             : F("NoSearchResults", _search);
@@ -404,6 +407,7 @@ public partial class MainWindow : Window
 
         if (_selectedList == Guid.Empty)
         {
+            ListFooterLabel.Text = string.Empty;
             return;
         }
 
@@ -411,6 +415,9 @@ public partial class MainWindow : Window
         {
             _listTasks.Add(new TaskRow(task, string.Empty));
         }
+
+        ListFooterLabel.Text = F("ShowingOf", _listTasks.Count,
+            await _tasks.Repository.CountInListAsync(_selectedList));
     }
 
     private async void OnNewListClick(object sender, RoutedEventArgs e)
@@ -995,11 +1002,15 @@ public partial class MainWindow : Window
             return;
         }
 
+        // El grupo se guarda aqui primero porque su identificador es la clave con la que se cifra
+        // su nombre antes de mandarlo. Si el servidor no lo acepta hay que deshacerlo: dejarlo a
+        // medias es lo que llenaba la pantalla de grupos sin codigo, que no sirven para nada y que
+        // ni siquiera se pueden compartir.
+        var group = await _tasks.Repository.SaveGroupAsync(
+            new TaskManager.Core.Models.TaskGroup { Name = name.Trim() });
+
         try
         {
-            var group = await _tasks.Repository.SaveGroupAsync(
-                new TaskManager.Core.Models.TaskGroup { Name = name.Trim() });
-
             var invite = _sync is null
                 ? new GroupInvite(string.Empty, GroupInvite.NewKey())
                 : await _sync.CreateGroupAsync(group.Id, name.Trim());
@@ -1012,6 +1023,99 @@ public partial class MainWindow : Window
 
             await ReloadGroupsAsync();
             await ReloadListsAsync();
+
+            Compartir(group.Name, invite);
+        }
+        catch (Exception ex)
+        {
+            await _tasks.Repository.DeleteGroupAsync(group);
+            await ReloadGroupsAsync();
+
+            Controls.ModernDialog.Alert(this, T("NotYetTitle"), ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Entra en el grupo de una invitacion que ha llegado por un enlace.
+    /// </summary>
+    /// <remarks>
+    /// Se pregunta antes: el enlace puede haber llegado por cualquier sitio —un correo, un chat— y
+    /// meter a alguien en un grupo sin decirle nada seria pasarse. La invitacion se recoge siempre,
+    /// diga que si o que no, para que no vuelva a saltar en el siguiente arranque.
+    /// </remarks>
+    public async void AtenderInvitacion()
+    {
+        if (Services.GroupLinkProtocol.Recoger() is not { } invite)
+        {
+            return;
+        }
+
+        GroupsTab.IsSelected = true;
+
+        if (!Controls.ModernDialog.Confirm(this, T("JoinFromLinkTitle"),
+                F("JoinFromLinkMessage", invite.JoinCode)))
+        {
+            return;
+        }
+
+        try
+        {
+            if (_sync is null)
+            {
+                Controls.ModernDialog.Alert(this, T("NotYetTitle"), T("GroupCodeLocal"));
+                return;
+            }
+
+            await _sync.JoinGroupAsync(invite.JoinCode, invite.SharedKey);
+
+            if (_syncing is not null)
+            {
+                await _syncing.SyncNowAsync();
+            }
+
+            await ReloadGroupsAsync();
+            await ReloadListsAsync();
+
+            Controls.ModernDialog.Alert(this, T("JoinedTitle"), T("GroupCodeShare"));
+        }
+        catch (Exception ex)
+        {
+            Controls.ModernDialog.Alert(this, T("NotYetTitle"), ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Reparte una invitacion para un grupo que ya existe.
+    /// </summary>
+    /// <remarks>
+    /// La clave no se guarda en ninguna parte, asi que la que salio al crear el grupo no se puede
+    /// volver a mirar: para invitar mas tarde se pone una nueva y la anterior deja de valer. Es lo
+    /// sano —una invitacion olvidada en un chat ya no abre nada— y a quien ya esta dentro no le
+    /// afecta, porque su pertenencia ya esta canjeada. Solo puede hacerlo quien creo el grupo.
+    /// </remarks>
+    private async void OnInviteClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Button { Tag: Guid groupId })
+        {
+            return;
+        }
+
+        var group = await _tasks.Repository.GetGroupAsync(groupId);
+        if (group is null)
+        {
+            return;
+        }
+
+        if (!Controls.ModernDialog.Confirm(this, T("InviteTitle"), T("InviteWarning")))
+        {
+            return;
+        }
+
+        try
+        {
+            var invite = _sync is null
+                ? throw new InvalidOperationException(T("GroupCodeLocal"))
+                : await _sync.RenewInviteAsync(group.Id, group.JoinCode);
 
             Compartir(group.Name, invite);
         }
@@ -1036,7 +1140,7 @@ public partial class MainWindow : Window
     /// </remarks>
     private void Compartir(string groupName, GroupInvite invite)
     {
-        var texto = F("GroupInviteBody", groupName, invite.JoinCode, invite.SharedKey);
+        var texto = GroupLink.Message(Localization.Loc.Texts, groupName, invite);
 
         System.Windows.Clipboard.SetText(texto);
 
@@ -1045,14 +1149,23 @@ public partial class MainWindow : Window
             T("GroupCreated"),
             texto + Environment.NewLine + Environment.NewLine + T("GroupInviteSaved"),
             [
+                (T("QrTitle"), 3),
                 (T("ShareCopy"), 0),
                 (T("ShareMail"), 1),
                 (T("ShareWhatsApp"), 2),
             ],
-            T("Share"));
+            T("Share"),
+            T("Cancel"));
 
         switch (canal)
         {
+            case 3:
+                // El QR es para que lo enfoque OTRO aparato: se le abre la aplicacion con el grupo
+                // puesto, sin teclear el codigo ni la clave.
+                Controls.ModernDialog.ShowQr(this, T("QrTitle"), T("QrHint"),
+                    GroupLink.QrPng(GroupLink.For(invite)));
+                break;
+
             case 1:
                 Abrir($"mailto:?subject={Uri.EscapeDataString(T("GroupInviteSubject"))}" +
                       $"&body={Uri.EscapeDataString(texto)}");

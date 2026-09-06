@@ -718,10 +718,17 @@ public sealed class SupabaseSyncService : ISyncService
         Authorize(request, token);
 
         using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
 
         // La funcion devuelve (group_id, join_code); del identificador ya se sabe, era nuestro.
         var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            // Lo que dice el servidor, no un «404 (Not Found)» pelado: cuando PostgREST no
+            // encuentra la funcion explica con que parametros la ha buscado, y eso es justo lo que
+            // hace falta para arreglarlo.
+            throw new InvalidOperationException($"create_group ({(int)response.StatusCode}): {body}");
+        }
         using var json = JsonDocument.Parse(body);
 
         var code = json.RootElement.ValueKind == JsonValueKind.Array && json.RootElement.GetArrayLength() > 0
@@ -729,6 +736,42 @@ public sealed class SupabaseSyncService : ISyncService
             : string.Empty;
 
         return new GroupInvite(code, sharedKey);
+    }
+
+    /// <summary>
+    /// Pone una clave nueva al grupo y devuelve la invitacion. El codigo no cambia.
+    /// </summary>
+    /// <remarks>
+    /// <c>rotate_group_key</c> solo deja al propietario, y de eso se entera aqui como un 4xx: se
+    /// deja subir tal cual para que la pantalla lo cuente en vez de fingir que ha ido bien.
+    /// </remarks>
+    public async Task<GroupInvite> RenewInviteAsync(Guid groupId, string joinCode,
+        CancellationToken cancellationToken = default)
+    {
+        var token = await _auth.GetAccessTokenAsync(cancellationToken).ConfigureAwait(false)
+            ?? throw new AuthException("Hay que entrar con una cuenta para repartir invitaciones.");
+
+        var sharedKey = GroupInvite.NewKey();
+
+        using var request = new HttpRequestMessage(HttpMethod.Post,
+            $"{SupabaseConfig.Url}/rest/v1/rpc/rotate_group_key")
+        {
+            Content = JsonContent.Create(new { p_group = groupId, p_new_key = sharedKey }, options: Json),
+        };
+
+        Authorize(request, token);
+
+        using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            throw new InvalidOperationException(
+                error.Contains("not the owner", StringComparison.OrdinalIgnoreCase)
+                    ? "Solo quien creo el grupo puede repartir invitaciones."
+                    : error);
+        }
+
+        return new GroupInvite(joinCode, sharedKey);
     }
 
     public async Task<Guid> JoinGroupAsync(string joinCode, string sharedKey,
@@ -746,9 +789,17 @@ public sealed class SupabaseSyncService : ISyncService
         Authorize(request, token);
 
         using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-
         var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            // El caso normal es el codigo o la clave mal escritos, y eso hay que decirlo con
+            // palabras: `invalid code or key` es lo que raise la funcion del servidor.
+            throw new InvalidOperationException(
+                body.Contains("invalid code or key", StringComparison.OrdinalIgnoreCase)
+                    ? "El código o la clave no son correctos."
+                    : $"join_group ({(int)response.StatusCode}): {body}");
+        }
         if (!Guid.TryParse(body.Trim('"', ' ', '\n', '\r'), out var id))
         {
             throw new AuthException("El codigo o la clave del grupo no son correctos.");

@@ -33,6 +33,20 @@ public interface ISyncService
 
     /// <summary>Canjea codigo + clave compartida por pertenencia. Devuelve el id del grupo.</summary>
     Task<Guid> JoinGroupAsync(string joinCode, string sharedKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Da una invitacion nueva para un grupo que ya existe: <b>clave nueva</b>, mismo codigo.
+    /// </summary>
+    /// <remarks>
+    /// <para>La clave no se guarda en ningun aparato, asi que la que se enseño al crear el grupo no
+    /// se puede volver a mirar. Para repartir una invitacion mas tarde no queda otra que poner una
+    /// clave nueva —y es lo sano: la anterior deja de valer, asi que una invitacion que se quedo
+    /// por ahi en un chat ya no abre nada.</para>
+    ///
+    /// <para>Solo puede hacerlo quien creo el grupo (<c>rotate_group_key</c> lo comprueba en el
+    /// servidor). Los que ya estan dentro no se enteran: la pertenencia ya esta canjeada.</para>
+    /// </remarks>
+    Task<GroupInvite> RenewInviteAsync(Guid groupId, string joinCode, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -86,6 +100,11 @@ public sealed class LocalOnlySyncService : ISyncService
         var code = new string(Enumerable.Range(0, 6).Select(_ => alphabet[Random.Shared.Next(alphabet.Length)]).ToArray());
         return Task.FromResult(new GroupInvite(code, GroupInvite.NewKey()));
     }
+
+    public Task<GroupInvite> RenewInviteAsync(Guid groupId, string joinCode, CancellationToken cancellationToken = default) =>
+        throw new InvalidOperationException(
+            "Repartir una invitacion nueva necesita Supabase configurado: la clave la guarda el " +
+            "servidor (rotate_group_key), nunca el dispositivo.");
 
     public Task<Guid> JoinGroupAsync(string joinCode, string sharedKey, CancellationToken cancellationToken = default) =>
         throw new InvalidOperationException(

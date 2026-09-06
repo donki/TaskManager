@@ -45,7 +45,27 @@ public partial class App : Application
             Platforms.Android.BackgroundSyncReceiver.Schedule();
 #endif
         };
-        window.Resumed += (_, _) => Syncing()?.Start();
+        window.Resumed += (_, _) =>
+        {
+            Syncing()?.Start();
+
+            // Un QR escaneado puede llegar con la aplicacion en cualquier pantalla —o cerrada—, asi
+            // que en cuanto vuelve a estar viva se lleva a «Mis grupos», que es quien sabe entrar.
+            if (Services.GroupInviteLinks.Hay && Shell.Current is not null)
+            {
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    try
+                    {
+                        await Shell.Current.GoToAsync("//GroupsPage");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Invitacion: {ex.Message}");
+                    }
+                });
+            }
+        };
         window.Stopped += (_, _) => Syncing()?.Stop();
 
 #if DEBUG

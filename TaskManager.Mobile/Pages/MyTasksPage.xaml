@@ -12,7 +12,7 @@
     </ContentPage.ToolbarItems>
 
     <Grid>
-        <Grid RowDefinitions="Auto,Auto,Auto,*">
+        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
 
             <!-- Cuantas hay con el filtro puesto -->
             <VerticalStackLayout Grid.Row="0" Padding="16,12,16,4" Spacing="2">
@@ -125,6 +125,11 @@
                     </CollectionView.ItemTemplate>
                 </CollectionView>
             </RefreshView>
+
+            <!-- El pie: cuantas se ven y cuantas hay. Con filtro o busqueda puestos, «14 tareas»
+                 no distingue entre que haya catorce y que el filtro esconda el resto. -->
+            <Label x:Name="FooterLabel" Grid.Row="4" Style="{StaticResource HintText}"
+                   HorizontalTextAlignment="Center" Padding="16,0,16,8" />
         </Grid>
 
         <!-- Aviso de que se esta hablando con el servidor. Flota arriba y no bloquea nada. -->

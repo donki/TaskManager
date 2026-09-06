@@ -81,6 +81,11 @@ public partial class ListDetailPage : ContentPage
         // dentro de la propia fuente, y con una List<> corriente el cambio no se ve.
         _rows = new ObservableCollection<TaskRow>(rows);
         TasksView.ItemsSource = _rows;
+
+        // Cuantas se ven de las que tiene la lista: con la busqueda escrita, el numero de filas por
+        // si solo no dice cuantas se estan quedando fuera.
+        var total = await _tasks.Repository.CountInListAsync(_listId);
+        FooterLabel.Text = Localization.Loc.Instance.Format("ShowingOf", rows.Count, total);
     }
 
     /// <summary>
