@@ -1119,15 +1119,18 @@ public partial class MainWindow : Window
 
         System.Windows.Clipboard.SetText(texto);
 
-        // De momento, derecho al QR. Antes se preguntaba primero si mandarlo por correo, por
-        // WhatsApp o copiarlo, y esa pregunta se ha quitado mientras se prueba el escaneo: la
-        // pantalla del ordenador enseña el codigo y el movil lo lee, que es el camino que hay que
-        // dejar limpio. El texto queda igualmente en el portapapeles, sin preguntar nada.
-        //
-        // El QR es para que lo enfoque OTRO aparato: se le abre la aplicacion con el grupo puesto,
-        // sin teclear el codigo ni la clave.
+        // Derecho al QR, que es a lo que se viene: lo enfoca OTRO aparato y se le abre la
+        // aplicacion con el grupo puesto, sin teclear el codigo ni la clave. Mandarlo por correo o
+        // por WhatsApp esta ahi mismo, junto al codigo, en vez de en una pregunta previa; y copiado
+        // ya esta, desde antes de abrir la ventana.
         Controls.ModernDialog.ShowQr(this, T("QrTitle"), T("QrHint"),
-            GroupLink.QrPng(GroupLink.For(invite)));
+            GroupLink.QrPng(GroupLink.For(invite)),
+            ("\uE8C8", T("ShareCopy"), () => System.Windows.Clipboard.SetText(texto)),
+            ("\uE715", T("ShareMail"), () => Abrir(
+                $"mailto:?subject={Uri.EscapeDataString(T("GroupInviteSubject"))}" +
+                $"&body={Uri.EscapeDataString(texto)}")),
+            ("\uE8BD", T("ShareWhatsApp"), () => Abrir(
+                $"https://wa.me/?text={Uri.EscapeDataString(texto)}")));
     }
 
     /// <summary>

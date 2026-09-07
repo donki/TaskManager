@@ -10,9 +10,7 @@
     <ContentPage.ToolbarItems>
         <ToolbarItem IconImageSource="ic_add_w.png" Clicked="OnNewGroupClicked" />
         <ToolbarItem IconImageSource="ic_scan_w.png" Clicked="OnScanQrClicked" />
-        <!-- Escondido de momento: mientras se prueba el QR, entrar en un grupo se hace solo
-             escaneandolo. El codigo por teclado sigue programado (OnJoinGroupClicked). -->
-        <!--<ToolbarItem IconImageSource="ic_key_w.png" Clicked="OnJoinGroupClicked" />-->
+        <ToolbarItem IconImageSource="ic_key_w.png" Clicked="OnJoinGroupClicked" />
         <ToolbarItem IconImageSource="ic_refresh_w.png" Clicked="OnRefreshClicked" />
     </ContentPage.ToolbarItems>
 

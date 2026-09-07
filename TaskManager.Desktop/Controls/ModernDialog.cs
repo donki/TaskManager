@@ -39,7 +39,13 @@ public static class ModernDialog
     /// <para>Los bytes vienen en PNG desde el nucleo (<c>GroupLink.QrPng</c>), que es quien sabe
     /// que hay que dibujar; aqui solo se pinta.</para>
     /// </remarks>
-    public static void ShowQr(Window owner, string title, string message, byte[] png)
+    /// <param name="extras">
+    /// Lo que se puede hacer ademas de mirarlo: mandarlo por correo, por WhatsApp o copiarlo. Van
+    /// aqui, junto al codigo, y no en una pregunta previa: se llega para enseñar el QR, y quien lo
+    /// tenga que mandar lo decide viendolo, no antes.
+    /// </param>
+    public static void ShowQr(Window owner, string title, string message, byte[] png,
+        params (string Glyph, string Tooltip, Action Do)[] extras)
     {
         var window = Build(owner, title, message, out var content);
 
@@ -61,11 +67,26 @@ public static class ModernDialog
             Child = imagen,
         });
 
+        var botones = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 16, 0, 0),
+        };
+
+        foreach (var (glyph, tooltip, hacer) in extras)
+        {
+            var extra = IconButton(owner, glyph, tooltip, "GhostIconButton");
+            extra.Margin = new Thickness(0, 0, 8, 0);
+            extra.Click += (_, _) => hacer();
+            botones.Children.Add(extra);
+        }
+
         var accept = IconButton(owner, "", title, "IconButton");
-        accept.HorizontalAlignment = HorizontalAlignment.Right;
-        accept.Margin = new Thickness(0, 16, 0, 0);
         accept.Click += (_, _) => window.DialogResult = true;
-        content.Children.Add(accept);
+        botones.Children.Add(accept);
+
+        content.Children.Add(botones);
 
         window.ShowDialog();
     }
