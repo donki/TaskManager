@@ -1,5 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!--
+    Compilacion de demostracion, solo para las capturas de las tiendas: entra sin cuenta y siembra
+    tareas inventadas (Helpers\DemoData.cs). Escribe en OTRA base de datos, asi que se puede
+    instalar encima de la de verdad sin tocarle nada.
+
+      dotnet publish ... -p:Demo=true
+
+    Nunca se publica: no lleva ni cuenta ni sincronizacion.
+  -->
+  <PropertyGroup Condition="'$(Demo)' == 'true'">
+    <DefineConstants>$(DefineConstants);DEMO</DefineConstants>
+  </PropertyGroup>
+
+  <!-- El mismo paquete en ingles, para las capturas de la ficha en-US: -p:Demo=true -p:DemoLang=en -->
+  <PropertyGroup Condition="'$(Demo)' == 'true' and '$(DemoLang)' == 'en'">
+    <DefineConstants>$(DefineConstants);DEMO_EN</DefineConstants>
+  </PropertyGroup>
+
   <PropertyGroup>
     <TargetFrameworks>net10.0-android36.0</TargetFrameworks>
     <OutputType>Exe</OutputType>

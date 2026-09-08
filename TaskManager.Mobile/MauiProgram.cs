@@ -21,8 +21,15 @@ public static class MauiProgram
         builder.UseBarcodeReader();
 
         // Servicios (constitucion 5 y 7: la logica vive aqui, las paginas solo la orquestan).
+#if DEMO
+        // La demostracion no comparte base con la de verdad: se instala encima para hacer las
+        // capturas y las tareas de quien la usa tienen que seguir donde estaban.
+        builder.Services.AddSingleton(_ => new LocalDatabase(
+            Path.Combine(FileSystem.AppDataDirectory, "taskmanager-demo.db3")));
+#else
         builder.Services.AddSingleton(_ => new LocalDatabase(
             Path.Combine(FileSystem.AppDataDirectory, "taskmanager.db3")));
+#endif
         builder.Services.AddSingleton<TaskRepository>();
         builder.Services.AddSingleton<SettingsService>();
         builder.Services.AddSingleton<LocalizationService>();

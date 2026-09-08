@@ -39,6 +39,14 @@ public partial class LoginPage : ContentPage
         base.OnAppearing();
         await _settings.LoadAsync();
 
+#if DEMO
+        // La demostracion entra sola, con tareas inventadas: es para las capturas de las tiendas, y
+        // ahi no hay cuenta con la que entrar ni datos de nadie que se puedan enseñar.
+        await Helpers.DemoData.SeedAsync(_tasks.Repository, _settings);
+        await Shell.Current.GoToAsync("//MyTasksPage");
+        return;
+#endif
+
         SetBusy(true);
         var restored = await _auth.RestoreSessionAsync();
         SetBusy(false);

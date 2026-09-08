@@ -1,4 +1,5 @@
 using System.Linq;
+using TaskManager.Core.Services;
 
 namespace TaskManager.Core.Models;
 
@@ -194,10 +195,17 @@ public readonly record struct Recurrence(
             : new Recurrence(kind, interval, extra);
     }
 
-    /// <summary>Frase corta para la interfaz ("cada 2 semanas · L M X").</summary>
-    public string Describe()
+    /// <summary>
+    /// Frase corta para la interfaz («cada 2 semanas · L M X»).
+    /// </summary>
+    /// <remarks>
+    /// Los textos vienen de fuera y no estan escritos aqui: esto lo pinta la lista de tareas y la
+    /// ficha de una tarea, y estaba en castellano a pelo. Con la aplicacion en ingles se leia «Cada
+    /// mes» debajo de un titulo en ingles.
+    /// </remarks>
+    public string Describe(LocalizationService textos)
     {
-        var basic = DescribeKind();
+        var basic = DescribeKind(textos);
 
         if (UsesMonth && (Month != 0 || MonthDay != 0))
         {
@@ -209,7 +217,7 @@ public readonly record struct Recurrence(
 
         if (UsesMonthDay && MonthDay != 0)
         {
-            return $"{basic} · dia {MonthDay}";
+            return $"{basic} · {textos.Format("RepeatOnDay", MonthDay)}";
         }
 
         if (!UsesDays || Days == 0)
@@ -219,7 +227,7 @@ public readonly record struct Recurrence(
 
         // La mascara se copia a una local: dentro de una struct, una lambda no puede tocar `this`.
         var mask = Days;
-        var names = new[] { "D", "L", "M", "X", "J", "V", "S" };
+        var names = textos["WeekdayInitials"].Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var chosen = Enumerable.Range(0, 7)
             .Where(i => (mask & (1 << i)) != 0)
             .Select(i => names[i]);
@@ -227,18 +235,18 @@ public readonly record struct Recurrence(
         return $"{basic} · {string.Join(" ", chosen)}";
     }
 
-    private string DescribeKind() => (Kind, Interval) switch
+    private string DescribeKind(LocalizationService t) => (Kind, Interval) switch
     {
-        (RecurrenceKind.None, _) => "No se repite",
-        (RecurrenceKind.Daily, 1) => "Cada día",
-        (RecurrenceKind.Daily, var n) => $"Cada {n} días",
-        (RecurrenceKind.Weekly, 1) => "Cada semana",
-        (RecurrenceKind.Weekly, var n) => $"Cada {n} semanas",
-        (RecurrenceKind.Monthly, 1) => "Cada mes",
-        (RecurrenceKind.Monthly, var n) => $"Cada {n} meses",
-        (RecurrenceKind.Yearly, 1) => "Cada año",
-        (RecurrenceKind.Yearly, var n) => $"Cada {n} años",
-        _ => "No se repite",
+        (RecurrenceKind.None, _) => t["RepeatNever"],
+        (RecurrenceKind.Daily, 1) => t["RepeatDaily"],
+        (RecurrenceKind.Daily, var n) => t.Format("RepeatDailyN", n),
+        (RecurrenceKind.Weekly, 1) => t["RepeatWeekly"],
+        (RecurrenceKind.Weekly, var n) => t.Format("RepeatWeeklyN", n),
+        (RecurrenceKind.Monthly, 1) => t["RepeatMonthly"],
+        (RecurrenceKind.Monthly, var n) => t.Format("RepeatMonthlyN", n),
+        (RecurrenceKind.Yearly, 1) => t["RepeatYearly"],
+        (RecurrenceKind.Yearly, var n) => t.Format("RepeatYearlyN", n),
+        _ => t["RepeatNever"],
     };
 }
 

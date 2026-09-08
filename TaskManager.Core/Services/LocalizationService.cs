@@ -210,6 +210,11 @@ public sealed class LocalizationService
         ["RepeatMonthlyN"] = "Every {0} months",
         ["RepeatYearly"] = "Every year",
         ["RepeatYearlyN"] = "Every {0} years",
+        ["RepeatOnDay"] = "day {0}",
+        ["WeekdayInitials"] = "S M T W T F S",
+        ["PlanShort"] = "Planned: {0}",
+        ["TodayWord"] = "today",
+        ["StepsShort"] = "{0}/{1} steps",
 
         // --- Pasos Magicos ---
         // Ventana de Windows: bandeja, ajustes y celebraciones.
@@ -562,6 +567,11 @@ public sealed class LocalizationService
         ["RepeatMonthlyN"] = "Cada {0} meses",
         ["RepeatYearly"] = "Cada año",
         ["RepeatYearlyN"] = "Cada {0} años",
+        ["RepeatOnDay"] = "día {0}",
+        ["WeekdayInitials"] = "D L M X J V S",
+        ["PlanShort"] = "Plan: {0}",
+        ["TodayWord"] = "hoy",
+        ["StepsShort"] = "{0}/{1} pasos",
 
         // Ventana de Windows: bandeja, ajustes y celebraciones.
         ["SettingsTitle"] = "Task Manager — Ajustes",

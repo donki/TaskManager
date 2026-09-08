@@ -125,7 +125,7 @@ public partial class TaskDetailPage : ContentPage
         RecurrencePicker.SelectedIndex = Array.IndexOf(Kinds, recurrence.Kind) is var index && index >= 0 ? index : 0;
         IntervalStepper.Value = Math.Clamp(recurrence.Interval <= 0 ? 1 : recurrence.Interval, 1, 30);
         IntervalStepper.IsVisible = recurrence.Kind != RecurrenceKind.None;
-        RecurrenceLabel.Text = recurrence.Describe();
+        RecurrenceLabel.Text = recurrence.Describe(Localization.Loc.Instance.Textos);
 
         _loading = false;
 
@@ -723,7 +723,7 @@ public partial class TaskDetailPage : ContentPage
         WeekdaysScroll.IsVisible = recurrence.UsesDays;
         MonthDayRow.IsVisible = recurrence.UsesMonthDay;
         MonthRow.IsVisible = recurrence.UsesMonth;
-        RecurrenceLabel.Text = recurrence.Describe();
+        RecurrenceLabel.Text = recurrence.Describe(Localization.Loc.Instance.Textos);
     }
 
     private void OnIntervalChanged(object? sender, ValueChangedEventArgs e)
@@ -734,7 +734,7 @@ public partial class TaskDetailPage : ContentPage
         }
 
         var kind = Kinds[Math.Clamp(RecurrencePicker.SelectedIndex, 0, Kinds.Length - 1)];
-        RecurrenceLabel.Text = new Recurrence(kind, (int)e.NewValue).Describe();
+        RecurrenceLabel.Text = new Recurrence(kind, (int)e.NewValue).Describe(Localization.Loc.Instance.Textos);
     }
 
     // ==================================================================================

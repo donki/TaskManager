@@ -589,7 +589,9 @@ public partial class FlyoutWindow : Window
             Title = task.IsPinned ? "📌 " + task.Title : task.Title;
             IsDone = task.IsDone;
             ListName = listName;
-            StepsCaption = task.StepCount > 0 ? $"{task.StepsDone}/{task.StepCount} pasos" : string.Empty;
+            StepsCaption = task.StepCount > 0
+                ? Localization.Loc.Format("StepsShort", task.StepsDone, task.StepCount)
+                : string.Empty;
         }
 
         public Guid Id { get; }

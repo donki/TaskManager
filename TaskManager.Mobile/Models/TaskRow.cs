@@ -57,13 +57,15 @@ public sealed class TaskRow : INotifyPropertyChanged
     {
         get
         {
+            var textos = Localization.Loc.Instance;
             var parts = new List<string>();
+
             if (Task.PlannedFor is { } planned)
-                parts.Add($"Plan: {(planned.Date == DateTime.Now.Date ? "hoy" : planned.ToString("d MMM"))}");
+                parts.Add(textos.Format("PlanShort", Cuando(planned, textos)));
             if (Task.DueAt is { } due)
-                parts.Add($"Vence: {(due.Date == DateTime.Now.Date ? "hoy" : due.ToString("d MMM"))}");
+                parts.Add(textos.Format("DueShort", Cuando(due, textos)));
             if (Task.Recurrence.Repeats)
-                parts.Add(Task.Recurrence.Describe().ToLowerInvariant());
+                parts.Add(Task.Recurrence.Describe(textos.Textos).ToLowerInvariant());
 
             return string.Join(" · ", parts);
         }
@@ -71,7 +73,13 @@ public sealed class TaskRow : INotifyPropertyChanged
 
     public bool HasSchedule => ScheduleCaption.Length > 0;
 
-    public string StepsCaption => Task.StepCount > 0 ? $"{Task.StepsDone}/{Task.StepCount} pasos" : string.Empty;
+    public string StepsCaption => Task.StepCount > 0
+        ? Localization.Loc.Instance.Format("StepsShort", Task.StepsDone, Task.StepCount)
+        : string.Empty;
+
+    /// <summary>«hoy» o el dia y el mes. Lo de hoy se dice con palabras, que es como se lee.</summary>
+    private static string Cuando(DateTime fecha, Localization.Loc textos) =>
+        fecha.Date == DateTime.Now.Date ? textos["TodayWord"] : fecha.ToString("d MMM");
 
     public double Progress => Task.Progress;
 

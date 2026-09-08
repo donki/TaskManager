@@ -438,7 +438,7 @@ public partial class TaskDetailWindow : Window
         MonthBox.Visibility = monthVisible;
 
         IntervalLabel.Text = _interval.ToString();
-        RecurrenceLabel.Text = recurrence.Describe();
+        RecurrenceLabel.Text = recurrence.Describe(Localization.Loc.Texts);
     }
 
     // -----------------------------------------------------------------------

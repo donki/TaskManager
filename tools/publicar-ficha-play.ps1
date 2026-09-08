@@ -157,6 +157,22 @@ try {
 
             Write-Host "  $($imagen.Tipo) de $idioma subido"
         }
+
+        # Las capturas van aparte: son varias y en orden, y el orden es el del nombre del fichero
+        # (1-, 2-, ...), porque Play las enseña en el mismo orden en que se suben.
+        $capturas = Join-Path $ImagenesPath "capturas\$idioma"
+        if (Test-Path $capturas) {
+            Invoke-RestMethod -Method Delete -Headers $cabeceras `
+                -Uri "$api/edits/$($edit.id)/listings/$idioma/phoneScreenshots" | Out-Null
+
+            foreach ($captura in Get-ChildItem $capturas -Filter *.png | Sort-Object Name) {
+                Invoke-RestMethod -Method Post -Headers $cabeceras -ContentType 'image/png' `
+                    -Uri "$apiSubida/edits/$($edit.id)/listings/$idioma/phoneScreenshots?uploadType=media" `
+                    -InFile $captura.FullName | Out-Null
+
+                Write-Host "  captura $($captura.Name) de $idioma subida"
+            }
+        }
     }
 
     Invoke-RestMethod -Method Post -Uri "$api/edits/$($edit.id):commit" -Headers $cabeceras -Body '' | Out-Null

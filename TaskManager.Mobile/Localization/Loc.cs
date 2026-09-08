@@ -27,6 +27,9 @@ public sealed class Loc : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    /// <summary>El servicio de textos, para lo que necesita el objeto y no solo una clave.</summary>
+    public LocalizationService Textos => Service;
+
     private LocalizationService Service =>
         _service ??= ServiceHelper.GetRequiredService<LocalizationService>();
 
