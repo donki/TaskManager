@@ -3,7 +3,8 @@
     Sube a Google Play la ficha de Task Manager: textos e imagenes.
 
 .DESCRIPTION
-    Los textos viven en Mobile\GooglePlayConsole\TaskManager\ficha.md y se leen de ahi, de los
+    Los textos viven en store\google-play\ficha.md —dentro del repositorio, como los de la
+    Microsoft Store— y se leen de ahi, de los
     bloques de codigo, para que no haya dos versiones que puedan separarse: la del repositorio y la
     de la consola. Las imagenes (icono y grafico destacado) salen de esa misma carpeta.
 
@@ -18,8 +19,8 @@
 param(
     [string] $ServiceAccountJson = 'D:\sOCProjects\Mobile\Hiker\Hiker\hiker-433118-98861f2881fa.json',
     [string] $PackageName = 'com.socratic.taskmanager',
-    [string] $FichaPath = 'D:\sOCProjects\Mobile\GooglePlayConsole\TaskManager\ficha.md',
-    [string] $ImagenesPath = 'D:\sOCProjects\Mobile\GooglePlayConsole\TaskManager',
+    [string] $FichaPath = "$PSScriptRoot\..\store\google-play\ficha.md",
+    [string] $ImagenesPath = "$PSScriptRoot\..\store\google-play",
     [switch] $SoloTextos
 )
 
