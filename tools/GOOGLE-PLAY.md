@@ -70,6 +70,18 @@ El script lee `ficha.md` —los bloques de código de cada idioma, en orden: tí
 y descripción completa—, comprueba los límites de Play (30, 80 y 4000 caracteres) y sube textos e
 imágenes para `es-ES` y `en-US`. Cambiar la ficha es cambiar ese `.md` y volver a ejecutarlo.
 
+## Verificadores
+
+La pista cerrada lleva los **cuatro grupos de Google de siempre** (los mismos que las otras apps;
+la lista está en `d:\sOCProjects\GRUPOS-VERIFICADORES.md`), puestos el 2026-09-08 con:
+
+```powershell
+pwsh .	ools\poner-verificadores-play.ps1
+```
+
+Ese script **lee primero los que hay y fusiona**: la API reemplaza la lista entera, así que escribir
+solo los cuatro se llevaría por delante cualquier otro grupo puesto a mano.
+
 ## Lo que falta, y es formulario de la consola
 
 Nada de esto se puede hacer por API:
