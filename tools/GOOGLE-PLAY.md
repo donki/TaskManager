@@ -68,7 +68,14 @@ pwsh .\tools\publicar-ficha-play.ps1
 
 El script lee `ficha.md` —los bloques de código de cada idioma, en orden: título, descripción breve
 y descripción completa—, comprueba los límites de Play (30, 80 y 4000 caracteres) y sube textos e
-imágenes para `es-ES` y `en-US`. Cambiar la ficha es cambiar ese `.md` y volver a ejecutarlo.
+imágenes para `es-ES` y `en-US`: el icono, el gráfico destacado y las **capturas** de
+`capturas\<idioma>\`, que se suben en el orden del nombre del fichero. Cambiar la ficha es cambiar
+ese `.md` (o las imágenes) y volver a ejecutarlo.
+
+Las capturas se hacen con la **compilación de demostración** —`-p:Demo=true`, y `-p:DemoLang=en`
+para el juego en inglés—: entra sin cuenta, siembra tareas inventadas y usa otra base de datos, así
+que no hay que enseñar las tareas de nadie ni tocar las de verdad. Se instala encima de la buena y
+luego se reinstala la buena.
 
 ## Verificadores
 
@@ -76,7 +83,7 @@ La pista cerrada lleva los **cuatro grupos de Google de siempre** (los mismos qu
 la lista está en `d:\sOCProjects\GRUPOS-VERIFICADORES.md`), puestos el 2026-09-08 con:
 
 ```powershell
-pwsh .	ools\poner-verificadores-play.ps1
+pwsh .\tools\poner-verificadores-play.ps1
 ```
 
 Ese script **lee primero los que hay y fusiona**: la API reemplaza la lista entera, así que escribir
@@ -86,14 +93,11 @@ solo los cuatro se llevaría por delante cualquier otro grupo puesto a mano.
 
 Nada de esto se puede hacer por API:
 
-1. **Capturas de teléfono** (mínimo 2). Tienen que salir de una sesión de demostración —base aparte,
-   tareas inventadas, sin datos reales—, como se hizo para la Microsoft Store
-   (`store/microsoft/capturas/`).
-2. **Clasificación del contenido**: el cuestionario.
-3. **Seguridad de los datos**: hay cuenta, hay sincronización y el texto va cifrado en tránsito y en
+1. **Clasificación del contenido**: el cuestionario.
+2. **Seguridad de los datos**: hay cuenta, hay sincronización y el texto va cifrado en tránsito y en
    reposo.
-4. **Público objetivo y anuncios**: no hay anuncios.
-5. **Política de privacidad**: la URL, y tiene que ser la **nueva** —la que dice que hay cuenta y
+3. **Público objetivo y anuncios**: no hay anuncios.
+4. **Política de privacidad**: la URL, y tiene que ser la **nueva** —la que dice que hay cuenta y
    servidor—, no la vieja que decía que no había ninguna de las dos cosas.
 
 Mientras falte algo de eso, el borrador de la pista cerrada no se puede enviar a revisión.
