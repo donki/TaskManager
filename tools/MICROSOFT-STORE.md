@@ -1,7 +1,9 @@
 # Task Manager en la Microsoft Store
 
-Estado: **el paquete está construido y listo para subir.** Falta enviarlo desde Partner Center,
-que la primera vez no se puede hacer por API.
+Estado: **hay una versión publicada en la Store**, y el paquete de la siguiente está construido.
+Cada envío se hace **a mano desde Partner Center**: no por lo que decía este documento —que el
+primero no se puede crear por API— sino por lo que hay debajo, que sigue valiendo para todos los
+demás (ver «Por qué sigue siendo a mano»).
 
 - **Identidad** (Partner Center → Product management → Product identity), ya puesta por defecto en
   `tools/empaquetar-msix.ps1`:
@@ -12,25 +14,47 @@ que la primera vez no se puede hacer por API.
     lista de nombres reservados de la aplicación: si el reservado fuera otro, se regenera con
     `-DisplayName "<el que sea>"`.
 - **Id. de Store**: `9PHJK2391727` · **PFN**: `sOCratic.sOCTaskManager_6c84vmrh3mfca`
-- **Paquete**: `C:\ID\OneDrive\TaskManager\sOCTaskManager-2026.9.24.0.msix` (76 MB, **sin
-  firmar**, que es como lo quiere la Store: la firma la pone ella).
+- **Paquete**: el último construido está en `C:\ID\OneDrive\TaskManager\`, con la versión en el
+  nombre (`sOCTaskManager-2026.9.71.0.msix`, 76 MB), **sin firmar**, que es como lo quiere la Store:
+  la firma la pone ella. Se construye con `tools\empaquetar-msix.ps1`, que saca la versión del
+  csproj: MSIX exige cuatro números y reserva el cuarto para la Store, así que `2026.9.7.1` se
+  convierte en `2026.9.71.0`. **Cada envío tiene que llevar una versión mayor que la publicada.**
 
-## La API no sirve para la primera vez
+## Por qué sigue siendo a mano
 
-Partner Center **sí tiene API** (Microsoft Store submission API, y la `msstore` CLI que la envuelve),
-con autenticación de Microsoft Entra ID por *client credentials* — tenant ID, client ID y client
-secret, ámbito `https://api.store.microsoft.com/.default`, token de 60 minutos. Pero la
-documentación es explícita en dos puntos:
+Partner Center **sí tiene API** (Microsoft Store submission API), con autenticación de Microsoft
+Entra ID por *client credentials* — tenant ID, client ID y client secret, ámbito
+`https://api.store.microsoft.com/.default`, token de 60 minutos. No sirve aquí, por dos cosas
+distintas:
 
-1. La aplicación **no se puede crear por API**; tiene que existir ya en Partner Center. Hecho.
-2. **La primera *submission* hay que crearla a mano**, con el cuestionario de clasificación por
-   edades incluido. A partir de ahí, y solo a partir de ahí, la API puede crear envíos, subir
-   paquetes, tocar la ficha y publicar.
+1. **La cuenta es una cuenta Microsoft personal (Hotmail), sin directorio de Entra asociado**
+   (comprobado el 2026-09-08). *Client credentials* significa que quien se autentica es una
+   aplicación registrada **en un directorio**: sin tenant no hay aplicación que registrar, no hay
+   secreto que pedir y no hay token que sacar. Para abrir esa puerta habría que crear un directorio
+   de Entra desde Partner Center (Configuración de la cuenta → Inquilinos), registrar allí una
+   aplicación, asociarla a la cuenta —hace falta ser **administrador global** de ese directorio— y
+   entrar con ella y no con la cuenta personal. Es un cambio en la cuenta, no una tarea de este
+   repositorio: mientras no se haga, todos los envíos van desde el navegador.
+2. **La `msstore` CLI, que era el atajo, ya no se puede instalar**: no está ni en winget
+   (`Microsoft.MicrosoftStoreCLI`) ni en NuGet (`MSStore.CLI`), las dos vías que documentaba
+   Microsoft (comprobado el 2026-09-08). Queda la API REST a pelo, que tampoco vale sin lo anterior.
 
-O sea que este primer envío va desde el navegador aunque haya credenciales. Para automatizar los
-siguientes hace falta registrar una aplicación de Entra ID asociada a la cuenta (y ser
-**administrador global** de ese directorio para poder asociarla), y entrar con credenciales de Entra
-ID, **no** con la cuenta Microsoft personal.
+Aparte, y por si algún día se automatiza: la aplicación **no se puede crear por API** —tiene que
+existir ya en Partner Center, y existe— y **la primera *submission* también hay que crearla a
+mano**, con el cuestionario de clasificación por edades. Eso ya está hecho.
+
+## Cómo se envía una actualización
+
+Con la ficha ya publicada, subir una versión nueva es solo el paquete:
+
+1. Construirlo: `.\tools\empaquetar-msix.ps1` (sin `-Autofirmar`; la firma la pone la Store).
+2. Partner Center → **sOC Task Manager** → *Envío nuevo*.
+3. **Paquetes** → arrastrar el `.msix` de `C:\ID\OneDrive\TaskManager\`. La versión tiene que ser
+   mayor que la publicada; si no, lo rechaza ahí mismo.
+4. **Notas de la versión** («Novedades»): lo que cambia, en es-ES y en-US.
+5. No hace falta tocar la ficha, ni las capturas, ni la clasificación por edades: se heredan del
+   envío anterior.
+6. *Enviar a la Store*. La certificación tarda de unas horas a un día.
 
 ## Lo que ya está hecho
 
