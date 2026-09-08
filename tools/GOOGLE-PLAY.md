@@ -77,6 +77,21 @@ para el juego en inglés—: entra sin cuenta, siembra tareas inventadas y usa o
 que no hay que enseñar las tareas de nadie ni tocar las de verdad. Se instala encima de la buena y
 luego se reinstala la buena.
 
+## El aviso de «el código de versión es mucho más alto que el anterior»
+
+Play lo enseña en cada subida y **no impide nada**. Nuestro `versionCode` es la fecha
+(`AAAAMMDDNN` = año × 1.000.000 + mes × 10.000 + día × 100 + compilación), así que el número nace
+grande: `2026090801`. Google recomienda empezar por 1 e ir de uno en uno para no gastar el rango,
+que acaba en **2.100.000.000**.
+
+Dos motivos para no hacer nada:
+
+1. **Cabe hasta 2099.** El año aporta un millón: `2099123199` sigue por debajo del techo. El primero
+   que no cabe es el 1 de enero de 2100.
+2. **No se puede deshacer.** Un `versionCode` solo sube; en cuanto entró `2026090801` ya no se puede
+   volver a 1. La recomendación de Google solo sirve para una aplicación nueva, desde su primera
+   subida.
+
 ## Verificadores
 
 La pista cerrada lleva los **cuatro grupos de Google de siempre** (los mismos que las otras apps;
