@@ -49,12 +49,6 @@
                                    Foreground="{DynamicResource TextSecondary}" />
                     </StackPanel>
 
-                    <Border Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0"
-                            Background="{DynamicResource Primary}" CornerRadius="10" Padding="10,4">
-                        <TextBlock x:Name="LevelLabel" Foreground="{DynamicResource OnPrimary}"
-                                   FontSize="12" FontWeight="SemiBold" />
-                    </Border>
-
                     <!-- Calendario y ajustes comparten la ultima columna: van en una pila para
                          no tener que tocar la rejilla cada vez que se anade un boton. -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
@@ -75,13 +69,6 @@
                                 Click="OnAboutClick" />
                     </StackPanel>
                 </Grid>
-
-                <!-- Barra de progreso del nivel -->
-                <ProgressBar Grid.Row="1" x:Name="LevelProgress" Height="4" Margin="0,10,0,0"
-                             Minimum="0" Maximum="1"
-                             Foreground="{DynamicResource Primary}"
-                             Background="{DynamicResource Separator}"
-                             BorderThickness="0" />
 
                 <!-- Captura rapida: lista destino + texto + anadir -->
                 <Grid Grid.Row="2" Margin="0,14,0,10">

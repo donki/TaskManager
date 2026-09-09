@@ -137,6 +137,19 @@ public class TaskItem
 
     public bool IsDone { get; set; }
 
+    /// <summary>
+    /// Empezada pero sin terminar. Es la columna del medio del tablero.
+    /// </summary>
+    /// <remarks>
+    /// <para>Es un campo aparte y no un estado de tres valores porque <see cref="IsDone"/> ya manda
+    /// en toda la aplicacion —los filtros, las rachas, la XP, el icono de la bandeja— y convertirlo
+    /// en un numero obligaria a repasar cada consulta para dejarlo todo igual que estaba.</para>
+    ///
+    /// <para><b>Una tarea hecha no esta en curso</b>: al completarla se apaga sola. Asi el tablero
+    /// no puede enseñar la misma tarea en dos columnas.</para>
+    /// </remarks>
+    public bool InProgress { get; set; }
+
     public DateTime? DoneAt { get; set; }
 
     public string? DoneBy { get; set; }
@@ -167,6 +180,22 @@ public class TaskItem
 
     /// <summary>Repeticion serializada (<c>weekly:2</c>). Vacio = no se repite.</summary>
     public string RecurrenceRule { get; set; } = string.Empty;
+
+    /// <summary>
+    /// De que serie de repeticion es. Nulo = no es de ninguna.
+    /// </summary>
+    /// <remarks>
+    /// <para>Una tarea que se repite no es una tarea que reaparece: son <b>todas las vueltas de
+    /// golpe</b>, una por cada dia en que toca entre la fecha de planificacion y la de finalizacion.
+    /// Esto es lo que las mantiene juntas, para poder rehacer el resto de la serie cuando se cambian
+    /// las fechas o la regla sin tocar las que ya se hicieron.</para>
+    ///
+    /// <para>Y es lo que evita el duplicado: al completar una tarea repetitiva se creaba la
+    /// siguiente vuelta, que con la serie ya escrita seria una de mas. Con esto puesto, completar no
+    /// crea nada.</para>
+    /// </remarks>
+    [Indexed]
+    public Guid? SeriesId { get; set; }
 
     /// <summary>
     /// Prioridad manual: cuanto mas bajo, mas arriba en la lista. Es lo que mueve el arrastre, y

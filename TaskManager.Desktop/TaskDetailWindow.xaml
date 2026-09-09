@@ -63,6 +63,13 @@
                                           Click="OnDoneToggled" />
                                 <CheckBox Style="{StaticResource CheckBoxBaseStyle}" x:Name="PinCheck" Content="{loc:T MarkPinned}"
                                           Margin="20,0,0,0" Click="OnPinToggled" />
+
+                                <!-- Empezada pero sin terminar: la columna del medio del tablero.
+                                     Aqui tambien, y no solo arrastrando, para que se pueda poner
+                                     desde la ficha igual que en el movil. -->
+                                <CheckBox Style="{StaticResource CheckBoxBaseStyle}" x:Name="ProgressCheck"
+                                          Content="{loc:T KanbanDoing}"
+                                          Margin="20,0,0,0" Click="OnProgressToggled" />
                             </StackPanel>
 
                             <TextBlock Text="{loc:T TaskTitle}" Style="{StaticResource HintText}" />

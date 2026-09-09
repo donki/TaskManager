@@ -20,9 +20,13 @@ public static class FeatureOptions
     public const bool MailEnabled = false;
 
     /// <summary>
-    /// Grupos y gremio (listas compartidas, nivel y rachas). <b>Activos</b> (2026-09-06).
+    /// Grupos: listas compartidas. <b>Activos</b> (2026-09-06).
     /// </summary>
     /// <remarks>
+    /// <para>El gremio iba con esta misma llave hasta el 2026-09-09, en que se quito la pantalla:
+    /// la cuenta de XP y la racha siguen por dentro —son las que hacen saltar la celebracion— pero
+    /// ya no hay nada que enseñar ni que apagar.</para>
+    ///
     /// <para>Estuvieron ocultos desde el 2026-09-01 mientras la aplicacion se centraba en las
     /// tareas de uno. Nunca se borraron —las tablas, la RLS y las funciones <c>create_group</c> y
     /// <c>join_group</c> siguieron enteras en el servidor—, asi que volver a ofrecerlos es

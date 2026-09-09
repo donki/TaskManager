@@ -429,11 +429,21 @@ public sealed class TaskRepository
         return [.. tasks.Where(t => t.TagList.Contains(tag, StringComparer.CurrentCultureIgnoreCase))];
     }
 
-    /// <summary>Etiquetas en uso, ordenadas, para ofrecerlas como filtro.</summary>
-    public async Task<List<string>> GetTagsAsync()
+    /// <summary>
+    /// Etiquetas en uso, ordenadas.
+    /// </summary>
+    /// <param name="pendingOnly">
+    /// Solo las que lleva alguna tarea sin hacer. <b>Es lo que quiere la fila de filtros</b>: una
+    /// etiqueta que solo llevan tareas terminadas no filtra nada util y, con los meses, la fila se
+    /// convierte en el archivo historico de todas las etiquetas que han existido. Para ofrecerlas
+    /// al editar una tarea hacen falta <b>todas</b>, que es justo lo contrario: ahi se reutiliza
+    /// una etiqueta vieja precisamente porque ya no queda ninguna tarea viva con ella.
+    /// </param>
+    public async Task<List<string>> GetTagsAsync(bool pendingOnly = false)
     {
         var stored = await Db.QueryScalarsAsync<string>(
-            "SELECT Tags FROM tasks WHERE Deleted = 0 AND Tags <> '' AND AccountId = ?",
+            "SELECT Tags FROM tasks WHERE Deleted = 0 AND Tags <> '' AND AccountId = ?" +
+            (pendingOnly ? " AND IsDone = 0" : string.Empty),
             AccountId).ConfigureAwait(false);
 
         return stored
@@ -577,6 +587,82 @@ public sealed class TaskRepository
     /// <summary>Cuantas tiene una lista, sin filtros ni busqueda.</summary>
     public Task<int> CountInListAsync(Guid listId) =>
         Db.Table<TaskItem>().Where(t => !t.Deleted && t.ListId == listId).CountAsync();
+
+    /// <summary>
+    /// Cuantas quedan y cuantas se han hecho, para el pie de las listas.
+    /// </summary>
+    /// <remarks>
+    /// <para>Los dos numeros salen de la <b>misma</b> consulta a proposito. El pie dice «se muestran
+    /// 6 de 14 pendientes · 30 % hechas», y con dos consultas seguidas esos numeros pueden venir de
+    /// dos momentos distintos —basta con que la sincronizacion escriba en medio— y entonces el
+    /// porcentaje no cuadra con el total que hay al lado.</para>
+    ///
+    /// <para><paramref name="listId"/> nulo = toda la cuenta.</para>
+    /// </remarks>
+    public async Task<(int Pending, int Done)> CountProgressAsync(Guid? listId = null)
+    {
+        var account = AccountId;
+
+        var tasks = listId is { } id
+            ? await Db.Table<TaskItem>().Where(t => !t.Deleted && t.ListId == id)
+                      .ToListAsync().ConfigureAwait(false)
+            : await Db.Table<TaskItem>().Where(t => !t.Deleted && t.AccountId == account)
+                      .ToListAsync().ConfigureAwait(false);
+
+        var done = tasks.Count(t => t.IsDone);
+        return (tasks.Count - done, done);
+    }
+
+    // -----------------------------------------------------------------------
+    // Series de repeticion
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Borra las vueltas de una serie que todavia no se han hecho y aun estan por llegar.
+    /// </summary>
+    /// <remarks>
+    /// <para>Es lo que se hace antes de volver a generar una serie cuyas fechas o cuya regla han
+    /// cambiado: sin esto, mover el final de diciembre a noviembre dejaria las de diciembre puestas
+    /// y cambiar de semanal a mensual sumaria una serie encima de la otra.</para>
+    ///
+    /// <para><b>Lo hecho no se toca</b>, y tampoco lo que ya paso: son el registro de lo que se
+    /// hizo —y de lo que no—, y borrarlo al retocar una fecha se llevaria por delante la racha y la
+    /// XP que costaron.</para>
+    /// </remarks>
+    public async Task<int> DeleteFutureSeriesAsync(Guid seriesId, Guid? keepId = null)
+    {
+        var today = DateTime.Now.Date;
+
+        // SQL a pelo: el traductor de consultas de sqlite-net no lleva bien comparar una columna
+        // que admite nulos —SeriesId— con un valor, y se trae la tabla entera.
+        var pending = await Db.QueryAsync<TaskItem>(
+            "SELECT * FROM tasks WHERE Deleted = 0 AND IsDone = 0 AND SeriesId = ?",
+            seriesId).ConfigureAwait(false);
+
+        var removed = 0;
+
+        foreach (var task in pending)
+        {
+            if (task.Id == keepId || (task.PlannedFor ?? task.DueAt)?.Date < today)
+            {
+                continue;
+            }
+
+            await DeleteTaskAsync(task).ConfigureAwait(false);
+            removed++;
+        }
+
+        return removed;
+    }
+
+    /// <summary>Las tareas de una serie, de la primera a la ultima.</summary>
+    public async Task<List<TaskItem>> GetSeriesAsync(Guid seriesId)
+    {
+        var tasks = await Db.QueryAsync<TaskItem>(
+            "SELECT * FROM tasks WHERE Deleted = 0 AND SeriesId = ?", seriesId).ConfigureAwait(false);
+
+        return [.. tasks.OrderBy(t => t.PlannedFor ?? t.DueAt ?? DateTime.MaxValue)];
+    }
 
     /// <summary>Cuantas quedan por hacer en total. Es lo que cuenta el icono de la bandeja.</summary>
     public Task<int> CountPendingAsync()

@@ -120,6 +120,9 @@ public sealed class TaskService
         }
 
         task.IsDone = true;
+
+        // Terminada deja de estar empezada: el tablero no puede enseñarla en dos columnas.
+        task.InProgress = false;
         task.DoneAt = DateTime.UtcNow;
         task.DoneBy = _settings.UserId;
         await _repository.UpdateTaskAsync(task).ConfigureAwait(false);
@@ -187,6 +190,13 @@ public sealed class TaskService
             return;
         }
 
+        // Las de una serie ya tienen todas sus vueltas escritas de antemano
+        // (ver <see cref="GenerateSeriesAsync"/>): crear aqui la siguiente seria una de mas.
+        if (task.SeriesId is not null)
+        {
+            return;
+        }
+
         var today = DateTime.Now.Date;
         var next = recurrence.Next(task.DueAt?.Date ?? today);
         while (next.Date < today)
@@ -218,6 +228,142 @@ public sealed class TaskService
 
         // La vuelta nueva ya nace con su plazo, asi que se programa su aviso aqui mismo.
         _notifications?.ScheduleTaskReminder(copy);
+    }
+
+    // -----------------------------------------------------------------------
+    // Series de repeticion
+    // -----------------------------------------------------------------------
+
+    /// <summary>Lo que se hizo al generar una serie, para poder contarlo en la interfaz.</summary>
+    /// <param name="Created">Cuantas tareas se han escrito, contando la que ya existia.</param>
+    /// <param name="Truncated">
+    /// Si el rango daba para mas de <see cref="Recurrence.MaxOccurrences"/> y se ha cortado.
+    /// </param>
+    public readonly record struct SeriesResult(int Created, bool Truncated)
+    {
+        public static readonly SeriesResult Nothing = new(0, false);
+    }
+
+    /// <summary>
+    /// Escribe todas las vueltas de una tarea que se repite, una por cada dia en que toca entre su
+    /// fecha de planificacion y su fecha de finalizacion.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Por que de golpe y no una a una.</b> Una tarea repetitiva era una sola fila que, al
+    /// completarla, creaba la siguiente: en la lista solo se veia la vuelta de turno y en el
+    /// calendario, un unico dia. Con la serie escrita, «cada martes hasta diciembre» se ve entera
+    /// —en la lista, en el tablero y en el mes— y se puede repartir, mover o adelantar una vuelta
+    /// suelta sin tocar las demas.</para>
+    ///
+    /// <para>Por eso las dos fechas son obligatorias: sin la de finalizacion, «todos los dias» no
+    /// tiene ultimo dia y no hay serie que escribir, sino una cuenta infinita.</para>
+    ///
+    /// <para><b>La tarea que se pasa es la primera vuelta</b>: se queda con el primer dia que toca
+    /// y las demas son copias suyas. Volver a llamar con la misma tarea rehace lo que queda por
+    /// delante y respeta lo ya hecho y lo ya pasado.</para>
+    /// </remarks>
+    public async Task<SeriesResult> GenerateSeriesAsync(TaskItem task)
+    {
+        var recurrence = task.Recurrence;
+
+        if (!recurrence.Repeats || task.PlannedFor is not { } from || task.DueAt is not { } to)
+        {
+            return SeriesResult.Nothing;
+        }
+
+        var days = recurrence.Occurrences(from.Date, to.Date).ToList();
+        if (days.Count == 0)
+        {
+            return SeriesResult.Nothing;
+        }
+
+        var series = task.SeriesId ?? Guid.NewGuid();
+
+        // Lo que quede en pie de una generacion anterior se quita antes de escribir la nueva, o
+        // cambiar la regla sumaria una serie encima de la otra.
+        if (task.SeriesId is { } previous)
+        {
+            await _repository.DeleteFutureSeriesAsync(previous, task.Id).ConfigureAwait(false);
+        }
+
+        // La hora se conserva de las fechas que traia: una tarea de «cada martes a las 9» tiene que
+        // seguir avisando a las 9 en todas sus vueltas.
+        var plannedTime = from.TimeOfDay;
+        var dueTime = to.TimeOfDay;
+
+        var already = await _repository.GetSeriesAsync(series).ConfigureAwait(false);
+        var taken = already
+            .Where(t => t.Id != task.Id)
+            .Select(t => (t.PlannedFor ?? t.DueAt)?.Date)
+            .Where(d => d is not null)
+            .Select(d => d!.Value)
+            .ToHashSet();
+
+        task.SeriesId = series;
+        task.PlannedFor = days[0].Add(plannedTime);
+        task.DueAt = days[0].Add(dueTime);
+        await _repository.UpdateTaskAsync(task).ConfigureAwait(false);
+
+        var created = 1;
+
+        foreach (var day in days.Skip(1))
+        {
+            // Las vueltas que ya se hicieron —o que ya pasaron— siguen en su sitio y no se repiten.
+            if (taken.Contains(day))
+            {
+                continue;
+            }
+
+            var copy = new TaskItem
+            {
+                ListId = task.ListId,
+                Title = task.Title,
+                Notes = task.Notes,
+                Tags = task.Tags,
+                IsPinned = task.IsPinned,
+                RecurrenceRule = task.RecurrenceRule,
+                SeriesId = series,
+                PlannedFor = day.Add(plannedTime),
+                DueAt = day.Add(dueTime),
+                CreatedBy = _settings.UserId,
+
+                // Los micro-pasos no se copian, igual que en la vuelta suelta: son el desglose de
+                // aquel dia, y cada vuelta puede desglosarse con lo que haya entonces.
+            };
+
+            await _repository.AddTaskCopyAsync(copy).ConfigureAwait(false);
+            _notifications?.ScheduleTaskReminder(copy);
+            created++;
+        }
+
+        return new SeriesResult(created, days.Count >= Recurrence.MaxOccurrences);
+    }
+
+    /// <summary>
+    /// Pone o quita el «en curso» del tablero.
+    /// </summary>
+    /// <remarks>
+    /// Empezar una tarea la saca de pendientes sin darla por hecha, asi que ni suma XP ni celebra
+    /// nada: lo que se premia es terminar. Y una tarea hecha no puede quedarse en curso, o el
+    /// tablero la enseñaria en dos columnas a la vez.
+    /// </remarks>
+    public async Task SetInProgressAsync(TaskItem task, bool inProgress)
+    {
+        if (task.InProgress == inProgress && (!inProgress || !task.IsDone))
+        {
+            return;
+        }
+
+        task.InProgress = inProgress;
+
+        if (inProgress && task.IsDone)
+        {
+            task.IsDone = false;
+            task.DoneAt = null;
+            task.DoneBy = null;
+        }
+
+        await _repository.UpdateTaskAsync(task).ConfigureAwait(false);
     }
 
     /// <summary>Desmarcar no resta XP: la especificacion pide premiar sin castigar (4.B).</summary>
@@ -349,29 +495,6 @@ public sealed class TaskService
     }
 
     // -----------------------------------------------------------------------
-    // Tablon del Gremio
-    // -----------------------------------------------------------------------
-
-    public async Task<GuildBoard> GetBoardAsync(Guid? groupId = null)
-    {
-        var totalXp = await _repository.GetTotalXpAsync(groupId).ConfigureAwait(false);
-        var activeDays = await _repository.GetActiveDaysAsync().ConfigureAwait(false);
-        var level = LevelCurve.LevelFor(totalXp);
-
-        return new GuildBoard(
-            TotalXp: totalXp,
-            Level: level,
-            ProgressInLevel: LevelCurve.ProgressInLevel(totalXp),
-            XpToNextLevel: LevelCurve.XpToNextLevel(totalXp),
-            CurrentStreak: StreakCalculator.Current(activeDays),
-            LongestStreak: StreakCalculator.Longest(activeDays),
-            CompletedToday: await _repository.CountCompletedAsync(DateTime.UtcNow.Date).ConfigureAwait(false),
-            CompletedThisWeek: await _repository.CountCompletedAsync(DateTime.UtcNow.Date.AddDays(-7)).ConfigureAwait(false),
-            Unlocked: Unlockables.UnlockedAt(level).ToList(),
-            NextUnlock: Unlockables.NextAfter(level));
-    }
-
-    // -----------------------------------------------------------------------
 
     /// <summary>
     /// Reparte XP aplicando el combo. <paramref name="chain"/> a false para lo que no deberia
@@ -435,15 +558,3 @@ public sealed record BreakdownProposal(IReadOnlyList<string> Steps, int AlreadyP
     public bool HasSomethingNew => Steps.Count > 0;
 }
 
-/// <summary>Datos del Tablon del Gremio (especificacion 3 y 4.B).</summary>
-public sealed record GuildBoard(
-    int TotalXp,
-    int Level,
-    double ProgressInLevel,
-    int XpToNextLevel,
-    int CurrentStreak,
-    int LongestStreak,
-    int CompletedToday,
-    int CompletedThisWeek,
-    IReadOnlyList<Unlockable> Unlocked,
-    Unlockable? NextUnlock);

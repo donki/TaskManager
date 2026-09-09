@@ -70,8 +70,9 @@ recompensas.
   - **Mis Listas Privadas** — listas de tareas de uso personal e individual.
   - **Mis Grupos** — panel con los grupos a los que pertenece el usuario. Al seleccionar un grupo se
     despliegan sus diferentes listas de tareas.
-  - **El Tablón del Gremio** — estadísticas de productividad, nivel del equipo, racha actual y
-    elementos estéticos desbloqueados.
+  - ~~**El Tablón del Gremio**~~ — *retirado el 2026-09-09.* Enseñaba nivel, XP, racha y lo
+    desbloqueado. La cuenta de XP y la racha siguen por dentro, porque son las que disparan la
+    celebración al completar una tarea; lo que se ha quitado es la pantalla que las exhibía.
 
 ## 4. Celebración y Gamificación
 
@@ -123,7 +124,21 @@ recompensas.
 - **Celebración en escritorio**: completar una tarea desde la ventana flotante activa una
   mini-animación de confeti en la esquina de la pantalla.
 
+### C. Ventana principal
+
+- **Mis tareas**: todas las tareas de todas las listas, con los filtros y la fila de etiquetas.
+- **Tablero**: las mismas tareas repartidas en tres columnas —pendientes, en curso y hechas—, con el
+  estado cambiándose al arrastrar una tarjeta de una columna a otra. La lista dice *qué* hay que
+  hacer; el tablero, *por dónde va* cada cosa. Lo que se crea nace en pendientes.
+- **Calendario**: el mes con las tareas puestas en el día para el que están planificadas, con
+  navegación a los meses anteriores y posteriores.
+- **Mis listas** y **Grupos**: las listas propias y las compartidas, con sus tareas.
+
 ## 7. Aplicación Móvil (Android)
+
+- **Tablero**: las mismas tres columnas que en Windows —pendientes, en curso y hechas—, con las tres
+  a la vista también con la tableta en vertical. Se toca una tarjeta para abrir la tarea y se
+  arrastra (pulsación larga) para cambiarla de columna.
 
 - **Sincronización inmediata**: los cambios en listas compartidas se reflejan en tiempo real entre
   Windows y Android mediante Supabase Realtime.

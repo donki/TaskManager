@@ -2,6 +2,67 @@
 
 Formato de versión `AAAA.MM.DD.N` (constitución Mobile 3).
 
+## 2026.09.09 — Las repeticiones se escriben, y Windows gana tablero y calendario
+
+Windows `2026.9.9.4` · Android `2026.09.09.4`
+
+> Antes de usar esta versión hay que ejecutar `supabase\12_en_curso_y_series.sql` en el proyecto de
+> Supabase: la aplicación manda dos columnas nuevas en cada tarea que sube y, sin ellas, el servidor
+> rechaza el lote entero.
+
+- **Una tarea que se repite ya son todas sus vueltas, no una que reaparece.** Al guardarla se
+  escriben de golpe: una tarea por cada día en que toca entre la fecha de planificación y la de
+  finalización. «Cada martes de octubre a diciembre» son trece tareas que se ven en la lista, en el
+  tablero y en el mes, y se puede mover o adelantar una suelta sin tocar las demás. Antes solo
+  existía la vuelta de turno y la siguiente nacía al completar la anterior: el calendario enseñaba
+  un único día y no había forma de ver lo que venía.
+- **Por eso las dos fechas son obligatorias cuando hay repetición**: sin fecha de finalización,
+  «todos los días» no tiene último día. Se avisa al guardar y se abren los dos campos.
+- **Una serie se corta en 500 tareas.** Una repetición diaria a cinco años son 1826, y hay que
+  sincronizarlas y mirarlas todos los días; al llegar al final se pone una fecha nueva.
+- **Cambiar la repetición rehace las vueltas que quedan; cambiar una fecha mueve solo esa.** Lo
+  hecho y lo ya pasado no se toca nunca: es el registro de lo que se hizo, con su XP y su racha.
+- **Hay tablero.** Tres columnas —pendientes, en curso y hechas— y las tareas se arrastran de una a
+  otra para cambiarles el estado. «En curso» es un estado nuevo: en la lista una tarea estaba hecha
+  o no, y esa columna del medio es justo la que hace falta cuando hay varias cosas empezadas a la
+  vez. Lleva los mismos filtros que «Mis tareas» y la misma fila de etiquetas. Lo que se crea nace
+  en pendientes.
+- **Y también en Android**, con las tres columnas a la vista *también con la tableta en vertical*:
+  el ancho se reparte a partes iguales en vez de dar a cada columna una medida fija, que en vertical
+  dejaría la tercera fuera de la pantalla.
+- **Se ordena arrastrando**: las tarjetas dentro de su columna, y también las filas de «Mis tareas»
+  en Android, que hasta ahora solo se podían reordenar dentro de una lista. El orden manual manda
+  sobre el plazo, así que lo que se coloca a mano se queda donde se puso.
+- **En Windows el tablero hace las dos cosas con el mismo gesto**: soltar una tarjeta en otra
+  columna le cambia el estado, y soltarla en la suya la recoloca. En Android los dos serían la misma
+  pulsación larga, así que allí el arrastre ordena y el estado se cambia tocando la tarjeta.
+- **«En curso» está también en la ficha de la tarea**, en Windows y en Android, junto a «hecha» y
+  «anclada»: en el móvil es la única forma de ponerlo, y en Windows evita tener que ir al tablero.
+- **Windows tiene pestaña de calendario.** El mes, con las tareas donde están planificadas y las
+  flechas para ir a los meses de antes y de después. Es el mismo control que la ventana suelta del
+  menú de la bandeja —escrito una vez y enseñado en los dos sitios—, y ahora además vuelve a hoy de
+  un botón y abre una tarea con doble clic.
+- **El pie de las listas cuenta contra lo que queda.** Decía «se muestran 12 de 480» comparando con
+  todo lo que existe, que con unos meses de uso es sobre todo archivo; ahora dice «se muestran 12 de
+  34 pendientes · 62 % hechas». En Windows y en Android.
+- **La fila de filtros solo enseña etiquetas con algo pendiente.** Filtrar por una etiqueta cuyas
+  tareas están todas hechas devolvía una lista vacía, y la fila se iba convirtiendo en el archivo de
+  todas las etiquetas que han existido. Al **etiquetar** una tarea siguen ofreciéndose todas, que es
+  justo lo contrario: ahí se reutiliza la de siempre precisamente porque ya no queda nada vivo con
+  ella.
+- **Fuera el Gremio.** La pantalla de nivel, XP, racha y desbloqueados se ha quitado de Windows y de
+  Android, con su entrada de menú y sus textos. La cuenta de XP y la racha **siguen por dentro**:
+  son las que hacen saltar la celebración al completar una tarea, y quitarlas también habría sido
+  arrancar el confeti y la tabla `xp_events` con él.
+- **El tablero es la tercera pestaña**, detrás de «Mis tareas» y «Mis listas».
+- **El calendario de los selectores de fecha ya no sale en chino.** Ese calendario lo pinta WPF, y
+  para saber en qué idioma no mira la aplicación sino la propiedad `Language` del propio control —y
+  el estilo que le pone HandyControl trae `zh-cn` escrito dentro. De ahí el «2026年9月» y el
+  «一 二 三 四 五 六» en una ficha en castellano. Fijárselo a la ventana no basta (lo heredado pierde
+  contra un estilo) y fijárselo al calendario cuando se carga llega tarde (ya ha pintado la fila de
+  días). Lo que funciona, y es lo que hace ahora, es engancharse a la carga del **selector**, bajar
+  al calendario de su desplegable y escribirle el idioma antes de que pinte nada.
+
 ## 2026.09.04 — Entrar con Microsoft, y cada cuenta con sus listas
 
 Windows `2026.9.4.3` · Android `2026.09.04.3`

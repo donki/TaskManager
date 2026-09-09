@@ -35,6 +35,14 @@
                             <Label Grid.Column="0" Text="{loc:T MarkPinned}" VerticalOptions="Center" />
                             <Switch Grid.Column="1" x:Name="PinSwitch" Toggled="OnPinToggled" />
                         </Grid>
+
+                        <!-- Empezada pero sin terminar: es la columna del medio del tablero. Aqui
+                             es donde se pone en el movil, porque alli el arrastre ordena la columna
+                             en vez de cambiar de columna. -->
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Grid.Column="0" Text="{loc:T KanbanDoing}" VerticalOptions="Center" />
+                            <Switch Grid.Column="1" x:Name="ProgressSwitch" Toggled="OnProgressToggled" />
+                        </Grid>
                         <Border Style="{StaticResource Card}" Padding="12,0">
                             <!--
                                  Editor y no Entry: un Entry es de una sola linea y no parte el

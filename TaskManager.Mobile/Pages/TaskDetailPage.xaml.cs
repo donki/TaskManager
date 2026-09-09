@@ -91,6 +91,7 @@ public partial class TaskDetailPage : ContentPage
         Title = _task.Title;
         DoneSwitch.IsToggled = _task.IsDone;
         PinSwitch.IsToggled = _task.IsPinned;
+        ProgressSwitch.IsToggled = _task.InProgress;
         TitleEntry.Text = _task.Title;
         NotesEditor.Text = _task.Notes;
         TagsEntry.Text = TaskTags.ToInput(_task.Tags);
@@ -386,6 +387,29 @@ public partial class TaskDetailPage : ContentPage
 
         _task.IsPinned = e.Value;
         await _tasks.Repository.UpdateTaskAsync(_task);
+    }
+
+    /// <summary>
+    /// Empezada pero sin terminar: la columna del medio del tablero.
+    /// </summary>
+    /// <remarks>
+    /// Se guarda al momento, como anclar y como marcar hecha: es un gesto suelto —se toca y se
+    /// cierra—, no un campo que se rellena mientras se edita. Marcar «empezada» algo que estaba
+    /// hecho lo devuelve a pendientes, asi que la casilla de «hecha» se apaga sola.
+    /// </remarks>
+    private async void OnProgressToggled(object? sender, ToggledEventArgs e)
+    {
+        if (_task is null || _task.InProgress == e.Value)
+        {
+            return;
+        }
+
+        await _tasks.SetInProgressAsync(_task, e.Value);
+
+        if (e.Value && DoneSwitch.IsToggled)
+        {
+            DoneSwitch.IsToggled = false;
+        }
     }
 
     private async void OnDoneToggled(object? sender, ToggledEventArgs e)
@@ -784,8 +808,25 @@ public partial class TaskDetailPage : ContentPage
         _task.PlannedFor = PlannedSwitch.IsToggled ? PlannedPicker.Date?.Date : null;
 
         var kind = Kinds[Math.Clamp(RecurrencePicker.SelectedIndex, 0, Kinds.Length - 1)];
+        var openedWithRule = _task.RecurrenceRule;
         _task.RecurrenceRule = new Recurrence(kind, (int)IntervalStepper.Value, _days, _monthDay, _month).Serialize();
         _task.IsPinned = PinSwitch.IsToggled;
+
+        // Repetir sin fechas ya no se puede: las repeticiones se escriben una por dia entre la de
+        // planificacion y la de finalizacion, asi que sin ellas no hay nada que escribir.
+        if (_task.Recurrence.Repeats && (_task.PlannedFor is null || _task.DueAt is null))
+        {
+            _task.RecurrenceRule = openedWithRule;
+
+            if (!silent)
+            {
+                await SocShared.ModernDialog.AlertAsync(this,
+                    Localization.Loc.Instance["Recurrence"],
+                    Localization.Loc.Instance["RecurrenceNeedsDates"], "OK");
+            }
+
+            return false;
+        }
 
         if (ListPicker.SelectedIndex >= 0 && ListPicker.SelectedIndex < _lists.Count)
         {
@@ -793,6 +834,24 @@ public partial class TaskDetailPage : ContentPage
         }
 
         await _tasks.Repository.UpdateTaskAsync(_task);
+
+        // Cambiar la repeticion rehace las vueltas que quedan; cambiar una fecha mueve solo esta.
+        // En una tarea de una serie las dos fechas son las de ESA vuelta, y rehacer la serie al
+        // mover un martes al miercoles reescribiria las otras doce.
+        if (_task.Recurrence.Repeats && (_task.SeriesId is null || _task.RecurrenceRule != openedWithRule))
+        {
+            var series = await _tasks.GenerateSeriesAsync(_task);
+
+            if (series.Created > 1 && !silent)
+            {
+                await SocShared.ModernDialog.AlertAsync(this,
+                    Localization.Loc.Instance["Recurrence"],
+                    series.Truncated
+                        ? Localization.Loc.Instance.Format("SeriesTruncated", series.Created, Recurrence.MaxOccurrences)
+                        : Localization.Loc.Instance.Format("SeriesCreated", series.Created),
+                    "OK");
+            }
+        }
 
         // El aviso se reprograma con lo que acaba de guardarse: si se quito la fecha, se cancela.
         _notifications.ScheduleTaskReminder(_task);

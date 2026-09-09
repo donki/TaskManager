@@ -634,6 +634,8 @@ public sealed class SupabaseSyncService : ISyncService
         task.Notes = _cipher.Unprotect(row.Notes, _candidateKeys);
         task.IsPinned = row.IsPinned;
         task.IsDone = row.IsDone;
+        task.InProgress = row.InProgress;
+        task.SeriesId = row.SeriesId;
         task.DoneAt = row.DoneAt?.UtcDateTime;
         task.MyDayOn = row.MyDayOn?.Date;
         task.DueAt = row.DueAt?.UtcDateTime;
@@ -946,6 +948,8 @@ public sealed class SupabaseSyncService : ISyncService
         notes = _cipher.Protect(t.Notes, keyId),
         is_pinned = t.IsPinned,
         is_done = t.IsDone,
+        in_progress = t.InProgress,
+        series_id = t.SeriesId,
         done_at = t.DoneAt,
         my_day_on = t.MyDayOn?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         due_at = t.DueAt,
@@ -1075,6 +1079,7 @@ public sealed class SupabaseSyncService : ISyncService
     // cambia, se ve aqui y no se cuela dentro del modelo de la aplicacion.
     private sealed record TaskRowDto(
         Guid Id, Guid ListId, string Title, string Notes, bool IsPinned, bool IsDone,
+        bool InProgress, Guid? SeriesId,
         DateTimeOffset? DoneAt, DateTimeOffset? MyDayOn, DateTimeOffset? DueAt, DateTimeOffset? PlannedFor,
         string Tags, string RecurrenceRule, int SortOrder, DateTime UpdatedAt, bool Deleted,
         DateTimeOffset SyncedAt);

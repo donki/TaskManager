@@ -15,9 +15,8 @@ public partial class AppShell : Shell
         // El correo esta oculto: la fila del menu no se enseña y la ruta no se ofrece.
         MailMenuRow.IsVisible = TaskManager.Core.FeatureOptions.MailEnabled;
 
-        // Grupos y gremio: ocultos mientras FeatureOptions.GroupsEnabled sea false.
+        // Grupos: oculto mientras FeatureOptions.GroupsEnabled sea false.
         GroupsMenuRow.IsVisible = TaskManager.Core.FeatureOptions.GroupsEnabled;
-        BoardMenuRow.IsVisible = TaskManager.Core.FeatureOptions.GroupsEnabled;
 
         VersionLabel.Text = $"v{AppInfo.Current.VersionString}";
     }
@@ -29,11 +28,11 @@ public partial class AppShell : Shell
 
     private async void OnListsTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//ListsPage");
 
+    private async void OnKanbanTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//KanbanPage");
+
     private async void OnMailTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//MailPage");
 
     private async void OnGroupsTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//GroupsPage");
-
-    private async void OnBoardTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//BoardPage");
 
     private async void OnSettingsTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//SettingsPage");
 

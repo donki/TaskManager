@@ -87,6 +87,10 @@ public partial class App : Application
         // cambian por las nuestras. Va antes de crear ninguna ventana, que es cuando se leen.
         Localization.HandyControlLang.Install();
 
+        // Y lo que pinta WPF por su cuenta —los nombres de los dias del calendario que despliega
+        // cada selector de fecha— tambien tiene que salir en el idioma de la aplicacion.
+        Localization.WpfCulture.Install();
+
         // El desglose intenta primero el modelo local y cae a plantillas: nunca se queda sin pasos.
         // El modelo local no se configura: se busca donde escuchan por costumbre (Ollama y
         // LM Studio en el propio equipo). Si no hay ninguno, el desglose cae a plantillas y
@@ -283,6 +287,10 @@ public partial class App : Application
     /// </remarks>
     public void RebuildUi()
     {
+        // El idioma acaba de cambiar: lo que pinta WPF por su cuenta —los calendarios de los
+        // selectores de fecha— va por la cultura, no por nuestros textos, y hay que rehacerla.
+        Localization.WpfCulture.Install();
+
         var pending = _tray.Pending;
 
         _flyout.CloseForReal();

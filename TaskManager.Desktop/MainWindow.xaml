@@ -2,15 +2,37 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:loc="clr-namespace:TaskManager.Desktop.Localization"
+        xmlns:views="clr-namespace:TaskManager.Desktop.Views"
         Title="{loc:T AppName}"
         Width="920" Height="660"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource PageBackground}">
 
     <!--
-        Las mismas dos pantallas que Android y en el mismo orden: «Mis tareas» (todo, con filtro) y
-        «Mis listas». El gremio y los grupos ya no estan, y el correo esta oculto.
+        Las dos primeras pestañas son las mismas que Android y en el mismo orden: «Mis tareas» (todo,
+        con filtro) y «Mis listas». Detras van las dos que solo tiene Windows —el tablero y el
+        calendario del mes—, que necesitan sitio y en una pantalla de movil no caben. El correo esta
+        oculto.
     -->
+
+    <Window.Resources>
+        <!--
+            La tarjeta del tablero. Es la misma fila de la lista sin la casilla de «hecha»: alli el
+            estado se marca y aqui se arrastra, y una casilla en la tarjeta seria un segundo camino
+            para lo mismo que ademas contradice a la columna donde esta puesta.
+        -->
+        <DataTemplate x:Key="KanbanCard">
+            <Border Background="{DynamicResource PageBackground}" CornerRadius="8"
+                    Padding="10,8" Margin="0,0,0,6">
+                <StackPanel Opacity="{Binding Opacity}">
+                    <TextBlock Text="{Binding Title}" Style="{StaticResource ItemTitle}"
+                               TextWrapping="Wrap" TextDecorations="{Binding Decoration}" />
+                    <TextBlock Text="{Binding Caption}" Style="{StaticResource ItemSubtitle}"
+                               TextWrapping="Wrap" Visibility="{Binding CaptionVisibility}" />
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </Window.Resources>
 
     <DockPanel>
 
@@ -276,6 +298,130 @@
             </TabItem>
 
 
+            <!-- ============================== Tablero ============================== -->
+            <!--
+                Las mismas tareas de «Mis tareas», repartidas en tres columnas por estado.
+                La lista dice QUE hay que hacer; el tablero, POR DONDE va cada cosa: lo que no se ha
+                tocado, lo que esta a medias y lo que se termino. Esa columna del medio no existia en
+                la lista —una tarea estaba hecha o no— y es justo la que se necesita cuando hay
+                varias cosas empezadas a la vez.
+
+                El estado se cambia arrastrando, que es lo que se espera de un tablero: en una lista
+                el gesto es marcar una casilla, y aqui es mover la tarjeta de sitio.
+            -->
+            <TabItem Header="{loc:T MenuKanban}">
+                <DockPanel Margin="4,12,4,4">
+
+                    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="6,0,6,10">
+                        <TextBox Grid.Column="0" x:Name="KanbanSearchBox" Style="{StaticResource Field}"
+                                 Background="{DynamicResource CardBackground}"
+                                 TextChanged="OnKanbanSearchChanged" />
+                        <Button Grid.Column="1" Style="{StaticResource GhostIconButton}" Content="&#xE72C;"
+                                Margin="8,0,0,0" ToolTip="{loc:T RefreshTooltip}"
+                                Click="OnKanbanRefreshClick" />
+                    </Grid>
+
+                    <!-- Los mismos filtros que en «Mis tareas»: el tablero reparte en columnas lo
+                         que el filtro deja pasar. -->
+                    <ScrollViewer DockPanel.Dock="Top" HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled" Margin="6,0,6,6">
+                        <StackPanel x:Name="KanbanFilterBox" Orientation="Horizontal" />
+                    </ScrollViewer>
+
+                    <ScrollViewer x:Name="KanbanTagScroll" DockPanel.Dock="Top"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled" Margin="6,0,6,10"
+                                  Visibility="Collapsed">
+                        <StackPanel x:Name="KanbanTagBox" Orientation="Horizontal" />
+                    </ScrollViewer>
+
+                    <TextBlock x:Name="KanbanFooter" DockPanel.Dock="Bottom"
+                               Style="{StaticResource HintText}"
+                               HorizontalAlignment="Center" Margin="0,8,0,0" />
+
+                    <Grid ColumnDefinitions="*,*,*">
+
+                        <Border Grid.Column="0" Style="{StaticResource Card}" Margin="2,0,4,0" Padding="10">
+                            <DockPanel>
+                                <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="2,0,2,8">
+                                    <TextBlock Grid.Column="0" Text="{loc:T KanbanTodo}"
+                                               Style="{StaticResource CardTitle}" />
+                                    <TextBlock Grid.Column="1" x:Name="TodoCount"
+                                               Style="{StaticResource HintText}" VerticalAlignment="Center" />
+                                </Grid>
+                                <TextBlock x:Name="TodoEmpty" DockPanel.Dock="Top" Margin="2,4,2,0"
+                                           Text="{loc:T KanbanEmpty}" Style="{StaticResource HintText}"
+                                           Visibility="Collapsed" />
+                                <ListBox x:Name="TodoBox" Tag="todo" Style="{StaticResource Rows}"
+                                         Background="Transparent" AllowDrop="True"
+                                         MouseDoubleClick="OnRowDoubleClick"
+                                         PreviewMouseLeftButtonDown="OnKanbanDragStart"
+                                         PreviewMouseMove="OnKanbanDragMove"
+                                         DragOver="OnKanbanDragOver"
+                                         Drop="OnKanbanDrop"
+                                         ItemTemplate="{StaticResource KanbanCard}" />
+                            </DockPanel>
+                        </Border>
+
+                        <Border Grid.Column="1" Style="{StaticResource Card}" Margin="2,0,4,0" Padding="10">
+                            <DockPanel>
+                                <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="2,0,2,8">
+                                    <TextBlock Grid.Column="0" Text="{loc:T KanbanDoing}"
+                                               Style="{StaticResource CardTitle}" />
+                                    <TextBlock Grid.Column="1" x:Name="DoingCount"
+                                               Style="{StaticResource HintText}" VerticalAlignment="Center" />
+                                </Grid>
+                                <TextBlock x:Name="DoingEmpty" DockPanel.Dock="Top" Margin="2,4,2,0"
+                                           Text="{loc:T KanbanEmpty}" Style="{StaticResource HintText}"
+                                           Visibility="Collapsed" />
+                                <ListBox x:Name="DoingBox" Tag="doing" Style="{StaticResource Rows}"
+                                         Background="Transparent" AllowDrop="True"
+                                         MouseDoubleClick="OnRowDoubleClick"
+                                         PreviewMouseLeftButtonDown="OnKanbanDragStart"
+                                         PreviewMouseMove="OnKanbanDragMove"
+                                         DragOver="OnKanbanDragOver"
+                                         Drop="OnKanbanDrop"
+                                         ItemTemplate="{StaticResource KanbanCard}" />
+                            </DockPanel>
+                        </Border>
+
+                        <Border Grid.Column="2" Style="{StaticResource Card}" Margin="2,0,2,0" Padding="10">
+                            <DockPanel>
+                                <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="2,0,2,8">
+                                    <TextBlock Grid.Column="0" Text="{loc:T KanbanDone}"
+                                               Style="{StaticResource CardTitle}" />
+                                    <TextBlock Grid.Column="1" x:Name="DoneCount"
+                                               Style="{StaticResource HintText}" VerticalAlignment="Center" />
+                                </Grid>
+                                <TextBlock x:Name="DoneEmpty" DockPanel.Dock="Top" Margin="2,4,2,0"
+                                           Text="{loc:T KanbanEmpty}" Style="{StaticResource HintText}"
+                                           Visibility="Collapsed" />
+                                <ListBox x:Name="DoneBox" Tag="done" Style="{StaticResource Rows}"
+                                         Background="Transparent" AllowDrop="True"
+                                         MouseDoubleClick="OnRowDoubleClick"
+                                         PreviewMouseLeftButtonDown="OnKanbanDragStart"
+                                         PreviewMouseMove="OnKanbanDragMove"
+                                         DragOver="OnKanbanDragOver"
+                                         Drop="OnKanbanDrop"
+                                         ItemTemplate="{StaticResource KanbanCard}" />
+                            </DockPanel>
+                        </Border>
+
+                    </Grid>
+                </DockPanel>
+            </TabItem>
+
+            <!-- ============================== Calendario ============================== -->
+            <!--
+                El mes con las tareas puestas donde estan planificadas, y con las flechas para ir a
+                los meses de antes y de despues. Es el mismo control que la ventana suelta del menu
+                de la bandeja: aqui esta porque para mirar el mes no deberia hacer falta salir a otra
+                ventana.
+            -->
+            <TabItem Header="{loc:T MenuCalendar}">
+                <views:CalendarView x:Name="CalendarTab" Margin="8,16,8,8" />
+            </TabItem>
+
             <!-- ============================== Grupos ============================== -->
             <!--
                 Lo mismo que «Mis grupos» en Android: crear un grupo con su clave compartida,
@@ -356,36 +502,6 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
                 </DockPanel>
-            </TabItem>
-
-            <!-- ============================== Gremio ============================== -->
-            <TabItem Header="{loc:T MenuBoard}">
-                <ScrollViewer Margin="4,12,4,4" VerticalScrollBarVisibility="Auto">
-                    <StackPanel MaxWidth="460" HorizontalAlignment="Left" Margin="4">
-
-                        <Border Style="{StaticResource Card}" Margin="0,0,0,12">
-                            <StackPanel>
-                                <TextBlock x:Name="BoardLevel" FontSize="24" FontWeight="Bold"
-                                           Foreground="{DynamicResource Primary}" />
-                                <ProgressBar x:Name="BoardProgress" Height="8" Margin="0,10,0,6"
-                                             Maximum="1" Background="{DynamicResource SubmenuBackground}"
-                                             Foreground="{DynamicResource Primary}" BorderThickness="0" />
-                                <TextBlock x:Name="BoardToNext" Style="{StaticResource HintText}" />
-                            </StackPanel>
-                        </Border>
-
-                        <Border Style="{StaticResource Card}">
-                            <StackPanel>
-                                <TextBlock x:Name="BoardXp" Style="{StaticResource ItemTitle}" />
-                                <TextBlock x:Name="BoardStreak" Style="{StaticResource ItemTitle}"
-                                           Margin="0,8,0,0" />
-                                <TextBlock x:Name="BoardNextUnlock" Style="{StaticResource HintText}"
-                                           Margin="0,14,0,0" />
-                            </StackPanel>
-                        </Border>
-
-                    </StackPanel>
-                </ScrollViewer>
             </TabItem>
 
         </TabControl>

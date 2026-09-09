@@ -68,7 +68,13 @@
             </VerticalStackLayout>
 
             <RefreshView Grid.Row="3" x:Name="Refresher" Refreshing="OnRefreshing">
-                <CollectionView x:Name="TasksView" SelectionMode="None" Margin="8,0,8,8">
+                <!--
+                    Se reordena arrastrando, igual que dentro de una lista. El orden manual manda
+                    sobre el plazo (ver TaskRepository.GetAllTasksAsync), asi que lo que se coloca a
+                    mano se queda donde se puso tambien despues de recargar.
+                -->
+                <CollectionView x:Name="TasksView" SelectionMode="None" Margin="8,0,8,8"
+                                CanReorderItems="True" ReorderCompleted="OnReorderCompleted">
 
                     <CollectionView.EmptyView>
                         <VerticalStackLayout Padding="24" Spacing="8">

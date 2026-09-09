@@ -13,13 +13,15 @@ namespace TaskManager.Desktop;
 /// Ventana principal de Windows: «Mis tareas» y «Mis listas».
 /// </summary>
 /// <remarks>
-/// <para>Son <b>las mismas dos pantallas que en Android</b>, con los mismos filtros
-/// (<see cref="TaskFilters"/>) y el mismo detalle de tarea
-/// (<see cref="TaskDetailWindow"/>). Antes esto era otra aplicacion: no habia forma de ver todas las
-/// tareas juntas ni de abrir una para editarla, y encima llevaba un gremio y una bandeja de correo
-/// que el movil enseñaba en otro sitio. Cambiar de aparato obligaba a reaprender.</para>
+/// <para>Las dos primeras son <b>las mismas pantallas que en Android</b>, con los mismos filtros
+/// (<see cref="TaskFilters"/>) y el mismo detalle de tarea (<see cref="TaskDetailWindow"/>). Antes
+/// esto era otra aplicacion: no habia forma de ver todas las tareas juntas ni de abrir una para
+/// editarla. Cambiar de aparato obligaba a reaprender.</para>
 ///
-/// <para>El gremio y los grupos se han quitado, y el correo esta oculto tras
+/// <para>Detras van las dos que <b>solo tiene Windows</b>: el tablero de tres columnas y el
+/// calendario del mes, que necesitan sitio y en una pantalla de movil no caben.</para>
+///
+/// <para>El gremio se ha quitado —de aqui y del movil— y el correo esta oculto tras
 /// <see cref="FeatureOptions.MailEnabled"/>.</para>
 /// </remarks>
 public partial class MainWindow : Window
@@ -42,6 +44,11 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<TaskRow> _listTasks = [];
     private readonly ObservableCollection<TaskRow> _allTasks = [];
 
+    /// <summary>Las tres columnas del tablero.</summary>
+    private readonly ObservableCollection<TaskRow> _todo = [];
+    private readonly ObservableCollection<TaskRow> _doing = [];
+    private readonly ObservableCollection<TaskRow> _done = [];
+
     private readonly Dictionary<Guid, string> _listNames = [];
 
     private TaskFilter _filter = TaskFilters.Default;
@@ -54,6 +61,19 @@ public partial class MainWindow : Window
     private ListBox? _dragList;
     private string? _activeTag;
     private string? _search;
+
+    /// <summary>
+    /// El tablero tiene su propio filtro, su propia etiqueta y su propia busqueda.
+    /// </summary>
+    /// <remarks>
+    /// No los comparte con «Mis tareas» a proposito: alli se arranca en «pendientes», que es a lo
+    /// que se viene, y aqui en «todas», porque un tablero con la columna de hechas siempre vacia no
+    /// es un tablero. Compartirlos obligaria a cambiar el filtro cada vez que se pasa de una
+    /// pestaña a la otra.
+    /// </remarks>
+    private TaskFilter _kanbanFilter = TaskFilter.All;
+    private string? _kanbanTag;
+    private string? _kanbanSearch;
     private string? _listSearch;
     private Guid _selectedList;
 
@@ -77,14 +97,23 @@ public partial class MainWindow : Window
         ListTasksBox.ItemsSource = _listTasks;
         AllTasksBox.ItemsSource = _allTasks;
 
+        TodoBox.ItemsSource = _todo;
+        DoingBox.ItemsSource = _doing;
+        DoneBox.ItemsSource = _done;
+
         Services.ThemeManager.StyleTitleBar(this);
 
         BuildFilters();
+        BuildKanbanFilters();
     }
 
     private static string T(string key) => Localization.Loc.Get(key);
 
     private static string F(string key, params object[] args) => Localization.Loc.Format(key, args);
+
+    /// <summary>El pie: cuantas se ven de las que quedan, y cuanto se lleva hecho.</summary>
+    private static string Footer(int shown, (int Pending, int Done) counts) =>
+        ProgressCaption.Footer(shown, counts, Localization.Loc.Texts);
 
     protected override async void OnContentRendered(EventArgs e)
     {
@@ -92,8 +121,12 @@ public partial class MainWindow : Window
 
         await ReloadListsAsync();
         await ReloadAllTasksAsync();
+        await ReloadKanbanAsync();
         await ReloadGroupsAsync();
-        await ReloadBoardAsync();
+
+        // El calendario se engancha al final: es el unico que trae su propio servicio de datos y
+        // no depende de nada de lo anterior.
+        await CalendarTab.AttachAsync(_tasks);
     }
 
     /// <summary>Vuelve a leerlo todo. Lo llama el arranque cuando la sincronizacion trae algo.</summary>
@@ -102,8 +135,9 @@ public partial class MainWindow : Window
         await ReloadListsAsync();
         await ReloadListTasksAsync();
         await ReloadAllTasksAsync();
+        await ReloadKanbanAsync();
         await ReloadGroupsAsync();
-        await ReloadBoardAsync();
+        await CalendarTab.RefreshAsync();
     }
 
     // =======================================================================
@@ -176,8 +210,9 @@ public partial class MainWindow : Window
         };
         SummaryLabel.Text = tasks.Count == 1 ? T("TaskCountOne") : F("TaskCount", tasks.Count);
 
-        // Y el total de la cuenta, para saber si lo que se ve es todo o es lo que deja ver el filtro.
-        FooterLabel.Text = F("ShowingOf", tasks.Count, await _tasks.Repository.CountAllAsync());
+        // Y lo que queda por hacer en la cuenta, para saber si lo que se ve es todo o es lo que deja
+        // ver el filtro.
+        FooterLabel.Text = Footer(tasks.Count(t => !t.IsDone), await _tasks.Repository.CountProgressAsync());
         NoTasksLabel.Text = string.IsNullOrWhiteSpace(_search)
             ? T("NoTasksForFilter")
             : F("NoSearchResults", _search);
@@ -190,7 +225,10 @@ public partial class MainWindow : Window
     /// </summary>
     private async Task RefreshTagFilterAsync()
     {
-        var tags = await _tasks.Repository.GetTagsAsync();
+        // Solo las que llevan algo pendiente: filtrar por una etiqueta cuyas tareas estan todas
+        // hechas devuelve una lista vacia, y con los meses la fila se convierte en el listado de
+        // todas las etiquetas que han existido alguna vez.
+        var tags = await _tasks.Repository.GetTagsAsync(pendingOnly: true);
 
         TagFilterScroll.Visibility = tags.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         TagFilterBox.Children.Clear();
@@ -416,8 +454,8 @@ public partial class MainWindow : Window
             _listTasks.Add(new TaskRow(task, string.Empty));
         }
 
-        ListFooterLabel.Text = F("ShowingOf", _listTasks.Count,
-            await _tasks.Repository.CountInListAsync(_selectedList));
+        ListFooterLabel.Text = Footer(_listTasks.Count(r => !r.IsDone),
+            await _tasks.Repository.CountProgressAsync(_selectedList));
     }
 
     private async void OnNewListClick(object sender, RoutedEventArgs e)
@@ -579,34 +617,6 @@ public partial class MainWindow : Window
     }
 
     // =======================================================================
-    // Gremio
-    // =======================================================================
-
-    /// <summary>
-    /// Nivel, experiencia y racha. Es la misma pantalla que en Android, con los mismos textos.
-    /// </summary>
-    private async Task ReloadBoardAsync()
-    {
-        var board = await _tasks.GetBoardAsync();
-
-        BoardLevel.Text = F("Level", board.Level);
-        BoardProgress.Value = board.ProgressInLevel;
-        BoardToNext.Text = F("ToNextLevel", board.XpToNextLevel, board.Level + 1);
-        BoardXp.Text = F("XpTotal", board.TotalXp);
-
-        BoardStreak.Text = board.CurrentStreak switch
-        {
-            0 => T("NoStreak"),
-            1 => T("StreakOne"),
-            _ => F("StreakMany", board.CurrentStreak),
-        };
-
-        BoardNextUnlock.Text = board.NextUnlock is { } next
-            ? F("NextUnlock", next.Name, next.Level)
-            : T("AllUnlocked");
-    }
-
-    // =======================================================================
     // Arrastrar para reordenar
     // =======================================================================
 
@@ -686,6 +696,259 @@ public partial class MainWindow : Window
         // No se recarga: la lista ya esta como el usuario la ha dejado, y repintarla justo al
         // soltar da un parpadeo.
         await _tasks.Repository.ReorderTasksAsync([.. rows.Select(r => r.Id)]);
+    }
+
+    // =======================================================================
+    // Tablero
+    // =======================================================================
+
+    /// <summary>
+    /// Las mismas pastillas de filtro que en «Mis tareas», pero mandando sobre el tablero.
+    /// </summary>
+    private void BuildKanbanFilters()
+    {
+        foreach (var filter in TaskFilters.All)
+        {
+            var chip = new ToggleButton
+            {
+                Content = T(TaskFilters.KeyOf(filter)),
+                Style = (Style)FindResource("Chip"),
+                IsChecked = filter == _kanbanFilter,
+                Tag = filter,
+            };
+
+            chip.Checked += async (s, _) =>
+            {
+                _kanbanFilter = (TaskFilter)((ToggleButton)s).Tag;
+
+                foreach (var other in KanbanFilterBox.Children.OfType<ToggleButton>())
+                {
+                    if (!ReferenceEquals(other, s))
+                    {
+                        other.IsChecked = false;
+                    }
+                }
+
+                await ReloadKanbanAsync();
+            };
+
+            chip.Unchecked += (s, _) =>
+            {
+                if (!KanbanFilterBox.Children.OfType<ToggleButton>().Any(c => c.IsChecked == true))
+                {
+                    ((ToggleButton)s).IsChecked = true;
+                }
+            };
+
+            KanbanFilterBox.Children.Add(chip);
+        }
+    }
+
+    /// <summary>
+    /// Reparte en las tres columnas lo que dejan pasar el filtro, la etiqueta y la busqueda.
+    /// </summary>
+    /// <remarks>
+    /// El reparto se hace aqui y no en la consulta: es el mismo conjunto de tareas de la lista, solo
+    /// que colocado. Pedir tres consultas —una por columna— daria tres fotos de momentos distintos y
+    /// una tarea podria salir en dos columnas o en ninguna.
+    /// </remarks>
+    private async Task ReloadKanbanAsync()
+    {
+        await RefreshKanbanTagsAsync();
+
+        var tasks = await _tasks.Repository.GetAllTasksAsync(_kanbanFilter, _kanbanTag, _kanbanSearch);
+
+        _todo.Clear();
+        _doing.Clear();
+        _done.Clear();
+
+        foreach (var task in tasks)
+        {
+            var row = new TaskRow(task, _listNames.GetValueOrDefault(task.ListId, string.Empty));
+
+            // Hecha manda sobre empezada: una tarea terminada esta terminada aunque quedara algo
+            // encendido de antes.
+            var column = task.IsDone ? _done : task.InProgress ? _doing : _todo;
+            column.Add(row);
+        }
+
+        TodoCount.Text = _todo.Count.ToString();
+        DoingCount.Text = _doing.Count.ToString();
+        DoneCount.Text = _done.Count.ToString();
+
+        TodoEmpty.Visibility = _todo.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        DoingEmpty.Visibility = _doing.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        DoneEmpty.Visibility = _done.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        KanbanFooter.Text = $"{T("KanbanHint")}   ·   " +
+            Footer(_todo.Count + _doing.Count, await _tasks.Repository.CountProgressAsync());
+    }
+
+    /// <summary>Las etiquetas con algo pendiente detras, igual que en la fila de «Mis tareas».</summary>
+    private async Task RefreshKanbanTagsAsync()
+    {
+        var tags = await _tasks.Repository.GetTagsAsync(pendingOnly: true);
+
+        KanbanTagScroll.Visibility = tags.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        KanbanTagBox.Children.Clear();
+
+        if (tags.Count == 0)
+        {
+            _kanbanTag = null;
+            return;
+        }
+
+        if (_kanbanTag is not null && _kanbanTag != TaskRepository.NoTag &&
+            !tags.Contains(_kanbanTag, StringComparer.CurrentCultureIgnoreCase))
+        {
+            _kanbanTag = null;
+        }
+
+        KanbanTagBox.Children.Add(BuildKanbanTagChip(T("AllTags"), null));
+        KanbanTagBox.Children.Add(BuildKanbanTagChip(T("NoTagFilter"), TaskRepository.NoTag));
+
+        foreach (var tag in tags)
+        {
+            KanbanTagBox.Children.Add(BuildKanbanTagChip($"#{tag}", tag));
+        }
+    }
+
+    private ToggleButton BuildKanbanTagChip(string text, string? tag)
+    {
+        var chip = new ToggleButton
+        {
+            Content = text,
+            Style = (Style)FindResource("Chip"),
+            IsChecked = string.Equals(_kanbanTag, tag, StringComparison.CurrentCultureIgnoreCase),
+            Tag = tag,
+        };
+
+        chip.Click += async (_, _) =>
+        {
+            _kanbanTag = tag;
+            await ReloadKanbanAsync();
+        };
+
+        return chip;
+    }
+
+    private async void OnKanbanSearchChanged(object sender, TextChangedEventArgs e)
+    {
+        _kanbanSearch = KanbanSearchBox.Text;
+        await ReloadKanbanAsync();
+    }
+
+    private async void OnKanbanRefreshClick(object sender, RoutedEventArgs e) => await ReloadKanbanAsync();
+
+    // -----------------------------------------------------------------------
+    // Arrastrar de una columna a otra
+    // -----------------------------------------------------------------------
+
+    private void OnKanbanDragStart(object sender, MouseButtonEventArgs e)
+    {
+        _dragStart = e.GetPosition(null);
+        _dragging = RowUnder(e.OriginalSource as DependencyObject);
+        _dragList = sender as ListBox;
+    }
+
+    private void OnKanbanDragMove(object sender, MouseEventArgs e)
+    {
+        if (_dragging is null || _dragList is null || e.LeftButton != MouseButtonState.Pressed)
+        {
+            return;
+        }
+
+        var moved = e.GetPosition(null) - _dragStart;
+        if (Math.Abs(moved.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(moved.Y) < SystemParameters.MinimumVerticalDragDistance)
+        {
+            return;
+        }
+
+        DragDrop.DoDragDrop(_dragList, _dragging, DragDropEffects.Move);
+    }
+
+    private void OnKanbanDragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent(typeof(TaskRow)) ? DragDropEffects.Move : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// Soltar una tarjeta en <b>otra</b> columna le cambia el estado; soltarla en <b>la suya</b> la
+    /// coloca donde se ha dejado.
+    /// </summary>
+    /// <remarks>
+    /// <para>Son las dos cosas que se piden a un tablero y las dos se hacen con el mismo gesto, que
+    /// es lo que se espera: la columna de destino dice cual de las dos era.</para>
+    ///
+    /// <para>Cambiar el estado pasa por el servicio y no por el repositorio porque «hecha» no es
+    /// solo una columna: cancela el aviso, suma XP y celebra, que es lo mismo que tiene que ocurrir
+    /// al marcarla en la lista.</para>
+    /// </remarks>
+    private async void OnKanbanDrop(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetData(typeof(TaskRow)) is not TaskRow moved ||
+            sender is not ListBox { Tag: string column })
+        {
+            return;
+        }
+
+        _dragging = null;
+        _dragList = null;
+
+        var target = column switch { "todo" => _todo, "doing" => _doing, _ => _done };
+
+        // Dentro de su propia columna no se cambia nada de estado: se recoloca.
+        if (target.Contains(moved))
+        {
+            var from = target.IndexOf(moved);
+            var over = RowUnder(e.OriginalSource as DependencyObject);
+
+            // Soltar en el hueco de abajo deja la tarjeta la ultima, que es lo que se espera.
+            var to = over is null ? target.Count - 1 : target.IndexOf(over);
+
+            if (from >= 0 && to >= 0 && from != to)
+            {
+                target.Move(from, to);
+
+                // Sin recargar: la columna ya esta como el usuario la ha dejado, y repintarla justo
+                // al soltar da un parpadeo.
+                await _tasks.Repository.ReorderTasksAsync([.. target.Select(r => r.Id)]);
+                await ReloadAllTasksAsync();
+            }
+
+            return;
+        }
+
+        if (await _tasks.Repository.GetTaskAsync(moved.Id) is not { } task)
+        {
+            return;
+        }
+
+        switch (column)
+        {
+            case "todo":
+                await _tasks.UncompleteTaskAsync(task);
+                await _tasks.SetInProgressAsync(task, false);
+                break;
+
+            case "doing":
+                // Devuelve a pendientes lo que estuviera hecho: no se puede empezar lo terminado.
+                await _tasks.SetInProgressAsync(task, true);
+                break;
+
+            case "done":
+                await _tasks.CompleteTaskAsync(task);
+                break;
+        }
+
+        await ReloadKanbanAsync();
+
+        // Las otras dos pantallas enseñan las mismas tareas: dejarlas sin repintar es tener el
+        // tablero diciendo una cosa y la lista otra.
+        await ReloadAllTasksAsync();
+        await ReloadListTasksAsync();
     }
 
     /// <summary>La fila sobre la que esta el raton, subiendo desde lo que se pulso.</summary>

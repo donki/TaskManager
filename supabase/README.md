@@ -37,6 +37,11 @@ Desde el **SQL Editor**, en orden. Todas son idempotentes:
 4. `04_synced_at.sql` — `synced_at`: **cuándo llegó la fila al servidor**, que es distinto de cuándo
    la tocó el usuario. Sin ella, lo que un dispositivo sube por primera vez lleva su fecha original
    —de hace días—, cae por detrás del último corte del otro dispositivo y no se baja nunca.
+5. `05_deletions.sql` … `11_pgcrypto_en_el_search_path.sql` — en orden de número.
+12. `12_en_curso_y_series.sql` — `in_progress` (la columna del medio del tablero de Windows) y
+    `series_id` (de qué serie de repetición es cada tarea). **Hace falta antes de usar la versión
+    2026.09.09.1**: la aplicación manda las dos columnas en cada tarea que sube y, sin ellas,
+    PostgREST rechaza el lote entero y la sincronización deja de subir nada.
 
 ## Cómo entra un usuario a un grupo
 

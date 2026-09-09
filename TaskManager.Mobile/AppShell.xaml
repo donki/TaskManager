@@ -52,19 +52,21 @@
                     <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnListsTapped" /></Grid.GestureRecognizers>
                 </Grid>
 
-                <!-- Grupos y gremio: ocultos mientras FeatureOptions.GroupsEnabled sea false. -->
+                <!-- El tablero, el mismo que en Windows. Va detras de las listas, en el mismo
+                     orden que las pestañas de alli. -->
+                <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                    <Image Grid.Column="0" Source="ic_board.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
+                    <Label Grid.Column="1" Text="{loc:T MenuKanban}" VerticalOptions="Center" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnKanbanTapped" /></Grid.GestureRecognizers>
+                </Grid>
+
+                <!-- Grupos: oculto mientras FeatureOptions.GroupsEnabled sea false. -->
                 <Grid x:Name="GroupsMenuRow" ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
                     <Image Grid.Column="0" Source="ic_group.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
                     <Label Grid.Column="1" Text="{loc:T MenuGroups}" VerticalOptions="Center" FontSize="16"
                            TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
                     <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnGroupsTapped" /></Grid.GestureRecognizers>
-                </Grid>
-
-                <Grid x:Name="BoardMenuRow" ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
-                    <Image Grid.Column="0" Source="ic_board.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
-                    <Label Grid.Column="1" Text="{loc:T MenuBoard}" VerticalOptions="Center" FontSize="16"
-                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
-                    <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnBoardTapped" /></Grid.GestureRecognizers>
                 </Grid>
 
                 <!-- Correo: oculto mientras FeatureOptions.MailEnabled sea false (se apaga en el
@@ -115,8 +117,8 @@
     <ShellContent Route="MyTasksPage" ContentTemplate="{DataTemplate pages:MyTasksPage}" />
     <ShellContent Route="CalendarPage" ContentTemplate="{DataTemplate pages:CalendarPage}" />
     <ShellContent Route="ListsPage" ContentTemplate="{DataTemplate pages:ListsPage}" />
+    <ShellContent Route="KanbanPage" ContentTemplate="{DataTemplate pages:KanbanPage}" />
     <ShellContent Route="GroupsPage" ContentTemplate="{DataTemplate pages:GroupsPage}" />
-    <ShellContent Route="BoardPage" ContentTemplate="{DataTemplate pages:BoardPage}" />
     <ShellContent Route="MailPage" ContentTemplate="{DataTemplate pages:MailPage}" />
     <ShellContent Route="SettingsPage" ContentTemplate="{DataTemplate pages:SettingsPage}" />
     <ShellContent Route="AboutPage" ContentTemplate="{DataTemplate pages:AboutPage}" />

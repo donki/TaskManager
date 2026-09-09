@@ -89,11 +89,11 @@ public static class MauiProgram
         builder.Services.AddTransient<LoginPage>();
         builder.Services.AddTransient<MyTasksPage>();
         builder.Services.AddTransient<ListsPage>();
+        builder.Services.AddTransient<KanbanPage>();
         builder.Services.AddTransient<ListDetailPage>();
         builder.Services.AddTransient<TaskDetailPage>();
         builder.Services.AddTransient<MailPage>();
         builder.Services.AddTransient<GroupsPage>();
-        builder.Services.AddTransient<BoardPage>();
         builder.Services.AddTransient<SettingsPage>();
         builder.Services.AddTransient<AboutPage>();
 

@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using TaskManager.Core.Models;
 using TaskManager.Core.Services;
 using TaskManager.Mobile.Helpers;
@@ -33,8 +34,15 @@ public partial class MyTasksPage : ContentPage
     private string? _search;
     private Guid _defaultListId;
 
-    /// <summary>Las filas que hay pintadas. Hace falta para saber cuales estan marcadas.</summary>
-    private List<TaskRow> _rows = [];
+    /// <summary>
+    /// Las filas que hay pintadas. Hace falta para saber cuales estan marcadas.
+    /// </summary>
+    /// <remarks>
+    /// Coleccion observable, no una lista corriente: al arrastrar para reordenar, la
+    /// <see cref="CollectionView"/> mueve el elemento <b>dentro de la propia fuente</b>, y con una
+    /// <c>List&lt;&gt;</c> el cambio no se ve.
+    /// </remarks>
+    private ObservableCollection<TaskRow> _rows = [];
     private bool _selecting;
 
     public MyTasksPage()
@@ -169,10 +177,23 @@ public partial class MyTasksPage : ContentPage
             ? Localization.Loc.Instance["TaskCountOne"]
             : Localization.Loc.Instance.Format("TaskCount", tasks.Count);
 
-        // Y el total de la cuenta, para saber si lo que se ve es todo o es lo que deja ver el filtro.
-        var total = await _tasks.Repository.CountAllAsync();
-        FooterLabel.Text = Localization.Loc.Instance.Format("ShowingOf", tasks.Count, total);
+        // Y lo que queda por hacer en la cuenta, para saber si lo que se ve es todo o es lo que deja
+        // ver el filtro.
+        var counts = await _tasks.Repository.CountProgressAsync();
+        FooterLabel.Text = ProgressCaption.Footer(
+            tasks.Count(t => !t.IsDone), counts, Localization.Loc.Instance.Textos);
     }
+
+    /// <summary>
+    /// Guarda el orden manual despues de arrastrar una fila.
+    /// </summary>
+    /// <remarks>
+    /// No se recarga la lista al terminar: la <see cref="CollectionView"/> ya ha dejado las filas
+    /// donde el usuario las ha soltado, y volver a pintarlas provoca un parpadeo justo cuando acaba
+    /// de levantar el dedo. Lo unico que hace falta es persistir el orden que ya se ve.
+    /// </remarks>
+    private async void OnReorderCompleted(object? sender, EventArgs e) =>
+        await _tasks.Repository.ReorderTasksAsync([.. _rows.Select(r => r.Id)]);
 
     /// <summary>
     /// Busca al escribir, en todo el texto de la tarea (titulo, notas, etiquetas, pasos y adjuntos).
@@ -237,7 +258,9 @@ public partial class MyTasksPage : ContentPage
     /// </summary>
     private async Task RefreshTagFilterAsync()
     {
-        var tags = await _tasks.Repository.GetTagsAsync();
+        // Solo las que llevan algo pendiente: filtrar por una etiqueta cuyas tareas estan todas
+        // hechas devuelve una lista vacia.
+        var tags = await _tasks.Repository.GetTagsAsync(pendingOnly: true);
 
         TagFilterScroll.IsVisible = tags.Count > 0;
         TagFilterBox.Clear();

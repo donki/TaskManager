@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:TaskManager.Mobile.Localization"
+             xmlns:models="clr-namespace:TaskManager.Mobile.Models"
+             x:Class="TaskManager.Mobile.Pages.KanbanPage"
+             Title="{loc:T MenuKanban}">
+
+    <!--
+        El tablero, igual que en Windows: las mismas tareas repartidas en tres columnas por estado.
+
+        Las tres se ven SIEMPRE, tambien con la tableta en vertical: repartir el ancho a partes
+        iguales y no dar a cada columna un ancho fijo es lo que hace que quepan. Con ancho fijo, en
+        vertical se verian dos y media y habria que deslizar de lado para saber si hay algo en la
+        tercera, que es justo lo que un tablero tiene que responder de un vistazo.
+    -->
+    <ContentPage.ToolbarItems>
+        <ToolbarItem IconImageSource="ic_refresh_w.png" Clicked="OnRefreshClicked" />
+    </ContentPage.ToolbarItems>
+
+    <ContentPage.Resources>
+        <!--
+            La tarjeta. Sin casilla de «hecha»: aqui el estado se cambia moviendo la tarjeta, y una
+            casilla seria un segundo camino para lo mismo que ademas contradice a la columna donde
+            esta puesta. Un toque abre la tarea, y ahi dentro esta el estado.
+        -->
+        <DataTemplate x:Key="KanbanCard" x:DataType="models:TaskRow">
+            <Border Style="{StaticResource Card}" Margin="0,0,0,6" Padding="8">
+                <VerticalStackLayout Spacing="2" Opacity="{Binding Opacity}">
+                    <Label Text="{Binding Title}" Style="{StaticResource ItemTitle}" FontSize="13"
+                           MaxLines="3" LineBreakMode="TailTruncation"
+                           TextDecorations="{Binding Decoration}" />
+                    <Label Text="{Binding ScheduleCaption}" Style="{StaticResource HintText}"
+                           FontSize="11" IsVisible="{Binding HasSchedule}" />
+                    <Label Text="{Binding TagsCaption}" Style="{StaticResource HintText}"
+                           FontSize="11" IsVisible="{Binding HasTags}" />
+                </VerticalStackLayout>
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnCardTapped" CommandParameter="{Binding Id}" />
+                </Border.GestureRecognizers>
+            </Border>
+        </DataTemplate>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <VerticalStackLayout Grid.Row="0" Spacing="6" Padding="0,8,0,4">
+
+            <Border Style="{StaticResource Card}" Padding="12,0" Margin="16,0,16,2">
+                <Entry x:Name="SearchEntry"
+                       Placeholder="{loc:T SearchPlaceholder}"
+                       ClearButtonVisibility="WhileEditing"
+                       TextChanged="OnSearchChanged" />
+            </Border>
+
+            <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never"
+                        Padding="16,0,16,0">
+                <HorizontalStackLayout x:Name="FilterBox" Spacing="8" />
+            </ScrollView>
+
+            <ScrollView x:Name="TagFilterScroll" Orientation="Horizontal"
+                        HorizontalScrollBarVisibility="Never" Padding="16,0,16,4" IsVisible="False">
+                <HorizontalStackLayout x:Name="TagFilterBox" Spacing="8" />
+            </ScrollView>
+        </VerticalStackLayout>
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="6" Padding="8,4,8,4">
+
+            <Border Grid.Column="0" x:Name="TodoColumn" Style="{StaticResource Card}" Padding="6">
+                <Grid RowDefinitions="Auto,*">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Padding="4,2,4,6">
+                        <Label Grid.Column="0" Text="{loc:T KanbanTodo}" Style="{StaticResource CardTitle}"
+                               FontSize="14" LineBreakMode="TailTruncation" />
+                        <Label Grid.Column="1" x:Name="TodoCount" Style="{StaticResource HintText}"
+                               VerticalOptions="Center" />
+                    </Grid>
+                    <CollectionView Grid.Row="1" x:Name="TodoView" SelectionMode="None"
+                                    CanReorderItems="True" ReorderCompleted="OnTodoReordered"
+                                    ItemTemplate="{StaticResource KanbanCard}">
+                        <CollectionView.EmptyView>
+                            <Label Text="{loc:T KanbanEmpty}" Style="{StaticResource HintText}"
+                                   Padding="4,6" />
+                        </CollectionView.EmptyView>
+                    </CollectionView>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="1" x:Name="DoingColumn" Style="{StaticResource Card}" Padding="6">
+                <Grid RowDefinitions="Auto,*">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Padding="4,2,4,6">
+                        <Label Grid.Column="0" Text="{loc:T KanbanDoing}" Style="{StaticResource CardTitle}"
+                               FontSize="14" LineBreakMode="TailTruncation" />
+                        <Label Grid.Column="1" x:Name="DoingCount" Style="{StaticResource HintText}"
+                               VerticalOptions="Center" />
+                    </Grid>
+                    <CollectionView Grid.Row="1" x:Name="DoingView" SelectionMode="None"
+                                    CanReorderItems="True" ReorderCompleted="OnDoingReordered"
+                                    ItemTemplate="{StaticResource KanbanCard}">
+                        <CollectionView.EmptyView>
+                            <Label Text="{loc:T KanbanEmpty}" Style="{StaticResource HintText}"
+                                   Padding="4,6" />
+                        </CollectionView.EmptyView>
+                    </CollectionView>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="2" x:Name="DoneColumn" Style="{StaticResource Card}" Padding="6">
+                <Grid RowDefinitions="Auto,*">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Padding="4,2,4,6">
+                        <Label Grid.Column="0" Text="{loc:T KanbanDone}" Style="{StaticResource CardTitle}"
+                               FontSize="14" LineBreakMode="TailTruncation" />
+                        <Label Grid.Column="1" x:Name="DoneCount" Style="{StaticResource HintText}"
+                               VerticalOptions="Center" />
+                    </Grid>
+                    <CollectionView Grid.Row="1" x:Name="DoneView" SelectionMode="None"
+                                    CanReorderItems="True" ReorderCompleted="OnDoneReordered"
+                                    ItemTemplate="{StaticResource KanbanCard}">
+                        <CollectionView.EmptyView>
+                            <Label Text="{loc:T KanbanEmpty}" Style="{StaticResource HintText}"
+                                   Padding="4,6" />
+                        </CollectionView.EmptyView>
+                    </CollectionView>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Label x:Name="FooterLabel" Grid.Row="2" Style="{StaticResource HintText}"
+               HorizontalTextAlignment="Center" Padding="16,0,16,8" />
+    </Grid>
+
+
+</ContentPage>

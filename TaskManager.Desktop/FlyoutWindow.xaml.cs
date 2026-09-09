@@ -209,10 +209,6 @@ public partial class FlyoutWindow : Window
         };
         HotkeyLabel.Text = _settings.Get(SettingsService.KeyHotkey, "Ctrl+Alt+T");
 
-        var board = await _tasks.GetBoardAsync();
-        LevelLabel.Text = Localization.Loc.Format("LevelShort", board.Level);
-        LevelProgress.Value = board.ProgressInLevel;
-
         PendingChanged?.Invoke(this, pending);
     }
 
@@ -302,7 +298,7 @@ public partial class FlyoutWindow : Window
     /// </remarks>
     private async Task RefreshTagFilterAsync()
     {
-        var tags = await _tasks.Repository.GetTagsAsync();
+        var tags = await _tasks.Repository.GetTagsAsync(pendingOnly: true);
 
         TagFilterScroll.Visibility = tags.Count == 0
             ? System.Windows.Visibility.Collapsed

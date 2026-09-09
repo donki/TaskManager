@@ -23,9 +23,14 @@ public enum RecurrenceKind
 /// completa: cubre lo que la gente usa de verdad en una lista de tareas y se puede enseñar en una
 /// frase, que es lo que importa para poder cambiarlo sin manual de instrucciones.
 ///
-/// <para>La tarea completada **no se reabre**: queda hecha, como registro de que se hizo, y se crea
-/// la siguiente. Asi el historial y las rachas cuentan cada vuelta, en vez de una sola tarea que
-/// nunca se termina.</para>
+/// <para>La tarea completada **no se reabre**: queda hecha, como registro de que se hizo. Asi el
+/// historial y las rachas cuentan cada vuelta, en vez de una sola tarea que nunca se termina.</para>
+///
+/// <para>Las vueltas se escriben **todas de una vez** cuando se guarda la tarea, una por cada dia en
+/// que toca entre la fecha de planificacion y la de finalizacion (ver <see cref="Occurrences"/> y
+/// <c>TaskService.GenerateSeriesAsync</c>), y por eso las dos fechas son obligatorias en cuanto hay
+/// repeticion. <see cref="Next"/> —la siguiente vuelta a partir de una fecha— se sigue usando para
+/// las tareas repetitivas que no son de ninguna serie.</para>
 /// </remarks>
 /// <param name="Days">
 /// Dias de la semana en los que puede caer, como mascara de bits (bit 0 = domingo … bit 6 = sabado).
@@ -102,6 +107,141 @@ public readonly record struct Recurrence(
         }
 
         return next;
+    }
+
+    /// <summary>
+    /// Tope de tareas que puede crear una serie de una sola vez.
+    /// </summary>
+    /// <remarks>
+    /// Una repeticion diaria a cinco años son 1826 tareas: se escriben, se sincronizan y hay que
+    /// mirarlas todos los dias. Quien quiera eso puede alargar el rango otra vez cuando llegue.
+    /// </remarks>
+    public const int MaxOccurrences = 500;
+
+    /// <summary>
+    /// Todos los dias en que toca, entre <paramref name="from"/> y <paramref name="to"/> incluidos.
+    /// </summary>
+    /// <remarks>
+    /// <para>Es lo que convierte «cada semana los martes, de octubre a diciembre» en las trece
+    /// tareas que de verdad hay que hacer. <see cref="Next"/> responde a otra pregunta —cual es la
+    /// siguiente— y no sirve para esto: con varios dias marcados va saltando de semana en semana y
+    /// se deja el miercoles y el viernes por el camino.</para>
+    ///
+    /// <para>Los dias marcados mandan sobre el intervalo en la semanal: «cada 2 semanas, L y X» son
+    /// el lunes y el miercoles de una semana de cada dos. En la diaria, marcar dias es una criba
+    /// sobre el paso: lo que caiga en un dia no marcado se salta.</para>
+    /// </remarks>
+    public IEnumerable<DateTime> Occurrences(DateTime from, DateTime to)
+    {
+        if (!Repeats || to.Date < from.Date)
+        {
+            yield break;
+        }
+
+        var start = FirstFrom(from.Date);
+        var end = to.Date;
+        var count = 0;
+
+        // La semanal se recorre por semanas y no por dias sueltos: dentro de cada semana que toca
+        // valen todos los dias marcados, y las semanas intermedias se saltan enteras.
+        if (Kind == RecurrenceKind.Weekly)
+        {
+            // El ciclo se cuenta desde el primer dia que TOCA, no desde el dia en que se empieza a
+            // contar. «Cada 2 semanas los martes» a partir de un jueves 1 de octubre son el 6, el
+            // 20, el 3 de noviembre…: anclando la cuenta a la semana del jueves, el martes de esa
+            // semana ya habia pasado y la serie se saltaba entera la primera semana buena.
+            var first = start;
+
+            if (Days != 0)
+            {
+                for (var i = 0; i < 7 && !Includes(first.DayOfWeek); i++)
+                {
+                    first = first.AddDays(1);
+                }
+            }
+
+            for (var week = first; week <= end && count < MaxOccurrences; week = week.AddDays(7 * Interval))
+            {
+                // El lunes de esa semana, para recorrerla entera: con varios dias marcados valen
+                // todos los de la semana que toca, no solo el que abre el ciclo.
+                var monday = week.AddDays(-(((int)week.DayOfWeek + 6) % 7));
+
+                for (var i = 0; i < 7; i++)
+                {
+                    var day = monday.AddDays(i);
+
+                    if (day >= first && day <= end &&
+                        (Days == 0 ? day.DayOfWeek == first.DayOfWeek : Includes(day.DayOfWeek)))
+                    {
+                        count++;
+                        yield return day;
+
+                        if (count >= MaxOccurrences)
+                        {
+                            yield break;
+                        }
+                    }
+                }
+            }
+
+            yield break;
+        }
+
+        for (var day = start; day <= end && count < MaxOccurrences;)
+        {
+            if (!UsesDays || Includes(day.DayOfWeek))
+            {
+                count++;
+                yield return day;
+            }
+
+            var next = Kind switch
+            {
+                RecurrenceKind.Daily => day.AddDays(Interval),
+                RecurrenceKind.Monthly => MonthlyNext(day),
+                RecurrenceKind.Yearly => YearlyNext(day),
+                _ => day.AddDays(1),
+            };
+
+            // Salvaguarda: si una regla corrupta no avanza, esto no puede quedarse dando vueltas.
+            day = next > day ? next : day.AddDays(1);
+        }
+    }
+
+    /// <summary>
+    /// La primera fecha en que toca a partir de <paramref name="start"/>, para la mensual y la
+    /// anual con dia fijado.
+    /// </summary>
+    /// <remarks>
+    /// «Cada año el 15 de septiembre» empezando a contar un 1 de octubre tiene que caer en el 15 de
+    /// septiembre siguiente, no en el 1 de octubre: sin esto, la serie entera se generaria en el dia
+    /// en que se creo, que es justo el dia que el usuario no eligio.
+    /// </remarks>
+    private DateTime FirstFrom(DateTime start)
+    {
+        if (Kind == RecurrenceKind.Monthly && MonthDay != 0)
+        {
+            var candidate = OnDay(start, start.Month);
+            return candidate >= start ? candidate : OnDay(start.AddMonths(1), start.AddMonths(1).Month);
+        }
+
+        if (Kind == RecurrenceKind.Yearly && (Month != 0 || MonthDay != 0))
+        {
+            var month = Month == 0 ? start.Month : Month;
+            var candidate = OnDay(start, month);
+            return candidate >= start ? candidate : OnDay(start.AddYears(1), month);
+        }
+
+        return start;
+    }
+
+    /// <summary>El dia fijado dentro de ese mes, sin pasarse del final (el 31 en febrero es el 28).</summary>
+    private DateTime OnDay(DateTime reference, int month)
+    {
+        var day = MonthDay == 0 ? reference.Day : MonthDay;
+        day = Math.Min(day, DateTime.DaysInMonth(reference.Year, month));
+
+        return new DateTime(reference.Year, month, day);
     }
 
     /// <summary>

@@ -51,12 +51,24 @@ public partial class TaskDetailWindow : Window
     private byte _month;
     private Point _dragStart;
 
+    /// <summary>
+    /// Con que repeticion se abrio la ventana, para saber si al guardar hay que rehacer la serie.
+    /// </summary>
+    /// <remarks>
+    /// <b>Cambiar la repeticion rehace las vueltas que quedan; cambiar una fecha mueve solo esta.</b>
+    /// Hace falta la distincion porque en una tarea de una serie las dos fechas son las de <i>esa</i>
+    /// vuelta: si mover el vencimiento de un martes al miercoles rehiciera la serie entera, retocar
+    /// un dia suelto reescribiria los otros doce.
+    /// </remarks>
+    private readonly string _openedWithRule;
+
     public TaskDetailWindow(TaskService tasks, TaskItem task)
     {
         InitializeComponent();
 
         _tasks = tasks;
         _task = task;
+        _openedWithRule = task.RecurrenceRule;
 
         RecurrenceBox.ItemsSource = new List<string>
         {
@@ -87,6 +99,7 @@ public partial class TaskDetailWindow : Window
     {
         DoneCheck.IsChecked = _task.IsDone;
         PinCheck.IsChecked = _task.IsPinned;
+        ProgressCheck.IsChecked = _task.InProgress;
         TitleBox.Text = _task.Title;
         NotesBox.Text = _task.Notes;
         _tags.Clear();
@@ -239,8 +252,23 @@ public partial class TaskDetailWindow : Window
     /// <summary>Carga las etiquetas que existen en otras tareas y las pinta como pastillas.</summary>
     private async Task LoadKnownTagsAsync()
     {
+        // Aqui se ofrecen TODAS, tambien las que solo llevan tareas ya hechas: la fila de filtros se
+        // queda con las que tienen algo pendiente —alli una etiqueta sin nada vivo no filtra nada—,
+        // pero al etiquetar es justo al reves, y reutilizar la de siempre es lo que evita acabar con
+        // «casa», «Casa» y «casa nueva» diciendo lo mismo.
         _knownTags.Clear();
         _knownTags.AddRange(await _tasks.Repository.GetTagsAsync());
+
+        // Y las de esta tarea, que pueden no estar guardadas todavia.
+        foreach (var tag in _tags)
+        {
+            if (!_knownTags.Contains(tag, StringComparer.CurrentCultureIgnoreCase))
+            {
+                _knownTags.Add(tag);
+            }
+        }
+
+        _knownTags.Sort(StringComparer.CurrentCultureIgnoreCase);
 
         PaintKnownTags();
     }
@@ -303,6 +331,23 @@ public partial class TaskDetailWindow : Window
             await _tasks.UncompleteTaskAsync(_task);
         }
 
+        ProgressCheck.IsChecked = _task.InProgress;
+        Changed = true;
+    }
+
+    /// <summary>
+    /// Empezada pero sin terminar: la columna del medio del tablero.
+    /// </summary>
+    /// <remarks>
+    /// Se guarda al momento, como anclar: es un gesto suelto, no un campo que se rellena mientras
+    /// se edita. Marcar «empezada» algo que estaba hecho lo devuelve a pendientes, asi que la
+    /// casilla de «hecha» se apaga sola.
+    /// </remarks>
+    private async void OnProgressToggled(object sender, RoutedEventArgs e)
+    {
+        await _tasks.SetInProgressAsync(_task, ProgressCheck.IsChecked == true);
+
+        DoneCheck.IsChecked = _task.IsDone;
         Changed = true;
     }
 
@@ -873,7 +918,37 @@ public partial class TaskDetailWindow : Window
         }
 
         ApplyFields();
+
+        // Repetir sin fechas ya no se puede: las repeticiones se escriben una por dia entre las dos,
+        // asi que sin ellas no hay nada que escribir. Se avisa antes de guardar para no dejar la
+        // tarea a medias — con la regla puesta y sin serie detras.
+        if (_task.Recurrence.Repeats && (_task.PlannedFor is null || _task.DueAt is null))
+        {
+            StatusLabel.Text = T("RecurrenceNeedsDates");
+            HandyControl.Controls.Growl.WarningGlobal(T("RecurrenceNeedsDates"));
+
+            // Se abren las dos filas de fecha: el aviso habla de dos campos que pueden estar
+            // plegados y sin abrirlos no se ve de que se esta hablando.
+            DueCheck.IsChecked = true;
+            PlannedCheck.IsChecked = true;
+            DueRow.Visibility = Visibility.Visible;
+            PlannedRow.Visibility = Visibility.Visible;
+            return;
+        }
+
         await _tasks.Repository.UpdateTaskAsync(_task);
+
+        if (_task.Recurrence.Repeats && (_task.SeriesId is null || _task.RecurrenceRule != _openedWithRule))
+        {
+            var series = await _tasks.GenerateSeriesAsync(_task);
+
+            if (series.Created > 1)
+            {
+                HandyControl.Controls.Growl.SuccessGlobal(series.Truncated
+                    ? Localization.Loc.Format("SeriesTruncated", series.Created, Recurrence.MaxOccurrences)
+                    : Localization.Loc.Format("SeriesCreated", series.Created));
+            }
+        }
 
         Changed = true;
         DialogResult = true;
