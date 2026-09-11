@@ -202,6 +202,15 @@ public partial class CalendarView : UserControl
             ShowDay(date);
         };
 
+        // Doble clic en el dia: a escribir la tarea de ese dia, sin buscar la caja con el raton.
+        cell.MouseLeftButtonDown += (_, e) =>
+        {
+            if (e.ClickCount == 2)
+            {
+                DayAddBox.Focus();
+            }
+        };
+
         return cell;
     }
 
@@ -226,6 +235,47 @@ public partial class CalendarView : UserControl
     // -----------------------------------------------------------------------
 
     private async void OnPreviousMonthClick(object sender, RoutedEventArgs e) => await MoveMonthAsync(-1);
+
+    private async void OnDayAddClick(object sender, RoutedEventArgs e) => await AddForDayAsync();
+
+    private async void OnDayAddKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            await AddForDayAsync();
+        }
+    }
+
+    /// <summary>
+    /// Crear desde el calendario: la tarea nace planificada para el dia elegido, en la primera
+    /// lista, y se abre para rematarla, igual que la captura rapida de «Mis tareas».
+    /// </summary>
+    private async Task AddForDayAsync()
+    {
+        var title = DayAddBox.Text.Trim();
+        if (_tasks is null || title.Length == 0)
+        {
+            return;
+        }
+
+        var list = await _tasks.Repository.GetOrCreateDefaultListAsync(Localization.Loc.Get("DefaultListName"));
+        var task = await _tasks.Repository.AddTaskAsync(list.Id, title, plannedFor: _selected);
+        DayAddBox.Text = string.Empty;
+
+        await LoadListNamesAsync();
+        await ReloadAsync();
+
+        var window = new TaskDetailWindow(_tasks, task)
+        {
+            Owner = Window.GetWindow(this),
+        };
+
+        if (window.ShowDialog() == true && window.Changed)
+        {
+            await LoadListNamesAsync();
+            await ReloadAsync();
+        }
+    }
 
     private async void OnNextMonthClick(object sender, RoutedEventArgs e) => await MoveMonthAsync(1);
 

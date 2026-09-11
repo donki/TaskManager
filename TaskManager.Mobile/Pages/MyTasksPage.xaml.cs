@@ -532,7 +532,35 @@ public partial class MyTasksPage : ContentPage
             return;
         }
 
-        await _tasks.Repository.DeleteTasksAsync(ids);
+        // Si hay tareas repetitivas entre las elegidas, se ofrece llevarse sus series enteras:
+        // borrar la vuelta de hoy y dejar las otras treinta no suele ser lo que se buscaba.
+        var inSeries = await _tasks.Repository.CountInSeriesAsync(ids);
+        var wholeSeries = false;
+        if (inSeries > 0)
+        {
+            var loc = Localization.Loc.Instance;
+            var whole = loc["WholeSeries"];
+            var only = loc["OnlySelected"];
+            var choice = await SocShared.ModernDialog.ActionSheetAsync(this,
+                loc.Format("BulkDeleteSeriesQuestion", inSeries), loc["Cancel"], whole, only);
+
+            if (choice is null)
+            {
+                return;
+            }
+
+            wholeSeries = choice == whole;
+        }
+
+        if (wholeSeries)
+        {
+            await _tasks.Repository.DeleteTasksWithSeriesAsync(ids);
+        }
+        else
+        {
+            await _tasks.Repository.DeleteTasksAsync(ids);
+        }
+
         await ReloadAsync();
     }
 

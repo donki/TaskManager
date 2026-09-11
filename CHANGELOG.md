@@ -2,6 +2,26 @@
 
 Formato de versión `AAAA.MM.DD.N` (constitución Mobile 3).
 
+## 2026.09.11 — Borrar una serie entera, crear desde el tablero y el calendario, salir o borrar un grupo
+
+Windows `2026.9.11.1` · Android `2026.09.11.1`
+
+- **Borrar una tarea repetitiva pregunta si solo esa vuelta o la serie entera.** Antes se borraba
+  la vuelta y las otras treinta seguían ahí. Con «toda la serie» se van todas las que se
+  generaron, hechas incluidas: quien borra la serie quiere que no quede rastro. Al borrar varias
+  a la vez, si alguna es de una serie se pregunta lo mismo para todas.
+- **Se crean tareas desde el tablero** (caja arriba; en Windows, además, el botón de reproducir la
+  crea ya «en curso») **y desde el calendario** (caja bajo el día elegido: la tarea nace planificada
+  para ese día; en Windows, doble clic en un día lleva el foco a la caja). Como en «Mis tareas»,
+  entran en la primera lista y se abren para rematarlas.
+- **La papelera de un grupo pregunta: ¿salir o borrarlo para todos?** Salir quita la pertenencia en
+  el servidor y los demás miembros lo conservan; borrarlo se lo lleva con sus listas y tareas para
+  todos, y solo puede hacerlo quien lo creó (el servidor no deja a nadie más). Antes el botón solo
+  lo escondía en este dispositivo, y en la siguiente bajada podía volver.
+- **Un grupo que ya no está en el servidor** —lo borró el dueño, o a uno lo sacaron— **desaparece
+  en la siguiente sincronización**. Los apuntes de baja son de quien borra y los demás miembros no
+  los ven, así que se compara con la lista de grupos del servidor.
+
 ## 2026.09.09 — Las repeticiones se escriben, y Windows gana tablero y calendario
 
 Windows `2026.9.9.4` · Android `2026.09.09.4`

@@ -265,6 +265,28 @@ public partial class KanbanPage : ContentPage
         await ReloadAsync();
     }
 
+    /// <summary>
+    /// Crear desde el tablero: a la primera lista, en «por hacer», y se abre el detalle, igual que
+    /// la captura rapida de «Mis tareas».
+    /// </summary>
+    private async void OnAddClicked(object? sender, EventArgs e)
+    {
+        var title = QuickAdd.Text?.Trim();
+        if (string.IsNullOrEmpty(title))
+        {
+            return;
+        }
+
+        var list = await _tasks.Repository
+            .GetOrCreateDefaultListAsync(Localization.Loc.Instance["DefaultListName"]);
+
+        var task = await _tasks.Repository.AddTaskAsync(list.Id, title);
+        QuickAdd.Text = string.Empty;
+        await ReloadAsync();
+
+        await Shell.Current.GoToAsync($"{nameof(TaskDetailPage)}?taskId={task.Id}");
+    }
+
     private async void OnRefreshClicked(object? sender, EventArgs e)
     {
         await ServiceHelper.GetRequiredService<SyncCoordinator>().RefreshNowAsync();

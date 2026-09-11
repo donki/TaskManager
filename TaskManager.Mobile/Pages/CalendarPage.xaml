@@ -39,11 +39,24 @@
               ColumnSpacing="3" RowSpacing="3" />
 
         <!-- Tareas del dia elegido -->
-        <Grid Grid.Row="3" RowDefinitions="Auto,*" Margin="0,14,0,0">
+        <Grid Grid.Row="3" RowDefinitions="Auto,Auto,*" Margin="0,14,0,0">
             <Label Grid.Row="0" x:Name="DayLabel" Style="{StaticResource ItemTitle}"
                    Margin="4,0,0,6" />
 
-            <CollectionView Grid.Row="1" x:Name="DayTasksView" SelectionMode="None">
+            <!-- Nueva tarea planificada para el dia elegido. -->
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="4,0,4,8">
+                <Border Grid.Column="0" Style="{StaticResource Card}" Padding="12,0">
+                    <Entry x:Name="QuickAdd"
+                           Placeholder="{loc:T CalendarAddPlaceholder}"
+                           ReturnType="Done"
+                           Completed="OnAddClicked" />
+                </Border>
+                <ImageButton Grid.Column="1" Style="{StaticResource HeaderIconButton}"
+                             Source="ic_add_w.png" BackgroundColor="{StaticResource Primary}"
+                             Clicked="OnAddClicked" />
+            </Grid>
+
+            <CollectionView Grid.Row="2" x:Name="DayTasksView" SelectionMode="None">
                 <CollectionView.EmptyView>
                     <Label x:Name="EmptyLabel" Style="{StaticResource HintText}"
                            HorizontalOptions="Center" Margin="0,20,0,0" />

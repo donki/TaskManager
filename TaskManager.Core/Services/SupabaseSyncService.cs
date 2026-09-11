@@ -474,6 +474,25 @@ public sealed class SupabaseSyncService : ISyncService
             RemoteChanged?.Invoke(this, new RemoteChange(row.Entity, row.EntityId.ToString()));
         }
 
+        // Los grupos que ya no se ven en el servidor —el dueño los borro, o a uno lo echaron— se
+        // quitan de aqui. No llegan por «deletions»: esos apuntes son de quien borra, y la RLS
+        // no se los enseña a los demas miembros. Lo unico que dice que un grupo se acabo para
+        // uno es que la lista de grupos del servidor ya no lo trae.
+        var remoteGroups = await FetchAsync<GroupIdRow>("groups", string.Empty, token, cancellationToken)
+            .ConfigureAwait(false);
+        if (remoteGroups is not null)
+        {
+            var alive = remoteGroups.Select(g => g.Id).ToHashSet();
+            foreach (var group in await _repository.GetGroupsAsync().ConfigureAwait(false))
+            {
+                if (!alive.Contains(group.Id))
+                {
+                    await _repository.DeleteGroupAsync(group).ConfigureAwait(false);
+                    RemoteChanged?.Invoke(this, new RemoteChange("groups", group.Id.ToString()));
+                }
+            }
+        }
+
         // Las listas primero: una tarea cuya lista aun no existe se quedaria huerfana en la interfaz.
         foreach (var row in lists)
         {
@@ -898,6 +917,83 @@ public sealed class SupabaseSyncService : ISyncService
         }).ConfigureAwait(false);
     }
 
+    public async Task<bool?> IsGroupOwnerAsync(Guid groupId, CancellationToken cancellationToken = default)
+    {
+        var token = await _auth.GetAccessTokenAsync(cancellationToken).ConfigureAwait(false);
+        var me = CurrentUserId();
+        if (token is null || me.Length == 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get,
+                $"{SupabaseConfig.Url}/rest/v1/groups?id=eq.{groupId}&select=owner_id");
+            Authorize(request, token);
+
+            using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            using var json = JsonDocument.Parse(body);
+            if (json.RootElement.ValueKind != JsonValueKind.Array || json.RootElement.GetArrayLength() == 0)
+            {
+                // El grupo ya no esta en el servidor (o ya no se es miembro): no hay nada que
+                // borrar arriba, y en local se puede quitar sin mas.
+                return true;
+            }
+
+            return string.Equals(json.RootElement[0].GetProperty("owner_id").GetString(), me,
+                StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or TaskCanceledException)
+        {
+            return null;
+        }
+    }
+
+    public async Task LeaveGroupAsync(Guid groupId, CancellationToken cancellationToken = default)
+    {
+        var token = await _auth.GetAccessTokenAsync(cancellationToken).ConfigureAwait(false)
+            ?? throw new AuthException("Hay que entrar con una cuenta para salir de un grupo.");
+        var me = CurrentUserId();
+
+        await DeleteRowsAsync(
+            $"group_members?group_id=eq.{groupId}&user_id=eq.{me}", "group_members", token, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task DeleteGroupAsync(Guid groupId, CancellationToken cancellationToken = default)
+    {
+        var token = await _auth.GetAccessTokenAsync(cancellationToken).ConfigureAwait(false)
+            ?? throw new AuthException("Hay que entrar con una cuenta para borrar un grupo.");
+
+        // Las listas, tareas, pasos y miembros caen en cascada en el servidor (01_schema.sql).
+        // Los demas miembros se enteran en su siguiente bajada: el grupo ya no les aparece.
+        await DeleteRowsAsync($"groups?id=eq.{groupId}", "groups", token, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Un DELETE directo contra PostgREST. Falla en voz alta: quien llama decide que hacer.</summary>
+    private async Task DeleteRowsAsync(string query, string entity, string token, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Delete, $"{SupabaseConfig.Url}/rest/v1/{query}");
+        Authorize(request, token);
+        request.Headers.Add("Prefer", "return=minimal");
+
+        using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            var detail = $"{entity}: {(int)response.StatusCode} " +
+                await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            await NoteErrorAsync(detail).ConfigureAwait(false);
+            throw new InvalidOperationException(detail);
+        }
+    }
+
     /// <summary>Escribe el apodo de uno mismo dentro de un grupo, cifrado con la clave del grupo.</summary>
     private async Task SetMemberNameAsync(Guid groupId, string token, CancellationToken cancellationToken)
     {
@@ -1074,6 +1170,9 @@ public sealed class SupabaseSyncService : ISyncService
 
     /// <summary>Un apunte de baja: que se borro y cuando llego aqui la noticia.</summary>
     private sealed record DeletionRow(string Entity, Guid EntityId, DateTimeOffset DeletedAt);
+
+    /// <summary>Solo el identificador: para saber que grupos siguen existiendo arriba.</summary>
+    private sealed record GroupIdRow(Guid Id);
 
     // Filas tal y como las devuelve PostgREST. Son un tipo aparte a proposito: si el servidor
     // cambia, se ve aqui y no se cuela dentro del modelo de la aplicacion.

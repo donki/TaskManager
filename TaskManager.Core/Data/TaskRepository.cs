@@ -655,6 +655,61 @@ public sealed class TaskRepository
         return removed;
     }
 
+    /// <summary>
+    /// Borra una serie entera: todas las vueltas que se generaron, hechas o no.
+    /// </summary>
+    /// <remarks>
+    /// Es lo que se espera al borrar «la tarea que se repite»: que desaparezca de la lista, del
+    /// tablero y del calendario, no que queden veinte copias sueltas. A diferencia de
+    /// <see cref="DeleteFutureSeriesAsync"/>, aqui las hechas tambien se van, porque quien borra la
+    /// serie quiere que no quede rastro de ella; si solo queria dejar de repetirla, borra una vuelta.
+    /// </remarks>
+    public async Task<int> DeleteSeriesAsync(Guid seriesId)
+    {
+        var tasks = await GetSeriesAsync(seriesId).ConfigureAwait(false);
+        foreach (var task in tasks)
+        {
+            await DeleteTaskAsync(task).ConfigureAwait(false);
+        }
+
+        return tasks.Count;
+    }
+
+    /// <summary>
+    /// Borra las tareas de una seleccion y, de las que son de una serie, la serie entera.
+    /// </summary>
+    public async Task<int> DeleteTasksWithSeriesAsync(IEnumerable<Guid> ids)
+    {
+        var tasks = await LoadAsync(ids).ConfigureAwait(false);
+        var removed = 0;
+        var seriesDone = new HashSet<Guid>();
+
+        foreach (var task in tasks)
+        {
+            if (task.SeriesId is { } series)
+            {
+                if (seriesDone.Add(series))
+                {
+                    removed += await DeleteSeriesAsync(series).ConfigureAwait(false);
+                }
+
+                continue;
+            }
+
+            await DeleteTaskAsync(task).ConfigureAwait(false);
+            removed++;
+        }
+
+        return removed;
+    }
+
+    /// <summary>Cuantas de una seleccion pertenecen a una serie de repeticion.</summary>
+    public async Task<int> CountInSeriesAsync(IEnumerable<Guid> ids)
+    {
+        var tasks = await LoadAsync(ids).ConfigureAwait(false);
+        return tasks.Count(t => t.SeriesId is not null);
+    }
+
     /// <summary>Las tareas de una serie, de la primera a la ultima.</summary>
     public async Task<List<TaskItem>> GetSeriesAsync(Guid seriesId)
     {
@@ -685,7 +740,10 @@ public sealed class TaskRepository
     public async Task<TaskItem?> GetTaskAsync(Guid id) =>
         await Db.Table<TaskItem>().Where(t => t.Id == id).FirstOrDefaultAsync().ConfigureAwait(false);
 
-    public async Task<TaskItem> AddTaskAsync(Guid listId, string title, bool inMyDay = false)
+    /// <param name="plannedFor">Dia en el que se planifica, cuando se crea desde el calendario.</param>
+    /// <param name="inProgress">Nace en la columna «en curso», cuando se crea desde el tablero.</param>
+    public async Task<TaskItem> AddTaskAsync(
+        Guid listId, string title, bool inMyDay = false, DateTime? plannedFor = null, bool inProgress = false)
     {
         var task = new TaskItem
         {
@@ -693,6 +751,8 @@ public sealed class TaskRepository
             AccountId = AccountId,
             Title = title.Trim(),
             MyDayOn = inMyDay ? DateTime.Now.Date : null,
+            PlannedFor = plannedFor?.Date,
+            InProgress = inProgress,
             // Lo nuevo entra arriba, que es donde estaba antes por fecha de creacion.
             SortOrder = await NextTopOrderAsync(listId).ConfigureAwait(false),
         };

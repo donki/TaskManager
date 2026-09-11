@@ -353,14 +353,65 @@ public partial class GroupsPage : ContentPage
             return;
         }
 
-        var confirmed = await SocShared.ModernDialog.AlertAsync(this, "Salir del grupo",
-            $"Se quitará «{group.Name}» de este dispositivo, con sus listas.", "Salir", "Cancelar");
+        var loc = Localization.Loc.Instance;
 
-        if (confirmed)
+        // La papelera de un grupo son dos cosas distintas: irse uno (los demas siguen) o
+        // borrarlo para todos (solo quien lo creo). Se pregunta cual.
+        var leaveText = loc["LeaveGroupOption"];
+        var deleteText = loc["DeleteGroupOption"];
+        var choice = await SocShared.ModernDialog.ActionSheetAsync(this,
+            loc.Format("GroupTrashTitle", group.Name), loc["Cancel"], leaveText, deleteText);
+
+        if (choice is null)
         {
-            await _tasks.Repository.DeleteGroupAsync(group);
-            await ReloadAsync();
+            return;
         }
+
+        var deleteForAll = choice == deleteText;
+
+        if (deleteForAll)
+        {
+            var owner = await _sync.IsGroupOwnerAsync(group.Id);
+            if (owner == false)
+            {
+                await SocShared.ModernDialog.AlertAsync(this, loc["DeleteGroupTitle"], loc["GroupNotOwner"], loc["Ok"]);
+                return;
+            }
+
+            if (!await SocShared.ModernDialog.AlertAsync(this, loc["DeleteGroupTitle"],
+                    loc.Format("DeleteGroupMessage", group.Name), loc["Delete"], loc["Cancel"]))
+            {
+                return;
+            }
+        }
+        else if (!await SocShared.ModernDialog.AlertAsync(this, loc["LeaveGroupTitle"],
+                     loc.Format("LeaveGroupMessage", group.Name), loc["Leave"], loc["Cancel"]))
+        {
+            return;
+        }
+
+        try
+        {
+            if (deleteForAll)
+            {
+                await _sync.DeleteGroupAsync(group.Id);
+            }
+            else
+            {
+                await _sync.LeaveGroupAsync(group.Id);
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // Sin servidor no se sale ni se borra: quitarlo solo de aqui lo traeria de vuelta en
+            // la siguiente bajada, y el usuario creeria que ya no esta.
+            await SocShared.ModernDialog.AlertAsync(this, loc["DeleteGroupTitle"],
+                $"{loc["GroupActionFailed"]}\n{ex.Message}", loc["Ok"]);
+            return;
+        }
+
+        await _tasks.Repository.DeleteGroupAsync(group);
+        await ReloadAsync();
     }
 
     private async void OnListTapped(object? sender, TappedEventArgs e)

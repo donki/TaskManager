@@ -37,12 +37,22 @@
         </Grid>
 
         <!-- Tareas del dia elegido -->
-        <Grid Grid.Column="1" RowDefinitions="Auto,*">
+        <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*">
             <TextBlock Grid.Row="0" x:Name="DayLabel" FontSize="14" FontWeight="SemiBold"
                        Margin="0,0,0,8" TextWrapping="Wrap"
                        Foreground="{DynamicResource TextPrimary}" />
 
-            <ListBox Grid.Row="1" x:Name="DayTasks"
+            <!-- Nueva tarea planificada para el dia elegido. Doble clic en un dia del mes trae el
+                 foco aqui. -->
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+                <TextBox Grid.Column="0" x:Name="DayAddBox" Style="{StaticResource Field}"
+                         Background="{DynamicResource CardBackground}"
+                         KeyDown="OnDayAddKeyDown" />
+                <Button Grid.Column="1" Style="{StaticResource IconButton}" Content="&#xE710;"
+                        Margin="8,0,0,0" ToolTip="{loc:T CalendarAddPlaceholder}" Click="OnDayAddClick" />
+            </Grid>
+
+            <ListBox Grid.Row="2" x:Name="DayTasks"
                      Background="Transparent" BorderThickness="0"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                      HorizontalContentAlignment="Stretch"
@@ -69,7 +79,7 @@
                 </ListBox.ItemTemplate>
             </ListBox>
 
-            <TextBlock Grid.Row="1" x:Name="EmptyLabel" FontSize="12" TextWrapping="Wrap"
+            <TextBlock Grid.Row="2" x:Name="EmptyLabel" FontSize="12" TextWrapping="Wrap"
                        VerticalAlignment="Top" Margin="4,10,0,0"
                        Foreground="{DynamicResource TextSecondary}" />
         </Grid>

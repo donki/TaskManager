@@ -865,9 +865,39 @@ public partial class TaskDetailPage : ContentPage
             return;
         }
 
+        var loc = Localization.Loc.Instance;
+
+        // Una tarea de una serie puede irse sola o llevarse la serie entera. Se pregunta, porque
+        // las dos cosas se piden: «quita el de este martes» y «ya no quiero esta tarea».
+        if (_task.SeriesId is { } series)
+        {
+            var count = (await _tasks.Repository.GetSeriesAsync(series)).Count;
+            var thisOnly = loc["DeleteThisOnly"];
+            var whole = loc.Format("DeleteWholeSeries", count);
+
+            var choice = await SocShared.ModernDialog.ActionSheetAsync(this,
+                loc.Format("DeleteSeriesQuestion", _task.Title), loc["Cancel"], thisOnly, whole);
+
+            if (choice == whole)
+            {
+                await _tasks.Repository.DeleteSeriesAsync(series);
+            }
+            else if (choice == thisOnly)
+            {
+                await _tasks.Repository.DeleteTaskAsync(_task);
+            }
+            else
+            {
+                return;
+            }
+
+            await Shell.Current.GoToAsync("..");
+            return;
+        }
+
         var confirmed = await SocShared.ModernDialog.AlertAsync(this,
-            Localization.Loc.Instance["DeleteTask"], Localization.Loc.Instance.Format("DeleteTaskMessage", _task.Title),
-            Localization.Loc.Instance["Delete"], Localization.Loc.Instance["Cancel"]);
+            loc["DeleteTask"], loc.Format("DeleteTaskMessage", _task.Title),
+            loc["Delete"], loc["Cancel"]);
 
         if (!confirmed)
         {

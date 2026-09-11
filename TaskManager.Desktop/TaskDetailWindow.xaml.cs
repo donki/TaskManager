@@ -956,6 +956,36 @@ public partial class TaskDetailWindow : Window
 
     private async void OnDeleteClick(object sender, RoutedEventArgs e)
     {
+        // Una tarea de una serie puede irse sola o llevarse la serie entera. Se pregunta, porque
+        // las dos cosas se piden: «quita el de este martes» y «ya no quiero esta tarea».
+        if (_task.SeriesId is { } series)
+        {
+            var count = (await _tasks.Repository.GetSeriesAsync(series)).Count;
+            var whole = Controls.ModernDialog.Pick(
+                this, T("DeleteTask"), Localization.Loc.Format("DeleteSeriesQuestion", _task.Title),
+                [(T("DeleteThisOnly"), false), (Localization.Loc.Format("DeleteWholeSeries", count), true)],
+                T("Delete"), T("Cancel"));
+
+            if (whole is null)
+            {
+                return;
+            }
+
+            if (whole.Value)
+            {
+                await _tasks.Repository.DeleteSeriesAsync(series);
+            }
+            else
+            {
+                await _tasks.Repository.DeleteTaskAsync(_task);
+            }
+
+            Deleted = true;
+            Changed = true;
+            DialogResult = true;
+            return;
+        }
+
         var confirmed = Controls.ModernDialog.Confirm(
             this, T("DeleteTask"), Localization.Loc.Format("DeleteTaskConfirm", _task.Title), danger: true);
 

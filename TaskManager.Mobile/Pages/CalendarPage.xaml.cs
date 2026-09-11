@@ -230,6 +230,28 @@ public partial class CalendarPage : ContentPage
 
     // -----------------------------------------------------------------------
 
+    /// <summary>
+    /// Crear desde el calendario: la tarea nace planificada para el dia elegido, en la primera
+    /// lista, y se abre el detalle para rematarla.
+    /// </summary>
+    private async void OnAddClicked(object? sender, EventArgs e)
+    {
+        var title = QuickAdd.Text?.Trim();
+        if (string.IsNullOrEmpty(title))
+        {
+            return;
+        }
+
+        var list = await _tasks.Repository
+            .GetOrCreateDefaultListAsync(Localization.Loc.Instance["DefaultListName"]);
+
+        var task = await _tasks.Repository.AddTaskAsync(list.Id, title, plannedFor: _selected);
+        QuickAdd.Text = string.Empty;
+        await ReloadAsync();
+
+        await Shell.Current.GoToAsync($"{nameof(TaskDetailPage)}?taskId={task.Id}");
+    }
+
     private async void OnPreviousMonthClicked(object? sender, EventArgs e) => await MoveMonthAsync(-1);
 
     private async void OnNextMonthClicked(object? sender, EventArgs e) => await MoveMonthAsync(1);

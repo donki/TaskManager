@@ -14,7 +14,7 @@
     <RootNamespace>TaskManager.Desktop</RootNamespace>
     <AssemblyName>TaskManager</AssemblyName>
     <ApplicationTitle>Task Manager</ApplicationTitle>
-    <Version>2026.9.9.4</Version>
+    <Version>2026.9.11.1</Version>
     <AssemblyVersion>2026.9.9.4</AssemblyVersion>
     <FileVersion>2026.9.9.4</FileVersion>
     <Product>Task Manager</Product>

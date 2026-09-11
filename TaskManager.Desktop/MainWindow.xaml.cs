@@ -840,6 +840,40 @@ public partial class MainWindow : Window
 
     private async void OnKanbanRefreshClick(object sender, RoutedEventArgs e) => await ReloadKanbanAsync();
 
+    private async void OnKanbanAddClick(object sender, RoutedEventArgs e) => await KanbanAddAsync(inProgress: false);
+
+    private async void OnKanbanAddInProgressClick(object sender, RoutedEventArgs e) => await KanbanAddAsync(inProgress: true);
+
+    private async void OnKanbanAddKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            await KanbanAddAsync(inProgress: false);
+        }
+    }
+
+    /// <summary>
+    /// Crear desde el tablero. Igual que la captura rapida de «Mis tareas» —a la primera lista, y
+    /// se abre para rematarla—, con la diferencia de que puede nacer ya en «en curso».
+    /// </summary>
+    private async Task KanbanAddAsync(bool inProgress)
+    {
+        var title = KanbanAddBox.Text.Trim();
+        if (title.Length == 0)
+        {
+            return;
+        }
+
+        var listId = _lists.FirstOrDefault()?.Id
+            ?? (await _tasks.Repository.GetOrCreateDefaultListAsync(T("DefaultListName"))).Id;
+
+        var task = await _tasks.Repository.AddTaskAsync(listId, title, inProgress: inProgress);
+        KanbanAddBox.Text = string.Empty;
+
+        await ReloadAsync();
+        await OpenTaskAsync(task.Id);
+    }
+
     // -----------------------------------------------------------------------
     // Arrastrar de una columna a otra
     // -----------------------------------------------------------------------
@@ -1116,7 +1150,34 @@ public partial class MainWindow : Window
             return;
         }
 
-        await _tasks.Repository.DeleteTasksAsync(ids);
+        // Si hay tareas repetitivas entre las elegidas, se ofrece llevarse sus series enteras:
+        // borrar la vuelta de hoy y dejar las otras treinta no suele ser lo que se buscaba.
+        var inSeries = await _tasks.Repository.CountInSeriesAsync(ids);
+        var wholeSeries = false;
+        if (inSeries > 0)
+        {
+            var choice = Controls.ModernDialog.Pick(
+                this, T("BulkDeleteSeriesTitle"), F("BulkDeleteSeriesQuestion", inSeries),
+                [(T("WholeSeries"), true), (T("OnlySelected"), false)],
+                T("Delete"), T("Cancel"));
+
+            if (choice is null)
+            {
+                return;
+            }
+
+            wholeSeries = choice.Value;
+        }
+
+        if (wholeSeries)
+        {
+            await _tasks.Repository.DeleteTasksWithSeriesAsync(ids);
+        }
+        else
+        {
+            await _tasks.Repository.DeleteTasksAsync(ids);
+        }
+
         await ReloadAsync();
     }
 
@@ -1590,9 +1651,58 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!Controls.ModernDialog.Confirm(this, T("LeaveGroupTitle"),
-                F("LeaveGroupMessage", group.Name), danger: true))
+        // La papelera de un grupo son dos cosas distintas: irse uno (los demas siguen) o
+        // borrarlo para todos (solo quien lo creo). Se pregunta cual.
+        var deleteForAll = Controls.ModernDialog.Pick(
+            this, F("GroupTrashTitle", group.Name), T("GroupTrashQuestion"),
+            [(T("LeaveGroupOption"), false), (T("DeleteGroupOption"), true)],
+            T("Ok"), T("Cancel"));
+
+        if (deleteForAll is null)
         {
+            return;
+        }
+
+        if (deleteForAll.Value)
+        {
+            var owner = _sync is null ? true : await _sync.IsGroupOwnerAsync(group.Id);
+            if (owner == false)
+            {
+                Controls.ModernDialog.Alert(this, T("DeleteGroupTitle"), T("GroupNotOwner"));
+                return;
+            }
+
+            if (!Controls.ModernDialog.Confirm(this, T("DeleteGroupTitle"),
+                    F("DeleteGroupMessage", group.Name), danger: true))
+            {
+                return;
+            }
+        }
+        else if (!Controls.ModernDialog.Confirm(this, T("LeaveGroupTitle"),
+                     F("LeaveGroupMessage", group.Name), danger: true))
+        {
+            return;
+        }
+
+        try
+        {
+            if (_sync is not null)
+            {
+                if (deleteForAll.Value)
+                {
+                    await _sync.DeleteGroupAsync(group.Id);
+                }
+                else
+                {
+                    await _sync.LeaveGroupAsync(group.Id);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // Sin servidor no se sale ni se borra: quitarlo solo de aqui lo traeria de vuelta en
+            // la siguiente bajada, y el usuario creeria que ya no esta.
+            Controls.ModernDialog.Alert(this, T("DeleteGroupTitle"), $"{T("GroupActionFailed")}\n{ex.Message}");
             return;
         }
 

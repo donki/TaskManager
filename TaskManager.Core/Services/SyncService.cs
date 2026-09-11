@@ -47,6 +47,24 @@ public interface ISyncService
     /// servidor). Los que ya estan dentro no se enteran: la pertenencia ya esta canjeada.</para>
     /// </remarks>
     Task<GroupInvite> RenewInviteAsync(Guid groupId, string joinCode, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Si quien esta dentro es quien creo el grupo, que es el unico que puede borrarlo.
+    /// <c>null</c> cuando no se ha podido preguntar (sin red).
+    /// </summary>
+    Task<bool?> IsGroupOwnerAsync(Guid groupId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Salir del grupo: se quita la pertenencia en el servidor. El grupo, sus listas y sus
+    /// tareas siguen ahi para los demas miembros.
+    /// </summary>
+    Task LeaveGroupAsync(Guid groupId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Borrar el grupo en el servidor, con sus listas y sus tareas, para todos los miembros. Solo
+    /// puede hacerlo quien lo creo; a los demas el servidor no les deja (RLS).
+    /// </summary>
+    Task DeleteGroupAsync(Guid groupId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -110,6 +128,15 @@ public sealed class LocalOnlySyncService : ISyncService
         throw new InvalidOperationException(
             "Unirse a un grupo existente necesita Supabase configurado: la clave compartida se " +
             "comprueba en el servidor (join_group), nunca en el dispositivo.");
+
+    // Sin servidor el grupo es solo de este aparato: se es dueño de todos y salir o borrar es lo
+    // mismo, quitarlo de aqui.
+    public Task<bool?> IsGroupOwnerAsync(Guid groupId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<bool?>(true);
+
+    public Task LeaveGroupAsync(Guid groupId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    public Task DeleteGroupAsync(Guid groupId, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     private void OnRemoteChanged(RemoteChange change) => RemoteChanged?.Invoke(this, change);
 }
