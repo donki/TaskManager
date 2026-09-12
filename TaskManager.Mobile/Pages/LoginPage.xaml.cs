@@ -1,4 +1,4 @@
-using TaskManager.Core;
+﻿using TaskManager.Core;
 using TaskManager.Core.Services;
 using TaskManager.Mobile.Helpers;
 
@@ -69,8 +69,8 @@ public partial class LoginPage : ContentPage
         try
         {
             // Tres minutos, como en Windows: lo que puede tardar alguien en entrar con dos pasos.
-            // Es el ultimo tope; lo normal es que la espera se corte antes, en cuanto se vuelve a
-            // la aplicacion sin haber terminado (ver AndroidLoopbackBrowser).
+            // Es el ultimo tope; lo normal es que la espera se corte antes, en cuanto se cierra la
+            // pestaña del navegador sin haber terminado (WebAuthenticator lo da por cancelado).
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
             var user = await _auth.SignInAsync(provider, cts.Token);
 

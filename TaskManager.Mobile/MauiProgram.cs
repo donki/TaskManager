@@ -1,4 +1,4 @@
-using TaskManager.Core;
+﻿using TaskManager.Core;
 using System.Net.Http;
 using Microsoft.Extensions.Logging;
 using TaskManager.Core.Data;
@@ -61,23 +61,24 @@ public static class MauiProgram
 
         builder.Services.AddSingleton<INotificationService, Platforms.Android.NotificationService>();
         builder.Services.AddSingleton<IMailReader, MailKitReader>();
-        // El correo (oculto) sigue con el esquema propio: Microsoft si lo admite y no necesita
-        // servidor local.
+        // El correo (oculto) vuelve por el esquema propio de la aplicacion.
         builder.Services.AddSingleton(services => new MailOAuthService(
             services.GetRequiredService<HttpClient>(),
             services.GetRequiredService<Services.MauiOAuthBrowser>(),
             services.GetRequiredService<ITokenStore>()));
         builder.Services.AddSingleton<TaskService>();
 
-        // Entrada con Google o con Microsoft: navegador del sistema y un servidor local de un solo
-        // uso, igual que en Windows. No se usa el esquema de identificador invertido porque eso
-        // obliga a un cliente OAuth de tipo Android, que valida paquete y huella SHA-1 y responde
-        // «Error 400: invalid_request» en cuanto una de las dos no cuadra (visto el 2026-08-31).
-        // Con la loopback vale el mismo cliente de escritorio que ya funciona.
+        // Entrada con Google o con Microsoft: pestaña del navegador del sistema y vuelta por el
+        // esquema propio (Microsoft) o por el identificador invertido del cliente de escritorio de
+        // Google, que no valida paquete ni huella. El mismo navegador sirve para el correo.
         //
-        // MauiOAuthBrowser (esquema propio) se queda para el correo: Microsoft si lo admite.
-        builder.Services.AddSingleton<IOAuthBrowser, Services.AndroidLoopbackBrowser>();
+        // Hasta el 2026-09-12 la entrada volvia a un servidor local en 127.0.0.1, como en Windows.
+        // En la tablet Samsung (Android 16) no llegaba nunca: con la pestaña delante la aplicacion
+        // cuenta como «en segundo plano» y el cortafuegos del sistema —ahorro de bateria y
+        // restriccion de red de fondo— le tira hasta los paquetes de loopback. Por intent no hay red
+        // que cortar.
         builder.Services.AddSingleton<Services.MauiOAuthBrowser>();
+        builder.Services.AddSingleton<IOAuthBrowser>(services => services.GetRequiredService<Services.MauiOAuthBrowser>());
         builder.Services.AddSingleton<ITokenStore>(services =>
             new Services.SecureTokenStore(new SettingsTokenStore(services.GetRequiredService<SettingsService>())));
         builder.Services.AddSingleton<SupabaseAuthService>();

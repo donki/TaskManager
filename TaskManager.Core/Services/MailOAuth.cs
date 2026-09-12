@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
@@ -86,6 +86,12 @@ public static class MailOAuthConfig
     /// que es tambien quien lo mete en el intent-filter, para que los dos no puedan desalinearse.
     /// </summary>
     public static string GoogleAndroidRedirectScheme => OAuthSecrets.GoogleAndroidRedirectScheme;
+
+    /// <summary>
+    /// Esquema de vuelta del cliente de escritorio, que Google tambien admite y que no valida
+    /// paquete ni firma. Es el que usa la entrada con Google en Android.
+    /// </summary>
+    public static string GoogleDesktopRedirectScheme => OAuthSecrets.GoogleDesktopRedirectScheme;
 
     public static bool IsConfigured(MailOAuthProvider provider) => ClientIdFor(provider).Length > 0;
 

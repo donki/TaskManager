@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
@@ -195,29 +195,40 @@ public sealed class IdentitySignInService
     /// <b>Es la redireccion la que decide el cliente de Google</b>, no el sistema operativo.
     /// </summary>
     /// <remarks>
-    /// Google tiene dos tipos de cliente y cada uno se valida de una manera: el de <i>Android</i>
-    /// comprueba el nombre de paquete y la huella SHA-1 de la firma, y el de <i>escritorio</i>
-    /// comprueba que se vuelva a <c>127.0.0.1</c>. Preguntando por donde vuelve el navegador, la
-    /// clase sirve igual en Windows y en Android sin saber en cual esta. Microsoft usa un unico
-    /// cliente publico para todo.
+    /// <para>Google tiene dos tipos de cliente y cada uno se valida de una manera: el de
+    /// <i>Android</i> comprueba el nombre de paquete y la huella SHA-1 de la firma, y el de
+    /// <i>escritorio</i> solo comprueba a donde se vuelve. Aqui se usa <b>siempre el de
+    /// escritorio</b>: en Windows vuelve a <c>127.0.0.1</c>, y en Android vuelve por su propio
+    /// esquema invertido (<c>com.googleusercontent.apps.&lt;id&gt;:/oauth2redirect</c>), que Google
+    /// tambien admite para ese cliente.</para>
+    ///
+    /// <para>Antes en Android se levantaba un servidor local y se volvia a <c>127.0.0.1</c> como en
+    /// Windows. Dejo de funcionar en la tablet Samsung con Android 16 (2026-09-12): mientras la
+    /// pestaña del navegador esta delante, la aplicacion cuenta como «en segundo plano» y el
+    /// cortafuegos del sistema (ahorro de bateria y restriccion de red de fondo) le tira los
+    /// paquetes, loopback incluido; el navegador se quedaba en <c>ERR_CONNECTION_TIMED_OUT</c>
+    /// contra el puerto de la aplicacion. Una vuelta por intent no necesita red.</para>
+    ///
+    /// <para>Microsoft usa un unico cliente publico para todo y admite cualquier redireccion
+    /// registrada: la de loopback en Windows y el esquema propio de la aplicacion en Android.</para>
     /// </remarks>
     private bool UsesLoopback => _browser.RedirectUri.StartsWith("http://127.0.0.1", StringComparison.Ordinal);
 
-    private string ClientId(IdentityProvider provider) => provider switch
+    private static string ClientId(IdentityProvider provider) => provider switch
     {
         IdentityProvider.Microsoft => MailOAuthConfig.MicrosoftClientId,
-        _ => UsesLoopback ? MailOAuthConfig.GoogleDesktopClientId : MailOAuthConfig.GoogleAndroidClientId,
+        _ => MailOAuthConfig.GoogleDesktopClientId,
     };
 
-    /// <summary>Solo el cliente de escritorio de Google lo exige; los demas son publicos.</summary>
-    private string ClientSecret(IdentityProvider provider) =>
-        provider == IdentityProvider.Google && UsesLoopback
+    /// <summary>Solo el cliente de escritorio de Google lo exige; el de Microsoft es publico.</summary>
+    private static string ClientSecret(IdentityProvider provider) =>
+        provider == IdentityProvider.Google
             ? MailOAuthConfig.GoogleDesktopClientSecret
             : string.Empty;
 
     private string RedirectUri(IdentityProvider provider) =>
         provider == IdentityProvider.Google && !UsesLoopback
-            ? $"{MailOAuthConfig.GoogleAndroidRedirectScheme}:/oauth2redirect"
+            ? $"{MailOAuthConfig.GoogleDesktopRedirectScheme}:/oauth2redirect"
             : _browser.RedirectUri;
 
     private void AddSecret(IdentityProvider provider, Dictionary<string, string> form)

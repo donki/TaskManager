@@ -1,4 +1,4 @@
-<Project>
+﻿<Project>
 
   <!--
     Identificadores de OAuth de correo.
@@ -26,6 +26,14 @@
       calcula aqui y viaja como una constante mas.
     -->
     <TmGoogleAndroidRedirectScheme>com.googleusercontent.apps.$(TmGoogleAndroidClientId.Replace('.apps.googleusercontent.com', ''))</TmGoogleAndroidRedirectScheme>
+
+    <!--
+      El mismo esquema, pero del cliente de ESCRITORIO. Google tambien lo admite para ese cliente
+      (comprobado el 2026-09-12: la autorizacion sigue al inicio de sesion, y con un esquema
+      cualquiera responde Error 400), y a diferencia del de Android no valida paquete ni huella.
+      Es por donde vuelve la entrada con Google en Android desde que se dejo el servidor local.
+    -->
+    <TmGoogleDesktopRedirectScheme>com.googleusercontent.apps.$(TmGoogleDesktopClientId.Replace('.apps.googleusercontent.com', ''))</TmGoogleDesktopRedirectScheme>
   </PropertyGroup>
 
   <!--
@@ -52,6 +60,7 @@
       <TmOAuthLine Include="    public const string GoogleDesktopClientId = &quot;$(TmGoogleDesktopClientId)&quot;%3B" />
       <TmOAuthLine Include="    public const string GoogleDesktopClientSecret = &quot;$(TmGoogleDesktopClientSecret)&quot;%3B" />
       <TmOAuthLine Include="    public const string GoogleAndroidRedirectScheme = &quot;$(TmGoogleAndroidRedirectScheme)&quot;%3B" />
+      <TmOAuthLine Include="    public const string GoogleDesktopRedirectScheme = &quot;$(TmGoogleDesktopRedirectScheme)&quot;%3B" />
       <TmOAuthLine Include="}" />
     </ItemGroup>
     <MakeDir Directories="$(IntermediateOutputPath)" />
