@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -39,6 +39,18 @@ namespace TaskManager.Desktop.Localization;
 /// pintar nada. Comprobado en el mismo banco: pasa a <c>es-es</c> con origen <c>Local</c> y se lee
 /// «L M X J V S D».</para>
 ///
+/// <para><b>Pero eso tampoco llegaba a la ficha de la tarea.</b> Ahi los selectores de plazo y de
+/// planificacion estan en filas <b>colapsadas</b> hasta que se marca su casilla, y a lo que cuelga
+/// de un subarbol colapsado <b>no le llega <c>Loaded</c></b>: el manejador de arriba nunca corria
+/// y el calendario salia en chino (visto el 2026-09-12 en la 2026.09.11.1, y reproducido en el
+/// banco metiendo el selector en una fila colapsada). Lo que no depende de cargas ni de
+/// visibilidad es una <b>coercion</b> de <see cref="FrameworkElement.Language"/> sobre
+/// <see cref="CalendarItem"/>, que es la pieza que escribe el mes y las iniciales de los dias:
+/// cada vez que WPF vaya a darle un valor —el heredado, el del estilo, el que sea— se le devuelve
+/// el idioma de la aplicacion. Sobre <see cref="Calendar"/> no se puede, porque ese ya registra su
+/// propia metadata para esa propiedad y WPF no deja hacerlo dos veces. Los manejadores de carga se
+/// quedan para el resto de controles y como segunda red.</para>
+///
 /// <para>De paso se fija la cultura de los hilos, que es la que decide como se escribe una fecha o
 /// un numero cuando se dan por texto.</para>
 /// </remarks>
@@ -56,10 +68,16 @@ internal static class WpfCulture
         Thread.CurrentThread.CurrentCulture = culture;
         Thread.CurrentThread.CurrentUICulture = culture;
 
-        // Las ventanas que ya estan abiertas no pasan otra vez por «cargada»: se les cambia aqui.
+        // Las ventanas que ya estan abiertas no pasan otra vez por «cargada»: se les cambia aqui,
+        // y a sus calendarios se les vuelve a pedir el idioma para que la coercion de abajo actue.
         foreach (var window in Application.Current?.Windows.OfType<Window>() ?? [])
         {
             Apply(window);
+
+            foreach (var item in Descendants<CalendarItem>(window))
+            {
+                item.CoerceValue(FrameworkElement.LanguageProperty);
+            }
         }
 
         if (_installed)
@@ -68,6 +86,21 @@ internal static class WpfCulture
         }
 
         _installed = true;
+
+        // La pieza del calendario que escribe el mes y los dias: se le impone el idioma por
+        // coercion, que no depende de que el control llegue a cargarse ni de que este visible.
+        try
+        {
+            FrameworkElement.LanguageProperty.OverrideMetadata(
+                typeof(CalendarItem),
+                new FrameworkPropertyMetadata { CoerceValueCallback = (_, _) => Language() });
+        }
+        catch (ArgumentException ex)
+        {
+            // Solo puede fallar si ya existiera un CalendarItem antes de llegar aqui: no pasa,
+            // porque esto corre antes de crear ninguna ventana, pero un texto no tumba el arranque.
+            System.Diagnostics.Debug.WriteLine($"Idioma del calendario: {ex.Message}");
+        }
 
         // La ventana, para todo lo que herede de ella; y ademas, uno por uno, los controles que
         // traen el idioma escrito en su estilo y que por eso no lo heredan.
@@ -115,9 +148,12 @@ internal static class WpfCulture
             }));
 
     /// <summary>Los calendarios que haya colgando, por el arbol visual.</summary>
-    private static IEnumerable<Calendar> Calendars(DependencyObject root)
+    private static IEnumerable<Calendar> Calendars(DependencyObject root) => Descendants<Calendar>(root);
+
+    /// <summary>Los elementos de ese tipo que haya colgando, por el arbol visual (sin entrar en ellos).</summary>
+    private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject
     {
-        if (root is Calendar found)
+        if (root is T found)
         {
             yield return found;
             yield break;
@@ -125,9 +161,9 @@ internal static class WpfCulture
 
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
         {
-            foreach (var calendar in Calendars(VisualTreeHelper.GetChild(root, i)))
+            foreach (var item in Descendants<T>(VisualTreeHelper.GetChild(root, i)))
             {
-                yield return calendar;
+                yield return item;
             }
         }
     }
@@ -151,6 +187,7 @@ internal static class WpfCulture
         }
     }
 
-    private static void Apply(FrameworkElement element) =>
-        element.Language = XmlLanguage.GetLanguage(Resolve().IetfLanguageTag);
+    private static XmlLanguage Language() => XmlLanguage.GetLanguage(Resolve().IetfLanguageTag);
+
+    private static void Apply(FrameworkElement element) => element.Language = Language();
 }
