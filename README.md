@@ -8,6 +8,12 @@ Gestor de tareas diarias con **listas por grupo**, **desglose de objetivos con I
 - Cómo está hecho → [ARQUITECTURA.md](ARQUITECTURA.md)
 - Backend → [supabase/README.md](supabase/README.md)
 
+## Dónde conseguirla
+
+- **Google Play:** https://play.google.com/store/apps/details?id=com.socratic.taskmanager
+- **Microsoft Store:** https://apps.microsoft.com/search?query=%22sOC+Task+Manager%22 (enlace directo al producto en cuanto Partner Center dé el identificador)
+- **Releases de GitHub** (APK / EXE / MSIX de cada versión): https://github.com/donki/TaskManager/releases
+
 ## Estado
 
 Fases 1 a 3 hechas: documentación, esquema SQL con RLS, núcleo compartido y las dos aplicaciones
