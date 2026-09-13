@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using TaskManager.Core;
 using TaskManager.Core.Services;
 using TaskManager.Mobile.Helpers;
@@ -112,10 +112,16 @@ public partial class SettingsPage : ContentPage
         AvatarFrame.IsVisible = user is not null && avatar.Length > 0;
         AvatarImage.Source = AvatarFrame.IsVisible ? ImageSource.FromUri(new Uri(avatar)) : null;
 
-        AccountNameLabel.Text = user?.DisplayName ?? Localization.Loc.Instance["NoAccount"];
+        // Sin cuenta: se dice claro que es solo de este aparato, y el boton de salir pasa a ser
+        // «entrar con una cuenta», que es lo unico que tiene sentido hacer desde ahi.
+        var local = _auth.IsLocalAccount;
+
+        AccountNameLabel.Text = user is null
+            ? Localization.Loc.Instance["NoAccount"]
+            : local ? Localization.Loc.Instance["LocalAccount"] : user.DisplayName;
         AccountEmailLabel.Text = user is null
             ? Localization.Loc.Instance["NoAccountMobile"]
-            : $"{user.Email} · {provider}";
+            : local ? Localization.Loc.Instance["LocalAccountDetail"] : $"{user.Email} · {provider}";
 
         // Para cambiar de cuenta hay que CERRAR SESION, y elegir despues en la puerta: aqui lo
         // unico que se puede hacer es salir.
@@ -127,8 +133,10 @@ public partial class SettingsPage : ContentPage
         var dentro = user is not null;
 
         SignOutButton.IsVisible = dentro;
+        SignOutButton.Text = Localization.Loc.Instance[local ? "SignInWithAccount" : "SignOut"];
 
-        AccountHintLabel.Text = Localization.Loc.Instance[dentro ? "SwitchAccountHint" : "AccountListsHint"];
+        AccountHintLabel.Text = Localization.Loc.Instance[
+            local ? "LocalAccountHint" : dentro ? "SwitchAccountHint" : "AccountListsHint"];
     }
 
     /// <summary>Con que proveedor se entro, o null si no hay nadie dentro.</summary>
@@ -147,7 +155,8 @@ public partial class SettingsPage : ContentPage
 
     private async void OnSignOutClicked(object? sender, EventArgs e)
     {
-        var confirmed = await SocShared.ModernDialog.AlertAsync(
+        // Del modo local se sale sin preguntar: no hay sesion que perder, y lo local se queda.
+        var confirmed = _auth.IsLocalAccount || await SocShared.ModernDialog.AlertAsync(
             this,
             Localization.Loc.Instance["SignOut"],
             Localization.Loc.Instance["SignOutConfirm"],

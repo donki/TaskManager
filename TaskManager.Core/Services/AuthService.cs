@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 
 namespace TaskManager.Core.Services;
@@ -92,6 +92,10 @@ public sealed class SupabaseAuthService
 
     public bool IsSignedIn => CurrentUser is not null;
 
+    /// <summary>Se ha entrado «sin cuenta»: todo se queda en el aparato, no hay nada que sincronizar.</summary>
+    public bool IsLocalAccount =>
+        IsSignedIn && _settings.Get(SettingsService.KeyAuthProvider) == nameof(IdentityProvider.Local);
+
     /// <summary>Sin ningun cliente OAuth no hay a quien pedirle la entrada.</summary>
     public bool IsConfigured => Available.Count > 0;
 
@@ -113,18 +117,26 @@ public sealed class SupabaseAuthService
     /// </summary>
     public async Task<AuthUser?> RestoreSessionAsync(CancellationToken cancellationToken = default)
     {
-        var refresh = await _tokens.GetAsync(KeyRefresh).ConfigureAwait(false);
         var userId = _settings.Get(SettingsService.KeyGoogleSub);
-
-        if (string.IsNullOrEmpty(refresh) || userId.Length == 0)
-        {
-            return null;
-        }
-
         var provider = Enum.TryParse<IdentityProvider>(
             _settings.Get(SettingsService.KeyAuthProvider, nameof(IdentityProvider.Google)), out var parsed)
             ? parsed
             : IdentityProvider.Google;
+
+        // Sin cuenta no hay proveedor al que preguntar ni nada que renovar: con el identificador
+        // guardado basta.
+        if (provider == IdentityProvider.Local && userId.Length > 0)
+        {
+            CurrentUser = LocalUser(userId);
+            UserChanged?.Invoke(this, CurrentUser);
+            return CurrentUser;
+        }
+
+        var refresh = await _tokens.GetAsync(KeyRefresh).ConfigureAwait(false);
+        if (string.IsNullOrEmpty(refresh) || userId.Length == 0)
+        {
+            return null;
+        }
 
         CurrentUser = new AuthUser(
             userId,
@@ -225,6 +237,44 @@ public sealed class SupabaseAuthService
 
         return CurrentUser ?? throw new AuthException("La entrada no trajo ningún usuario.");
     }
+
+    /// <summary>
+    /// Entra «sin cuenta»: un identificador propio de esta instalacion, sin proveedor, sin sesion
+    /// del servidor y sin red. Ver <see cref="TaskManager.Core.AuthOptions.LocalModeEnabled"/>.
+    /// </summary>
+    /// <remarks>
+    /// El identificador se crea la primera vez y se conserva (<see cref="SettingsService.KeyLocalAccountId"/>)
+    /// aunque despues se entre con Google o con Microsoft: es una cuenta mas, con sus listas, y
+    /// volver a ella tiene que encontrarlas. Lo que hubiera de una cuenta anterior no se toca.
+    /// </remarks>
+    public async Task<AuthUser> SignInLocallyAsync()
+    {
+        var id = _settings.Get(SettingsService.KeyLocalAccountId);
+        if (id.Length == 0)
+        {
+            id = $"local-{Guid.NewGuid():N}";
+            await _settings.SetAsync(SettingsService.KeyLocalAccountId, id).ConfigureAwait(false);
+        }
+
+        // La sesion del servidor que hubiera es de la cuenta anterior: fuera, como al cambiar de
+        // cuenta. Y el token de refresco del proveedor tambien, que aqui no hay proveedor.
+        await ClearRemoteSessionAsync().ConfigureAwait(false);
+        await _tokens.SetAsync(KeyRefresh, null).ConfigureAwait(false);
+
+        CurrentUser = LocalUser(id);
+
+        await _settings.SetAsync(SettingsService.KeyGoogleSub, id).ConfigureAwait(false);
+        await _settings.SetAsync(SettingsService.KeyUserId, id).ConfigureAwait(false);
+        await _settings.SetAsync(SettingsService.KeyAuthProvider, nameof(IdentityProvider.Local)).ConfigureAwait(false);
+        await _settings.SetAsync(SettingsService.KeyAccountEmail, string.Empty).ConfigureAwait(false);
+        await _settings.SetAsync(SettingsService.KeyAvatarUrl, string.Empty).ConfigureAwait(false);
+
+        UserChanged?.Invoke(this, CurrentUser);
+        return CurrentUser;
+    }
+
+    /// <summary>El usuario del modo local: sin correo ni foto, y con el nombre que haya en los ajustes.</summary>
+    private AuthUser LocalUser(string id) => new(id, string.Empty, _settings.DisplayName, string.Empty);
 
     public async Task SignOutAsync()
     {

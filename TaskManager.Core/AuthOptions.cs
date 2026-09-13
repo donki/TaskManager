@@ -1,4 +1,4 @@
-namespace TaskManager.Core;
+﻿namespace TaskManager.Core;
 
 /// <summary>
 /// Como se identifica a quien usa la aplicacion.
@@ -44,7 +44,24 @@ public static class AuthOptions
 
     /// <summary>
     /// No se puede usar la aplicacion sin entrar: la pantalla de entrada no tiene salida y el
-    /// arranque no continua hasta que hay cuenta.
+    /// arranque no continua hasta que hay cuenta. «Seguir sin cuenta» tambien es entrar (ver
+    /// <see cref="LocalModeEnabled"/>): la puerta sigue siendo la misma.
     /// </summary>
     public const bool SignInRequired = true;
+
+    /// <summary>
+    /// «Seguir sin cuenta»: se entra con un identificador propio de la instalacion
+    /// (<see cref="Services.IdentityProvider.Local"/>) y todo se queda en el aparato.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Pedido el 2026-09-13.</b> No contradice lo de arriba: lo que obligaba a entrar era
+    /// que dos aparatos pudieran reconocerse como la misma persona, y quien elige el modo local
+    /// esta renunciando a eso a sabiendas. Se le dice claro: ni sincroniza ni comparte grupos, y si
+    /// desinstala, se pierde.</para>
+    ///
+    /// <para><b>Es una cuenta mas</b> a efectos de listas (<see cref="Models.TaskList.AccountId"/>):
+    /// entrar luego con Google no se lleva nada, y volver a «sin cuenta» encuentra lo suyo, porque
+    /// el identificador local se guarda y no cambia.</para>
+    /// </remarks>
+    public const bool LocalModeEnabled = true;
 }

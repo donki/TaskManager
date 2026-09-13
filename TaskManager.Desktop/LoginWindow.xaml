@@ -1,4 +1,4 @@
-<Window x:Class="TaskManager.Desktop.LoginWindow"
+﻿<Window x:Class="TaskManager.Desktop.LoginWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:loc="clr-namespace:TaskManager.Desktop.Localization"
@@ -38,7 +38,22 @@
                     ToolTip="{loc:T SignInMicrosoft}"
                     Width="52" Height="52" FontSize="22"
                     Click="OnMicrosoftClick" />
+            <!-- Sin cuenta: todo se queda en este equipo (AuthOptions.LocalModeEnabled). -->
+            <Button x:Name="LocalButton"
+                    Style="{StaticResource IconButton}"
+                    Content="&#xE7F4;"
+                    ToolTip="{loc:T ContinueWithoutAccount}"
+                    Width="52" Height="52" FontSize="22"
+                    Margin="12,0,0,0"
+                    Click="OnLocalClick" />
         </StackPanel>
+
+        <TextBlock Text="{loc:T NoAccountHint}"
+                   Foreground="{DynamicResource TextSecondary}"
+                   FontSize="11"
+                   TextWrapping="Wrap"
+                   TextAlignment="Center"
+                   Margin="0,10,0,0" />
 
         <ProgressBar x:Name="Busy"
                      Height="3" Width="180"
@@ -56,8 +71,7 @@
                    TextAlignment="Center"
                    Margin="0,14,0,0" />
 
-        <!-- No hay "seguir sin cuenta": la entrada es obligatoria (AuthOptions). Lo unico que se
-             puede hacer sin entrar es cerrar la aplicacion. -->
+        <!-- Sin entrar de ninguna de las tres formas, lo unico que queda es cerrar la aplicacion. -->
         <Button x:Name="QuitButton"
                 Style="{StaticResource GhostIconButton}"
                 Content="&#xE711;"

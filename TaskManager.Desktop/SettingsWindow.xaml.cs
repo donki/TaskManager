@@ -1,4 +1,4 @@
-using TaskManager.Core;
+﻿using TaskManager.Core;
 using System.Linq;
 using System.Windows;
 using TaskManager.Core.Services;
@@ -78,22 +78,39 @@ public partial class SettingsWindow : Window
         var user = _auth.CurrentUser;
         var provider = CurrentProvider();
 
-        AccountLabel.Text = user is not null
-            ? $"{user.DisplayName} · {user.Email} ({provider})"
-            : Localization.Loc.Get("NoAccountDesktop");
+        // Sin cuenta: se dice claro que es solo de este equipo, y el boton de salir pasa a ser
+        // «entrar con una cuenta», que es lo unico que tiene sentido hacer desde ahi.
+        var local = _auth.IsLocalAccount;
+
+        AccountLabel.Text = user is null
+            ? Localization.Loc.Get("NoAccountDesktop")
+            : local
+                ? $"{Localization.Loc.Get("LocalAccount")} · {Localization.Loc.Get("LocalAccountDetail")}"
+                : $"{user.DisplayName} · {user.Email} ({provider})";
 
         ShowAvatar(user is null ? string.Empty : _settings.AvatarUrl);
 
         // El nombre de la aplicacion es el de la cuenta: se enseña, no se edita.
         DisplayNameBox.Text = user?.DisplayName ?? _settings.DisplayName;
 
+        // Sin cuenta nadie pone el nombre por ti: aqui si se puede escribir.
+        DisplayNameBox.IsReadOnly = !local;
+        DisplayNameBox.IsTabStop = local;
+        DisplayNameBox.BorderThickness = local ? new Thickness(1) : new Thickness(0);
+        DisplayNameBox.Background = local
+            ? (System.Windows.Media.Brush)FindResource("CardBackground")
+            : System.Windows.Media.Brushes.Transparent;
+        DisplayNameBox.Foreground = (System.Windows.Media.Brush)FindResource(local ? "TextPrimary" : "TextSecondary");
+
         // Para cambiar de cuenta hay que CERRAR SESION, que es lo que vuelve a abrir la puerta con
         // los dos proveedores: aqui lo unico que se puede hacer es salir.
         var dentro = user is not null;
 
         SignOutButton.IsEnabled = dentro;
+        SignOutButton.ToolTip = Localization.Loc.Get(local ? "SignInWithAccount" : "SignOut");
 
-        AccountHintLabel.Text = Localization.Loc.Get(dentro ? "SwitchAccountHint" : "AccountListsHint");
+        AccountHintLabel.Text = Localization.Loc.Get(
+            local ? "LocalAccountHint" : dentro ? "SwitchAccountHint" : "AccountListsHint");
     }
 
     /// <summary>Con que proveedor se entro, o null si no hay nadie dentro.</summary>
@@ -176,7 +193,14 @@ public partial class SettingsWindow : Window
 
     private async void OnSaveClick(object sender, RoutedEventArgs e)
     {
-        // El nombre no se guarda: viene de la cuenta con la que se entro y se refresca al entrar.
+        // El nombre viene de la cuenta con la que se entro y se refresca al entrar; solo se guarda
+        // en modo local, que es cuando lo escribe el usuario.
+        if (_auth.IsLocalAccount)
+        {
+            var name = DisplayNameBox.Text.Trim();
+            await _settings.SetAsync(SettingsService.KeyDisplayName, name.Length > 0 ? name : "Yo");
+        }
+
         await _settings.SetBoolAsync(SettingsService.KeySound, SoundBox.IsChecked == true);
         await _settings.SetBoolAsync(SettingsService.KeyNotifyEnabled, NotifyBox.IsChecked == true);
         await _settings.SetAsync(SettingsService.KeySnoozeMinutes,

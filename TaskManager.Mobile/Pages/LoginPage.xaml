@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:loc="clr-namespace:TaskManager.Mobile.Localization"
@@ -40,6 +40,15 @@
                     Clicked="OnMicrosoftClicked"
                     HorizontalOptions="Fill" />
 
+            <!-- Sin cuenta: todo se queda en el aparato (AuthOptions.LocalModeEnabled). Va debajo y
+                 sin logotipo porque es la opcion de quien renuncia a sincronizar, no una tercera
+                 cuenta. -->
+            <Button x:Name="LocalButton"
+                    Text="{loc:T ContinueWithoutAccount}"
+                    Style="{StaticResource OutlineButton}"
+                    Clicked="OnLocalClicked"
+                    HorizontalOptions="Fill" />
+
             <ActivityIndicator x:Name="Busy" IsRunning="False" IsVisible="False" />
 
             <Label x:Name="StatusLabel"
@@ -47,8 +56,7 @@
                    HorizontalTextAlignment="Center"
                    IsVisible="False" />
 
-            <!-- No hay "seguir sin cuenta": la entrada es obligatoria (AuthOptions). -->
-            <Label Text="{loc:T SignInRequiredHint}"
+            <Label Text="{loc:T NoAccountHint}"
                    Style="{StaticResource HintText}"
                    FontSize="11"
                    HorizontalTextAlignment="Center" />

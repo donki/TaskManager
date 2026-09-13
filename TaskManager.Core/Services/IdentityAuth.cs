@@ -9,6 +9,13 @@ public enum IdentityProvider
 {
     Google,
     Microsoft,
+
+    /// <summary>
+    /// Sin cuenta: un identificador propio de esta instalacion, que no sale del aparato. Ni
+    /// sincroniza ni comparte; es para quien quiere la aplicacion como una libreta local.
+    /// No pasa por <see cref="IdentitySignInService"/>: lo lleva <see cref="SupabaseAuthService"/>.
+    /// </summary>
+    Local,
 }
 
 /// <summary>
@@ -217,6 +224,7 @@ public sealed class IdentitySignInService
     private static string ClientId(IdentityProvider provider) => provider switch
     {
         IdentityProvider.Microsoft => MailOAuthConfig.MicrosoftClientId,
+        IdentityProvider.Local => string.Empty,   // no hay proveedor con quien hablar
         _ => MailOAuthConfig.GoogleDesktopClientId,
     };
 

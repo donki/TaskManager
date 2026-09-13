@@ -63,6 +63,26 @@ public partial class LoginPage : ContentPage
     private async void OnMicrosoftClicked(object? sender, EventArgs e) =>
         await SignInAsync(IdentityProvider.Microsoft);
 
+    // Sin cuenta: no hay navegador ni espera, se entra al momento con el identificador local.
+    private async void OnLocalClicked(object? sender, EventArgs e)
+    {
+        SetBusy(true);
+        try
+        {
+            var user = await _auth.SignInLocallyAsync();
+            await _tasks.AdoptAccountAsync(user.Id);
+            await Shell.Current.GoToAsync("//MyTasksPage");
+        }
+        catch (Exception ex)
+        {
+            ShowStatus($"{Localization.Loc.Instance["SignInFailed"]}: {ex.Message}");
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
     private async Task SignInAsync(IdentityProvider provider)
     {
         SetBusy(true);
@@ -104,6 +124,8 @@ public partial class LoginPage : ContentPage
         Busy.IsRunning = busy;
         Busy.IsVisible = busy;
         GoogleButton.IsEnabled = !busy;
+        LocalButton.IsVisible = TaskManager.Core.AuthOptions.LocalModeEnabled;
+        LocalButton.IsEnabled = !busy;
 
         // Con cual se entre decide que listas se ven: cada cuenta tiene las suyas, y se cambia de
         // una a otra desde los ajustes sin perder nada.

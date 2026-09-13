@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 
 namespace TaskManager.Core.Services;
 
@@ -413,9 +413,13 @@ public sealed class LocalizationService
         ["ContinueGoogle"] = "Continue with Google",
         ["ContinueMicrosoft"] = "Continue with Microsoft",
         ["ContinueWithoutAccount"] = "Continue without an account",
+        ["LocalAccount"] = "No account",
+        ["LocalAccountDetail"] = "This device only · no sync",
+        ["LocalAccountHint"] = "Your tasks stay on this device: nothing is synced or shared, and they are lost if you uninstall the app. You can sign in with Google or Microsoft whenever you want: you will see that account's lists, and these stay saved for when you come back to \"Continue without an account\".",
+        ["SignInWithAccount"] = "Sign in with an account",
         ["SignInRequiredHint"] = "Signing in is required: the account is what lets Windows and your phone share the same lists.",
         ["LoginPitch"] = "Sign in with Google or Microsoft. Your account name is the name the app uses, and your lists follow you to any device — each account with its own.",
-        ["NoAccountHint"] = "Without an account, tasks stay on this device and cannot be shared with any group.",
+        ["NoAccountHint"] = "Without an account, tasks stay on this device only: no sync with Windows or your phone, and no groups.",
         ["WriteAuthor"] = "Write to the author",
         ["ContactHint"] = "Suggestions, bugs and ideas: all of it gets read.",
         ["PrivacyText"] = "Tasks are kept on the device and synced with your account so they are the same on every device of yours. The text you write is encrypted here before it goes up, and stored encrypted: it is not readable on the server. No ads, no trackers, no analytics. The AI breakdown uses the local server you point to; if there is none, it is solved inside the app without sending anything.",
@@ -780,9 +784,13 @@ public sealed class LocalizationService
         ["ContinueGoogle"] = "Continuar con Google",
         ["ContinueMicrosoft"] = "Continuar con Microsoft",
         ["ContinueWithoutAccount"] = "Seguir sin cuenta",
+        ["LocalAccount"] = "Sin cuenta",
+        ["LocalAccountDetail"] = "Solo en este dispositivo · sin sincronizar",
+        ["LocalAccountHint"] = "Tus tareas se quedan en este dispositivo: no se sincronizan ni se comparten, y se pierden si desinstalas la aplicación. Puedes entrar con Google o con Microsoft cuando quieras: verás las listas de esa cuenta, y estas seguirán guardadas para cuando vuelvas a «Seguir sin cuenta».",
+        ["SignInWithAccount"] = "Entrar con una cuenta",
         ["SignInRequiredHint"] = "Entrar es obligatorio: la cuenta es lo que permite que Windows y el móvil compartan las mismas listas.",
         ["LoginPitch"] = "Entra con Google o con Microsoft. El nombre de tu cuenta es el nombre que usa la aplicación, y tus listas te siguen a cualquier dispositivo: cada cuenta con las suyas.",
-        ["NoAccountHint"] = "Sin cuenta, las tareas se quedan en este dispositivo y no se pueden compartir con ning\u00fan grupo.",
+        ["NoAccountHint"] = "Sin cuenta, las tareas se quedan solo en este dispositivo: sin sincronizar con Windows o el móvil, y sin grupos.",
         ["WriteAuthor"] = "Escribir al autor",
         ["ContactHint"] = "Sugerencias, fallos o ideas: todo se lee.",
         ["PrivacyText"] = "Las tareas se guardan en el dispositivo y se sincronizan con tu cuenta para que sean las mismas en todos tus aparatos. El texto que escribes se cifra aquí antes de subir y se guarda cifrado: en el servidor no es legible. Sin anuncios, sin rastreadores y sin analítica. El desglose con IA usa el servidor local que indiques; si no hay ninguno, se resuelve dentro de la aplicación sin enviar nada.",

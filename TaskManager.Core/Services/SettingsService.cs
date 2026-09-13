@@ -1,4 +1,4 @@
-using TaskManager.Core.Data;
+﻿using TaskManager.Core.Data;
 using TaskManager.Core.Models;
 
 namespace TaskManager.Core.Services;
@@ -12,6 +12,12 @@ public sealed class SettingsService
 {
     public const string KeyUserId = "user.id";
     public const string KeyLocalUserId = "user.local_id";
+
+    /// <summary>
+    /// La cuenta «sin cuenta»: el identificador con el que se entra en modo local. Se crea una vez
+    /// y no se borra al cerrar sesion, para que volver a «seguir sin cuenta» encuentre sus listas.
+    /// </summary>
+    public const string KeyLocalAccountId = "user.local_account";
     /// <summary>
     /// La identidad de verdad, la misma en todos los aparatos: el identificador de la cuenta que da
     /// el proveedor (el <c>sub</c> de Google o el <c>oid</c> de Microsoft).

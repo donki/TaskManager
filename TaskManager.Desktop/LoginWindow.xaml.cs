@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Windows;
 using TaskManager.Core.Services;
 
@@ -8,10 +8,11 @@ namespace TaskManager.Desktop;
 /// La puerta de la aplicacion en Windows.
 /// </summary>
 /// <remarks>
-/// <para>La entrada es obligatoria (<see cref="TaskManager.Core.AuthOptions"/>), asi que esta
-/// ventana no tiene "seguir sin cuenta" ni se puede esquivar: cerrarla sin haber entrado apaga la
-/// aplicacion, porque una aplicacion de bandeja que se quedara viva sin usuario seria un icono que
-/// no sabe de quien son las tareas que enseña.</para>
+/// <para>La entrada es obligatoria (<see cref="TaskManager.Core.AuthOptions"/>) y esta ventana no
+/// se puede esquivar: cerrarla sin haber entrado apaga la aplicacion, porque una aplicacion de
+/// bandeja que se quedara viva sin usuario seria un icono que no sabe de quien son las tareas que
+/// enseña. «Seguir sin cuenta» tambien es entrar: con un identificador de este equipo, sin
+/// sincronizar (<see cref="TaskManager.Core.AuthOptions.LocalModeEnabled"/>).</para>
 ///
 /// <para>Es modal y se muestra <b>antes</b> de montar la bandeja: el resto del arranque necesita
 /// saber quien es el usuario para atribuirle lo que haga.</para>
@@ -41,6 +42,8 @@ public partial class LoginWindow : Window
         MicrosoftButton.Visibility = Visible(
             TaskManager.Core.AuthOptions.MicrosoftSignInEnabled &&
             auth.IsConfiguredFor(IdentityProvider.Microsoft));
+
+        LocalButton.Visibility = Visible(TaskManager.Core.AuthOptions.LocalModeEnabled);
     }
 
     /// <summary>Quien ha entrado. Null si la ventana se cerro sin entrar.</summary>
@@ -53,6 +56,26 @@ public partial class LoginWindow : Window
 
     private async void OnMicrosoftClick(object sender, RoutedEventArgs e) =>
         await SignInAsync(IdentityProvider.Microsoft);
+
+    // Sin cuenta: ni navegador ni espera, se entra al momento con el identificador local.
+    private async void OnLocalClick(object sender, RoutedEventArgs e)
+    {
+        SetBusy(true);
+        try
+        {
+            User = await _auth.SignInLocallyAsync();
+            _signedIn = true;
+            DialogResult = true;
+        }
+        catch (Exception ex)
+        {
+            StatusLabel.Text = ex.Message;
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
 
     private async Task SignInAsync(IdentityProvider provider)
     {
@@ -101,6 +124,7 @@ public partial class LoginWindow : Window
         Busy.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
         GoogleButton.IsEnabled = !busy;
         MicrosoftButton.IsEnabled = !busy;
+        LocalButton.IsEnabled = !busy;
         QuitButton.IsEnabled = !busy;
 
         if (busy)
