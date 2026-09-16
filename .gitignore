@@ -32,3 +32,4 @@ oauth.local.props
 
 # Constantes de OAuth generadas al compilar
 *.g.cs
+releases/
