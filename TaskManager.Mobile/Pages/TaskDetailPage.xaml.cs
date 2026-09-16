@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using TaskManager.Mobile.Models;
 using TaskManager.Core.Models;
 using TaskManager.Core.Services;
@@ -610,6 +610,48 @@ public partial class TaskDetailPage : ContentPage
     /// El fichero vive en la base de datos, asi que para abrirlo hay que volcarlo antes a disco. Se
     /// deja en la carpeta de cache, que es de donde el sistema limpia solo.
     /// </remarks>
+    /// <summary>
+    /// Pega la imagen del portapapeles como adjunto. MAUI solo lee texto del portapapeles; la
+    /// imagen la saca <see cref="Services.ClipboardImage"/> con el ClipboardManager de Android.
+    /// </summary>
+    private async void OnPasteAttachmentClicked(object? sender, EventArgs e)
+    {
+        if (_task is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var image = await Services.ClipboardImage.ReadAsync();
+            if (image is null)
+            {
+                await SocShared.ModernDialog.AlertAsync(this,
+                    Localization.Loc.Instance["PasteAttachmentTooltip"], Localization.Loc.Instance["PasteNothing"], "OK");
+                return;
+            }
+
+            var (bytes, extension) = image.Value;
+            if (bytes.Length > TaskAttachment.MaxFileBytes)
+            {
+                await SocShared.ModernDialog.AlertAsync(this,
+                    Localization.Loc.Instance["PasteAttachmentTooltip"],
+                    Localization.Loc.Instance.Format("FileTooBig", TaskAttachment.MaxFileBytes / (1024 * 1024)),
+                    "OK");
+                return;
+            }
+
+            await _tasks.Repository.AddFileAsync(_task.Id,
+                $"{Localization.Loc.Instance["PastedImageName"]} {DateTime.Now:yyyy-MM-dd HH-mm-ss}{extension}", bytes);
+            await LoadAttachmentsAsync();
+        }
+        catch (Exception ex)
+        {
+            await SocShared.ModernDialog.AlertAsync(this,
+                Localization.Loc.Instance["PasteAttachmentTooltip"], ex.Message, "OK");
+        }
+    }
+
     private async Task OpenAttachmentAsync(TaskAttachment item)
     {
         try

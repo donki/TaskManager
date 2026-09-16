@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using TaskManager.Core.Models;
 using TaskManager.Core.Services;
 using TaskManager.Mobile.Helpers;
@@ -307,7 +307,46 @@ public partial class MyTasksPage : ContentPage
             await ReloadAsync();
         };
 
+        // Pulsacion larga sobre una etiqueta de verdad: borrarla de todas las tareas.
+        if (tag is not null && tag != TaskManager.Core.Data.TaskRepository.NoTag)
+        {
+            button.HandlerChanged += (_, _) =>
+            {
+#if ANDROID
+                if (button.Handler?.PlatformView is Android.Views.View native)
+                {
+                    native.LongClickable = true;
+                    native.LongClick += (_, _) => MainThread.BeginInvokeOnMainThread(async () => await DeleteTagAsync(tag));
+                }
+#endif
+            };
+        }
+
         return button;
+    }
+
+    /// <summary>
+    /// Borra una etiqueta de todas las tareas. Si la llevan tareas sin acabar se pregunta (con
+    /// cuantas); si solo la llevan tareas hechas, se confirma sin mas.
+    /// </summary>
+    private async Task DeleteTagAsync(string tag)
+    {
+        var loc = Localization.Loc.Instance;
+        var (pending, total) = await _tasks.Repository.CountTagAsync(tag);
+        var message = pending > 0 ? loc.Format("DeleteTagPending", tag, pending, total) : loc.Format("DeleteTagDone", tag, total);
+        if (!await SocShared.ModernDialog.AlertAsync(this, loc["DeleteTag"], message, loc["Delete"], loc["Cancel"]))
+        {
+            return;
+        }
+
+        var removed = await _tasks.Repository.DeleteTagAsync(tag);
+        if (string.Equals(_activeTag, tag, StringComparison.CurrentCultureIgnoreCase))
+        {
+            _activeTag = null;
+            await _settings.SetTaskTagAsync(null);
+        }
+        await ReloadAsync();
+        await SocShared.ModernDialog.AlertAsync(this, loc["DeleteTag"], loc.Format("TagDeleted", tag, removed), "OK");
     }
 
     private static void Paint(Button chip, bool active)

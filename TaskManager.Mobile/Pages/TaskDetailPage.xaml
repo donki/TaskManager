@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:loc="clr-namespace:TaskManager.Mobile.Localization"
@@ -137,13 +137,17 @@
                 <!-- Enlaces y ficheros -->
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Padding="16" Spacing="10">
-                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                        <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
                             <Label Grid.Column="0" Text="{loc:T Attachments}" Style="{StaticResource CardTitle}"
                                    VerticalOptions="Center" />
                             <ImageButton Grid.Column="1" Style="{StaticResource HeaderIconButton}"
                                          Source="ic_link_w.png" BackgroundColor="{StaticResource Primary}"
                                          Clicked="OnAddLinkClicked" />
+                            <!-- Pegar una imagen copiada (captura, foto, imagen de una web). -->
                             <ImageButton Grid.Column="2" Style="{StaticResource HeaderIconButton}"
+                                         Source="ic_paste_w.png" BackgroundColor="{StaticResource Primary}"
+                                         Clicked="OnPasteAttachmentClicked" />
+                            <ImageButton Grid.Column="3" Style="{StaticResource HeaderIconButton}"
                                          Source="ic_attach_w.png" BackgroundColor="{StaticResource Primary}"
                                          Clicked="OnAddFileClicked" />
                         </Grid>

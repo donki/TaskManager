@@ -1,4 +1,5 @@
 using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using System.Collections.ObjectModel;
@@ -85,6 +86,25 @@ public partial class TaskDetailWindow : Window
         _ = LoadKnownTagsAsync();
         _ = ReloadStepsAsync();
         _ = ReloadAttachmentsAsync();
+
+        // Ctrl+V con una imagen o ficheros en el portapapeles: adjuntar. Si el foco esta en un
+        // cuadro de texto y hay texto en el portapapeles, es el pegado normal y no se toca.
+        PreviewKeyDown += async (_, e) =>
+        {
+            if (e.Key != Key.V || (Keyboard.Modifiers & ModifierKeys.Control) == 0)
+            {
+                return;
+            }
+            if (Keyboard.FocusedElement is System.Windows.Controls.TextBox && Clipboard.ContainsText())
+            {
+                return;
+            }
+            if (Clipboard.ContainsImage() || Clipboard.ContainsFileDropList())
+            {
+                e.Handled = true;
+                await PasteAttachmentAsync();
+            }
+        };
     }
 
     /// <summary>Si algo cambio, para que quien abrio la ventana sepa si tiene que releer.</summary>
@@ -568,6 +588,70 @@ public partial class TaskDetailWindow : Window
         catch (Exception ex)
         {
             Controls.ModernDialog.Alert(this, T("AddFileTooltip"), ex.Message);
+        }
+    }
+
+    private async void OnPasteAttachmentClick(object sender, RoutedEventArgs e) => await PasteAttachmentAsync();
+
+    /// <summary>
+    /// Lo que haya en el portapapeles, dentro de la tarea: una imagen (captura de pantalla, recorte,
+    /// imagen copiada de una web) se guarda como PNG con la fecha en el nombre; ficheros copiados en
+    /// el Explorador se adjuntan tal cual. Cada uno con el mismo tope de tamaño que «Añadir fichero».
+    /// </summary>
+    private async Task PasteAttachmentAsync()
+    {
+        try
+        {
+            var added = 0;
+            if (Clipboard.ContainsImage() && Clipboard.GetImage() is { } image)
+            {
+                var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(image));
+                using var memory = new MemoryStream();
+                encoder.Save(memory);
+                if (memory.Length > TaskAttachment.MaxFileBytes)
+                {
+                    Controls.ModernDialog.Alert(this, T("PasteAttachmentTooltip"),
+                        Localization.Loc.Format("FileTooBig", TaskAttachment.MaxFileBytes / (1024 * 1024)));
+                    return;
+                }
+                await _tasks.Repository.AddFileAsync(_task.Id, $"{T("PastedImageName")} {DateTime.Now:yyyy-MM-dd HH-mm-ss}.png", memory.ToArray());
+                added++;
+            }
+            else if (Clipboard.ContainsFileDropList())
+            {
+                foreach (var path in Clipboard.GetFileDropList().Cast<string>())
+                {
+                    if (!File.Exists(path))
+                    {
+                        continue;
+                    }
+                    var info = new FileInfo(path);
+                    if (info.Length > TaskAttachment.MaxFileBytes)
+                    {
+                        Controls.ModernDialog.Alert(this, T("PasteAttachmentTooltip"),
+                            Localization.Loc.Format("FileTooBig", TaskAttachment.MaxFileBytes / (1024 * 1024)));
+                        continue;
+                    }
+                    await _tasks.Repository.AddFileAsync(_task.Id, path, await File.ReadAllBytesAsync(path));
+                    added++;
+                }
+            }
+            else
+            {
+                Controls.ModernDialog.Alert(this, T("PasteAttachmentTooltip"), T("PasteNothing"));
+                return;
+            }
+
+            if (added > 0)
+            {
+                Changed = true;
+                await ReloadAttachmentsAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Controls.ModernDialog.Alert(this, T("PasteAttachmentTooltip"), ex.Message);
         }
     }
 

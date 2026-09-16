@@ -1,4 +1,4 @@
-<Window x:Class="TaskManager.Desktop.TaskDetailWindow"
+﻿<Window x:Class="TaskManager.Desktop.TaskDetailWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:loc="clr-namespace:TaskManager.Desktop.Localization"
@@ -193,13 +193,17 @@
                 <!-- Enlaces y ficheros -->
                 <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,12">
                     <StackPanel>
-                        <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
+                        <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,8">
                             <TextBlock Grid.Column="0" Text="{loc:T Attachments}"
                                        Style="{StaticResource CardTitle}" VerticalAlignment="Center" />
                             <Button Grid.Column="1" Style="{StaticResource IconButton}" Content="&#xE71B;"
                                     ToolTip="{loc:T AddLinkTooltip}" Margin="0,0,8,0"
                                     Click="OnAddLinkClick" />
-                            <Button Grid.Column="2" Style="{StaticResource IconButton}" Content="&#xE8E5;"
+                            <!-- Pegar del portapapeles: una imagen (captura, recorte) o ficheros copiados. Ctrl+V tambien. -->
+                            <Button Grid.Column="2" Style="{StaticResource IconButton}" Content="&#xE77F;"
+                                    ToolTip="{loc:T PasteAttachmentTooltip}" Margin="0,0,8,0"
+                                    Click="OnPasteAttachmentClick" />
+                            <Button Grid.Column="3" Style="{StaticResource IconButton}" Content="&#xE8E5;"
                                     ToolTip="{loc:T AddFileTooltip}" Click="OnAddFileClick" />
                         </Grid>
 

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <!--
     Compilacion de demostracion, solo para las capturas de las tiendas: entra sin cuenta y siembra
@@ -34,8 +34,8 @@
     <ApplicationId>com.socratic.taskmanager</ApplicationId>
 
     <!-- Versions (constitucion A.4: ambos valores en sincronia, esquema de fecha) -->
-    <ApplicationDisplayVersion>2026.09.13.0</ApplicationDisplayVersion>
-    <ApplicationVersion>2026091300</ApplicationVersion>
+    <ApplicationDisplayVersion>2026.09.16.00</ApplicationDisplayVersion>
+    <ApplicationVersion>2026091600</ApplicationVersion>
 
     <AcceptAndroidSDKLicenses>true</AcceptAndroidSDKLicenses>
 

@@ -1,4 +1,4 @@
-using TaskManager.Core.Models;
+﻿using TaskManager.Core.Models;
 using TaskManager.Core.Services;
 
 namespace TaskManager.Core.Data;
@@ -216,6 +216,31 @@ public sealed class TaskRepository
         }
 
         return touched;
+    }
+
+    /// <summary>Cuantas tareas (vivas) llevan la etiqueta: pendientes y en total.</summary>
+    public async Task<(int Pending, int Total)> CountTagAsync(string tag)
+    {
+        var tasks = await Db.Table<TaskItem>()
+            .Where(t => !t.Deleted && t.AccountId == AccountId && t.Tags != string.Empty)
+            .ToListAsync().ConfigureAwait(false);
+        var with = tasks.Where(t => TaskTags.Has(t.Tags, tag)).ToList();
+        return (with.Count(t => !t.IsDone), with.Count);
+    }
+
+    /// <summary>
+    /// Borra una etiqueta del todo: se quita de todas las tareas que la llevan, hechas o no. Las
+    /// etiquetas no existen aparte de las tareas, asi que «borrar la etiqueta» es exactamente esto.
+    /// </summary>
+    public async Task<int> DeleteTagAsync(string tag)
+    {
+        var ids = (await Db.Table<TaskItem>()
+            .Where(t => !t.Deleted && t.AccountId == AccountId && t.Tags != string.Empty)
+            .ToListAsync().ConfigureAwait(false))
+            .Where(t => TaskTags.Has(t.Tags, tag))
+            .Select(t => t.Id)
+            .ToList();
+        return await RemoveTagAsync(ids, tag).ConfigureAwait(false);
     }
 
     public async Task<int> SetPinnedAsync(IEnumerable<Guid> ids, bool pinned)

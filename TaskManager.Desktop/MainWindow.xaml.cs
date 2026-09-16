@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -271,7 +271,40 @@ public partial class MainWindow : Window
             await ReloadAllTasksAsync();
         };
 
+        // Boton derecho sobre una etiqueta de verdad (no «Todas» ni «Sin etiqueta»): borrarla.
+        if (tag is not null && tag != TaskRepository.NoTag)
+        {
+            var delete = new MenuItem { Header = T("DeleteTag"), Icon = new TextBlock { Text = "\uE74D", FontFamily = new System.Windows.Media.FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets") } };
+            delete.Click += async (_, _) => await DeleteTagAsync(tag);
+            chip.ContextMenu = new ContextMenu { Items = { delete } };
+        }
+
         return chip;
+    }
+
+    /// <summary>
+    /// Borra una etiqueta de todas las tareas. Si la llevan tareas sin acabar se pregunta (con
+    /// cuantas); si solo la llevan tareas hechas, se confirma sin mas.
+    /// </summary>
+    private async Task DeleteTagAsync(string tag)
+    {
+        var (pending, total) = await _tasks.Repository.CountTagAsync(tag);
+        var ok = pending > 0
+            ? Controls.ModernDialog.Confirm(this, T("DeleteTag"), F("DeleteTagPending", tag, pending, total), danger: true)
+            : Controls.ModernDialog.Confirm(this, T("DeleteTag"), F("DeleteTagDone", tag, total), danger: true);
+        if (!ok)
+        {
+            return;
+        }
+
+        var removed = await _tasks.Repository.DeleteTagAsync(tag);
+        if (string.Equals(_activeTag, tag, StringComparison.CurrentCultureIgnoreCase))
+        {
+            _activeTag = null;
+            await _settings.SetTaskTagAsync(null);
+        }
+        await ReloadAllTasksAsync();
+        Controls.ModernDialog.Alert(this, T("DeleteTag"), F("TagDeleted", tag, removed));
     }
 
     /// <summary>

@@ -1,6 +1,20 @@
 # Changelog — Task Manager
 
-Formato de versión `AAAA.MM.DD.N` (constitución Mobile 3).
+Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del día a dos cifras, el mismo que cierra el versionCode.
+
+## 2026.09.16 — Pegar imágenes como adjunto y borrar etiquetas
+
+Windows `2026.09.16.00` · Android `2026.09.16.00`
+
+- **Pegar del portapapeles como adjunto.** En Windows, el botón «pegar» de Adjuntos (o Ctrl+V con el
+  foco fuera de un cuadro de texto) mete una imagen copiada (captura, recorte, imagen de una web)
+  como PNG con la fecha en el nombre, o los ficheros copiados en el Explorador. En Android, el botón
+  «pegar» adjunta la imagen que haya en el portapapeles (MAUI solo lee texto: se saca del
+  ClipboardManager). Mismo tope de tamaño que «Añadir fichero».
+- **Borrar etiquetas.** Botón derecho sobre una etiqueta de la fila de filtros (Windows) o
+  pulsación larga (Android) → «Borrar etiqueta»: se quita de todas las tareas que la llevan, hechas
+  o no. Si la llevan tareas sin acabar se pregunta diciendo cuántas; si solo la llevan tareas
+  hechas, se confirma sin más.
 
 ## 2026.09.11 — Borrar una serie entera, crear desde el tablero y el calendario, salir o borrar un grupo
 
