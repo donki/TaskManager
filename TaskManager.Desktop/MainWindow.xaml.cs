@@ -252,6 +252,25 @@ public partial class MainWindow : Window
         {
             TagFilterBox.Children.Add(BuildTagChip($"#{tag}", tag));
         }
+
+        // Al final de la fila, la ventana de etiquetas: verlas todas (tambien las de tareas hechas),
+        // cuantas tareas tiene cada una y borrarlas. Es lo mismo que el boton derecho sobre un chip,
+        // pero a la vista.
+        var manage = new Button
+        {
+            Style = (Style)FindResource("GhostIconButton"),
+            Content = "\uE8EC",
+            ToolTip = T("TagsTitle"),
+            Margin = new Thickness(4, 0, 0, 0),
+        };
+        manage.Click += async (_, _) =>
+        {
+            var window = new TagsWindow(this, _tasks);
+            window.ShowDialog();
+            if (window.Changed)
+                await ReloadAllTasksAsync();
+        };
+        TagFilterBox.Children.Add(manage);
     }
 
     private ToggleButton BuildTagChip(string text, string? tag)

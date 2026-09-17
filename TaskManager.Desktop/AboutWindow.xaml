@@ -1,4 +1,4 @@
-<Window x:Class="TaskManager.Desktop.AboutWindow"
+﻿<Window x:Class="TaskManager.Desktop.AboutWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:loc="clr-namespace:TaskManager.Desktop.Localization"
@@ -59,6 +59,27 @@
                             </Hyperlink>
                         </TextBlock>
                         <TextBlock Text="{loc:T ContactHint}" Style="{StaticResource HintText}"
+                                   TextWrapping="Wrap" TextAlignment="Center" Margin="0,8,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <!-- La otra version: en Windows se enlaza la de Android (y al reves). -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,12" Padding="20,18">
+                    <StackPanel>
+                        <TextBlock Text="{loc:T AlsoOnTitle}" Style="{StaticResource CardTitle}" Margin="0,0,0,10" />
+                        <TextBlock HorizontalAlignment="Center">
+                            <Hyperlink NavigateUri="https://play.google.com/store/apps/details?id=com.socratic.taskmanager"
+                                       RequestNavigate="OnContactClick">
+                                <Run Text="{loc:T AlsoOnAndroid}" />
+                            </Hyperlink>
+                        </TextBlock>
+                        <TextBlock HorizontalAlignment="Center" Margin="0,6,0,0">
+                            <Hyperlink NavigateUri="https://github.com/donki/TaskManager/releases"
+                                       RequestNavigate="OnContactClick">
+                                <Run Text="{loc:T AlsoOnReleases}" />
+                            </Hyperlink>
+                        </TextBlock>
+                        <TextBlock Text="{loc:T AlsoOnHint}" Style="{StaticResource HintText}"
                                    TextWrapping="Wrap" TextAlignment="Center" Margin="0,8,0,0" />
                     </StackPanel>
                 </Border>

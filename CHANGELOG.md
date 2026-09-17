@@ -2,6 +2,17 @@
 
 Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del día a dos cifras, el mismo que cierra el versionCode.
 
+## 2026.09.17 — Pantalla de etiquetas y enlaces a la otra versión
+
+Windows `2026.09.17.00` · Android `2026.09.17.00`
+
+- **Pantalla de etiquetas** desde el botón de etiqueta al final de la fila de filtros: todas las
+  etiquetas (también las que solo llevan tareas hechas), cuántas tareas tiene cada una y una
+  papelera para borrarla de todas; si la llevan tareas sin acabar, pregunta. El botón derecho
+  (Windows) y la pulsación larga (Android) sobre un chip siguen funcionando.
+- **Acerca de**: en Windows, enlaces a la aplicación de Android (Google Play) y a todas las
+  versiones en GitHub; en Android, a la aplicación de Windows (exe / MSIX).
+
 ## 2026.09.16 — Pegar imágenes como adjunto y borrar etiquetas
 
 Windows `2026.09.16.00` · Android `2026.09.16.00`

@@ -285,6 +285,22 @@ public partial class MyTasksPage : ContentPage
         {
             TagFilterBox.Add(BuildTagChip($"#{tag}", tag));
         }
+
+        // Al final de la fila, la pagina de etiquetas: verlas todas, cuantas tareas tiene cada una
+        // y borrarlas (lo mismo que la pulsacion larga sobre un chip, pero a la vista).
+        var manage = new ImageButton
+        {
+            Style = (Style)Application.Current!.Resources["RowIconButton"],
+            Source = "ic_tag.png",
+            VerticalOptions = LayoutOptions.Center,
+        };
+        manage.Clicked += async (_, _) =>
+        {
+            var page = new TagsPage(_tasks);
+            page.Disappearing += async (_, _) => { if (page.Changed) await ReloadAsync(); };
+            await Navigation.PushAsync(page);
+        };
+        TagFilterBox.Add(manage);
     }
 
     private View BuildTagChip(string text, string? tag)

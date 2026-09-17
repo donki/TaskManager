@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:loc="clr-namespace:TaskManager.Mobile.Localization"
@@ -37,6 +37,19 @@
                             HorizontalOptions="Fill" />
                     <Label Text="{loc:T ContactHint}" Style="{StaticResource HintText}"
                            HorizontalOptions="Center" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- La otra version: en Android se enlaza la de Windows (y al reves). -->
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Padding="25,20" Spacing="12">
+                    <Label Text="{loc:T AlsoOnTitle}" Style="{StaticResource CardTitle}" />
+                    <Button Text="{loc:T AlsoOnWindows}"
+                            Style="{StaticResource OutlineButton}"
+                            Clicked="OnWindowsClicked"
+                            HorizontalOptions="Fill" />
+                    <Label Text="{loc:T AlsoOnHint}" Style="{StaticResource HintText}"
+                           HorizontalOptions="Center" HorizontalTextAlignment="Center" />
                 </VerticalStackLayout>
             </Border>
 

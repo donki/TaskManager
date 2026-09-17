@@ -1,4 +1,4 @@
-namespace TaskManager.Mobile.Pages;
+﻿namespace TaskManager.Mobile.Pages;
 
 /// <summary>
 /// Pantalla Acerca de, homogenea con el resto de apps sOCratic (constitucion Mobile 7): logo,
@@ -45,6 +45,19 @@ public partial class AboutPage : ContentPage
         if (Application.Current?.Windows.FirstOrDefault() is { } window)
         {
             window.Page = new AppShell();
+        }
+    }
+
+    /// <summary>La version de Windows: exe y MSIX en las releases de GitHub (y en la Microsoft Store cuando este publicada).</summary>
+    private async void OnWindowsClicked(object? sender, EventArgs e)
+    {
+        try
+        {
+            await Browser.Default.OpenAsync("https://github.com/donki/TaskManager/releases", BrowserLaunchMode.SystemPreferred);
+        }
+        catch (Exception)
+        {
+            await Clipboard.Default.SetTextAsync("https://github.com/donki/TaskManager/releases");
         }
     }
 
