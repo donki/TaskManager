@@ -4,7 +4,10 @@ Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del d�
 
 ## 2026.09.18 — El botón de etiquetas, a la vista
 
-Windows `2026.09.18.00` · Android `2026.09.18.00`
+Windows `2026.09.18.00` · Android `2026.09.18.01`
+
+- Android `2026.09.18.01`: el icono del botón de etiquetas salía negro con el tema oscuro; ahora
+  cambia con el tema.
 
 - El botón de la **pantalla de etiquetas** estaba al final de la fila de chips, que se desplaza en
   horizontal: con unas cuantas etiquetas quedaba fuera de la vista. Ahora va fijo a la izquierda de

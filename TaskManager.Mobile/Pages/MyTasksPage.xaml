@@ -65,7 +65,8 @@
                      de la fila quedaba escondido en cuanto habia unas cuantas. -->
                 <Grid x:Name="TagFilterRow" ColumnDefinitions="Auto,*" ColumnSpacing="8"
                       Padding="16,0,16,8" IsVisible="False">
-                    <ImageButton Style="{StaticResource RowIconButton}" Source="ic_tag.png"
+                    <ImageButton Style="{StaticResource RowIconButton}"
+                                 Source="{AppThemeBinding Light=ic_tag.png, Dark=ic_tag_w.png}"
                                  VerticalOptions="Center" Clicked="OnTagsClicked" />
                     <ScrollView Grid.Column="1" Orientation="Horizontal"
                                 HorizontalScrollBarVisibility="Never">
@@ -163,7 +164,8 @@
                                      Clicked="OnBulkPendingClicked" />
                         <ImageButton Style="{StaticResource RowIconButton}" Source="ic_pin.png"
                                      Clicked="OnBulkPinClicked" />
-                        <ImageButton Style="{StaticResource RowIconButton}" Source="ic_tag.png"
+                        <ImageButton Style="{StaticResource RowIconButton}"
+                                 Source="{AppThemeBinding Light=ic_tag.png, Dark=ic_tag_w.png}"
                                      Clicked="OnBulkTagClicked" />
                         <ImageButton Style="{StaticResource RowIconButton}" Source="ic_list.png"
                                      Clicked="OnBulkMoveClicked" />
