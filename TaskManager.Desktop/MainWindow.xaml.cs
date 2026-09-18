@@ -229,8 +229,11 @@ public partial class MainWindow : Window
         // hechas devuelve una lista vacia, y con los meses la fila se convierte en el listado de
         // todas las etiquetas que han existido alguna vez.
         var tags = await _tasks.Repository.GetTagsAsync(pendingOnly: true);
+        // La fila (con el boton de etiquetas) se queda mientras exista alguna etiqueta, aunque
+        // solo la lleven tareas hechas: si no, no habria por donde llegar a borrarlas.
+        var any = tags.Count > 0 || (await _tasks.Repository.GetTagsAsync(pendingOnly: false)).Count > 0;
 
-        TagFilterScroll.Visibility = tags.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        TagFilterRow.Visibility = any ? Visibility.Visible : Visibility.Collapsed;
         TagFilterBox.Children.Clear();
 
         if (tags.Count == 0)
@@ -252,25 +255,18 @@ public partial class MainWindow : Window
         {
             TagFilterBox.Children.Add(BuildTagChip($"#{tag}", tag));
         }
+    }
 
-        // Al final de la fila, la ventana de etiquetas: verlas todas (tambien las de tareas hechas),
-        // cuantas tareas tiene cada una y borrarlas. Es lo mismo que el boton derecho sobre un chip,
-        // pero a la vista.
-        var manage = new Button
-        {
-            Style = (Style)FindResource("GhostIconButton"),
-            Content = "\uE8EC",
-            ToolTip = T("TagsTitle"),
-            Margin = new Thickness(4, 0, 0, 0),
-        };
-        manage.Click += async (_, _) =>
-        {
-            var window = new TagsWindow(this, _tasks);
-            window.ShowDialog();
-            if (window.Changed)
-                await ReloadAllTasksAsync();
-        };
-        TagFilterBox.Children.Add(manage);
+    /// <summary>
+    /// La ventana de etiquetas: verlas todas (tambien las de tareas hechas), cuantas tareas tiene
+    /// cada una y borrarlas. Es lo mismo que el boton derecho sobre un chip, pero a la vista.
+    /// </summary>
+    private async void OnTagsClick(object sender, RoutedEventArgs e)
+    {
+        var window = new TagsWindow(this, _tasks);
+        window.ShowDialog();
+        if (window.Changed)
+            await ReloadAllTasksAsync();
     }
 
     private ToggleButton BuildTagChip(string text, string? tag)

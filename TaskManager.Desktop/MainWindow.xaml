@@ -1,4 +1,4 @@
-<Window x:Class="TaskManager.Desktop.MainWindow"
+﻿<Window x:Class="TaskManager.Desktop.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:loc="clr-namespace:TaskManager.Desktop.Localization"
@@ -84,13 +84,19 @@
                         <StackPanel x:Name="FilterBox" Orientation="Horizontal" />
                     </ScrollViewer>
 
-                    <!-- Etiquetas en uso. La fila se esconde si no hay ninguna. -->
-                    <ScrollViewer x:Name="TagFilterScroll" DockPanel.Dock="Top"
-                                  HorizontalScrollBarVisibility="Auto"
-                                  VerticalScrollBarVisibility="Disabled" Margin="6,0,6,10"
-                                  Visibility="Collapsed">
-                        <StackPanel x:Name="TagFilterBox" Orientation="Horizontal" />
-                    </ScrollViewer>
+                    <!-- Etiquetas en uso. La fila se esconde si no hay ninguna (ni en tareas hechas).
+                         El boton de etiquetas va fijo a la izquierda, fuera del desplazamiento: al
+                         final de la fila quedaba escondido en cuanto habia unas cuantas. -->
+                    <DockPanel x:Name="TagFilterRow" DockPanel.Dock="Top" Margin="6,0,6,10"
+                               Visibility="Collapsed">
+                        <Button DockPanel.Dock="Left" Style="{StaticResource GhostIconButton}"
+                                Content="&#xE8EC;" ToolTip="{loc:T TagsTitle}" Margin="0,0,4,0"
+                                Click="OnTagsClick" />
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                      VerticalScrollBarVisibility="Disabled">
+                            <StackPanel x:Name="TagFilterBox" Orientation="Horizontal" />
+                        </ScrollViewer>
+                    </DockPanel>
 
                     <TextBlock x:Name="NoTasksLabel" DockPanel.Dock="Top" Margin="6,10,6,0"
                                Text="{loc:T NoTasksForFilter}" Style="{StaticResource HintText}"

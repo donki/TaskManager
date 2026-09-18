@@ -1,6 +1,15 @@
-# Changelog — Task Manager
+﻿# Changelog — Task Manager
 
 Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del día a dos cifras, el mismo que cierra el versionCode.
+
+## 2026.09.18 — El botón de etiquetas, a la vista
+
+Windows `2026.09.18.00` · Android `2026.09.18.00`
+
+- El botón de la **pantalla de etiquetas** estaba al final de la fila de chips, que se desplaza en
+  horizontal: con unas cuantas etiquetas quedaba fuera de la vista. Ahora va fijo a la izquierda de
+  la fila, fuera del desplazamiento. Y la fila se queda mientras exista alguna etiqueta, aunque solo
+  la lleven tareas hechas: si no, no había por dónde llegar a borrarlas.
 
 ## 2026.09.17 — Pantalla de etiquetas y enlaces a la otra versión
 

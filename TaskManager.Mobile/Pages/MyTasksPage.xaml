@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:loc="clr-namespace:TaskManager.Mobile.Localization"
@@ -61,10 +61,17 @@
 
                 <!-- Etiquetas en uso. La fila no aparece si no hay ninguna: un filtro vacio solo
                      ocupa sitio. -->
-                <ScrollView x:Name="TagFilterScroll" Orientation="Horizontal"
-                            HorizontalScrollBarVisibility="Never" Padding="16,0,16,8" IsVisible="False">
-                    <HorizontalStackLayout x:Name="TagFilterBox" Spacing="8" />
-                </ScrollView>
+                <!-- El boton de etiquetas va fijo a la izquierda, fuera del desplazamiento: al final
+                     de la fila quedaba escondido en cuanto habia unas cuantas. -->
+                <Grid x:Name="TagFilterRow" ColumnDefinitions="Auto,*" ColumnSpacing="8"
+                      Padding="16,0,16,8" IsVisible="False">
+                    <ImageButton Style="{StaticResource RowIconButton}" Source="ic_tag.png"
+                                 VerticalOptions="Center" Clicked="OnTagsClicked" />
+                    <ScrollView Grid.Column="1" Orientation="Horizontal"
+                                HorizontalScrollBarVisibility="Never">
+                        <HorizontalStackLayout x:Name="TagFilterBox" Spacing="8" />
+                    </ScrollView>
+                </Grid>
             </VerticalStackLayout>
 
             <RefreshView Grid.Row="3" x:Name="Refresher" Refreshing="OnRefreshing">

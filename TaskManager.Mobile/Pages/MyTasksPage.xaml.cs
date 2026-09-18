@@ -262,7 +262,9 @@ public partial class MyTasksPage : ContentPage
         // hechas devuelve una lista vacia.
         var tags = await _tasks.Repository.GetTagsAsync(pendingOnly: true);
 
-        TagFilterScroll.IsVisible = tags.Count > 0;
+        // La fila (con el boton de etiquetas) se queda mientras exista alguna etiqueta, aunque
+        // solo la lleven tareas hechas: si no, no habria por donde llegar a borrarlas.
+        TagFilterRow.IsVisible = tags.Count > 0 || (await _tasks.Repository.GetTagsAsync(pendingOnly: false)).Count > 0;
         TagFilterBox.Clear();
 
         if (tags.Count == 0)
@@ -285,22 +287,17 @@ public partial class MyTasksPage : ContentPage
         {
             TagFilterBox.Add(BuildTagChip($"#{tag}", tag));
         }
+    }
 
-        // Al final de la fila, la pagina de etiquetas: verlas todas, cuantas tareas tiene cada una
-        // y borrarlas (lo mismo que la pulsacion larga sobre un chip, pero a la vista).
-        var manage = new ImageButton
-        {
-            Style = (Style)Application.Current!.Resources["RowIconButton"],
-            Source = "ic_tag.png",
-            VerticalOptions = LayoutOptions.Center,
-        };
-        manage.Clicked += async (_, _) =>
-        {
-            var page = new TagsPage(_tasks);
-            page.Disappearing += async (_, _) => { if (page.Changed) await ReloadAsync(); };
-            await Navigation.PushAsync(page);
-        };
-        TagFilterBox.Add(manage);
+    /// <summary>
+    /// La pagina de etiquetas: verlas todas (tambien las de tareas hechas), cuantas tareas tiene
+    /// cada una y borrarlas. Es lo mismo que la pulsacion larga sobre un chip, pero a la vista.
+    /// </summary>
+    private async void OnTagsClicked(object? sender, EventArgs e)
+    {
+        var page = new TagsPage(_tasks);
+        page.Disappearing += async (_, _) => { if (page.Changed) await ReloadAsync(); };
+        await Navigation.PushAsync(page);
     }
 
     private View BuildTagChip(string text, string? tag)
