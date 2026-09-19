@@ -1,4 +1,4 @@
-# Ficha de Google Play — Task Manager
+﻿# Ficha de Google Play — Task Manager
 
 `com.socratic.taskmanager` · pista de pruebas cerradas (`alpha`).
 
@@ -31,9 +31,9 @@ Tus tareas en el móvil y en el ordenador, con la misma cuenta
 ```
 Task Manager es una lista de tareas que de verdad está en todos tus aparatos: escribes una tarea en el móvil y aparece en el ordenador, y al revés.
 
-Cada tarea lleva lo que necesite: lista, etiquetas, fecha de inicio y de vencimiento, repetición, pasos, enlaces y ficheros adjuntos. Las que no pueden esperar se anclan y se quedan arriba del todo, con la fecha más cercana primero.
+Cada tarea lleva lo que necesite: lista, etiquetas, fecha de inicio y de vencimiento, repetición, pasos, enlaces y ficheros adjuntos. Una imagen copiada se pega directamente como adjunto. Las que no pueden esperar se anclan y se quedan arriba del todo, con la fecha más cercana primero.
 
-Los filtros ordenan por ti: todas, ancladas, pendientes, hechas, vencidas, las que empiezan antes o después de hoy, las que vencen antes o después de hoy, o las que no llevan ninguna etiqueta. El buscador mira en el título, las notas, las etiquetas, los pasos y los adjuntos, así que encuentras una tarea por lo que recuerdes de ella.
+Los filtros ordenan por ti: todas, ancladas, pendientes, hechas, vencidas, las que empiezan antes o después de hoy, las que vencen antes o después de hoy, o las que no llevan ninguna etiqueta. Las etiquetas tienen su pantalla: ves todas, cuántas tareas lleva cada una y borras la que sobra de todas sus tareas de una vez. El buscador mira en el título, las notas, las etiquetas, los pasos y los adjuntos, así que encuentras una tarea por lo que recuerdes de ella.
 
 Una tarea se parte en pasos y los pasos se arrastran hasta dejarlos en el orden en que los vas a hacer. La repetición puede ser diaria, semanal en los días que elijas, mensual un día del mes o anual un mes y un día. Las fechas traen avisos de lo que queda pendiente, y un aviso se puede posponer.
 
@@ -45,10 +45,10 @@ Un grupo es un espacio con sus propias listas que se comparte con otras personas
 TU TEXTO NO SE GUARDA EN CLARO
 Lo que escribes se cifra en tu dispositivo antes de salir y se guarda cifrado en el servidor. Sin anuncios, sin rastreadores y sin analítica.
 
-POR QUÉ HACE FALTA UNA CUENTA
-Se entra con una cuenta que ya tienes, de Google o de Microsoft. No creamos ninguna cuenta y nunca vemos tu contraseña. La cuenta es lo que hace posible la sincronización: sin ella no hay forma de saber que dos aparatos son de la misma persona.
+CON CUENTA O SIN ELLA
+Se entra con una cuenta que ya tienes, de Google o de Microsoft. No creamos ninguna cuenta y nunca vemos tu contraseña. La cuenta es lo que hace posible la sincronización y los grupos: sin ella no hay forma de saber que dos aparatos son de la misma persona. Si no la quieres, «Continuar sin cuenta»: las tareas se quedan solo en este aparato, sin servidor de por medio.
 
-También hay versión para Windows, con icono en la bandeja del sistema.
+También hay versión para Windows, con icono en la bandeja del sistema; el enlace está en «Acerca de».
 
 En castellano y en inglés, con modo claro y oscuro.
 ```
@@ -74,9 +74,9 @@ Your tasks on your phone and on your PC, with the same account
 ```
 Task Manager is a to-do list that really is on all your devices: write a task on your phone and it shows up on your computer, and the other way round.
 
-Every task can carry whatever it needs: a list, tags, a start date and a due date, repetition, steps, links and attached files. Pin the ones that cannot wait and they stay at the top, with the closest due date first.
+Every task can carry whatever it needs: a list, tags, a start date and a due date, repetition, steps, links and attached files. A copied image is pasted straight in as an attachment. Pin the ones that cannot wait and they stay at the top, with the closest due date first.
 
-Filters do the sorting for you: everything, pinned, pending, done, overdue, starting before or after today, due before or after today, or tasks with no tag at all. Search reads titles, notes, tags, steps and attachments, so you can find a task by whatever you remember about it.
+Filters do the sorting for you: everything, pinned, pending, done, overdue, starting before or after today, due before or after today, or tasks with no tag at all. Tags have their own screen: see them all, how many tasks each one has, and remove a tag from all its tasks in one go. Search reads titles, notes, tags, steps and attachments, so you can find a task by whatever you remember about it.
 
 Break a task into steps and drag them into the order you will do them in. Repeats can be daily, weekly on the days you pick, monthly on a day of the month, or yearly on a month and a day. Dates come with reminders for what is pending, and a reminder can be put off for later.
 
@@ -88,10 +88,10 @@ A group is a space with its own lists, shared with other people. You invite some
 YOUR TEXT IS NOT STORED IN READABLE FORM
 What you type is encrypted on your own device before it goes anywhere, and it is stored encrypted on the server. No ads, no trackers, no analytics.
 
-WHY AN ACCOUNT IS REQUIRED
-You sign in with an account you already have, from Google or Microsoft. We do not create an account for you and we never see your password. Signing in is what makes syncing work: without it, there is no way to tell that two devices belong to the same person.
+WITH AN ACCOUNT OR WITHOUT ONE
+You sign in with an account you already have, from Google or Microsoft. We do not create an account for you and we never see your password. Signing in is what makes syncing and groups work: without it, there is no way to tell that two devices belong to the same person. If you would rather not, "Continue without an account": your tasks stay on this device only, with no server involved.
 
-There is a Windows version too, with a system tray icon.
+There is a Windows version too, with a system tray icon; the link is in "About".
 
 In English and Spanish, with light and dark mode.
 ```

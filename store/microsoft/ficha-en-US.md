@@ -1,4 +1,4 @@
-# Store listing — English (United States)
+﻿# Store listing — English (United States)
 
 Ready to paste into the Partner Center form.
 
@@ -17,7 +17,7 @@ sOC Task Manager
 ```
 sOC Task Manager keeps one to-do list on your Windows PC and on your Android phone, so the same tasks are in front of you wherever you are.
 
-Write a task down and give it whatever it needs: a list, tags, a start date (planned for) and a due date, a repeat, steps, links and attached files. Pin the ones that cannot wait and they stay at the top, with the closest due date first.
+Write a task down and give it whatever it needs: a list, tags, a start date (planned for) and a due date, a repeat, steps, links and attached files; a copied image is pasted straight in as an attachment (Ctrl+V). Pin the ones that cannot wait and they stay at the top, with the closest due date first. Tags have their own window: see them all, how many tasks each one has, and remove a tag from all its tasks in one go.
 
 Filters do the sorting for you: everything, pinned, pending, done, overdue, starting before or after today, due before or after today, or tasks with no tag at all. Search reads titles, notes, tags, steps and attachments, so you can find a task by whatever you remember about it.
 
@@ -30,8 +30,10 @@ The quick panel opens from the system tray with a keyboard shortcut, so you can 
 YOUR TEXT IS NOT STORED IN READABLE FORM
 What you type is encrypted on your own device before it goes anywhere, and it is stored encrypted on the server. No ads, no trackers, no analytics.
 
-WHY AN ACCOUNT IS REQUIRED
-You sign in with an account you already have, from Google or Microsoft. We do not create an account for you and we never see your password. Signing in is what makes syncing work: without it, there is no way to tell that two devices belong to the same person.
+WITH AN ACCOUNT OR WITHOUT ONE
+You sign in with an account you already have, from Google or Microsoft. We do not create an account for you and we never see your password. Signing in is what makes syncing and groups work: without it, there is no way to tell that two devices belong to the same person. If you would rather not, "Continue without an account": your tasks stay on this PC only, with no server involved.
+
+There is an Android app too, with the same tasks; the link is in "About".
 ```
 
 ---

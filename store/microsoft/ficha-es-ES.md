@@ -1,4 +1,4 @@
-# Descripción de Store — Español (España)
+﻿# Descripción de Store — Español (España)
 
 Todo lo de aquí es para pegar tal cual en el formulario de Partner Center.
 
@@ -19,7 +19,9 @@ sOC Task Manager es una lista de tareas que de verdad está en todos tus aparato
 
 Escribes una tarea en el móvil y aparece en el ordenador, sin tener que hacer nada. Cada tarea puede
 llevar su lista, sus etiquetas, fecha de inicio y de vencimiento, repetición, pasos, enlaces y
-ficheros adjuntos. Y lo que no puede esperar se ancla y se queda arriba del todo.
+ficheros adjuntos; una imagen copiada se pega directamente como adjunto (Ctrl+V). Y lo que no
+puede esperar se ancla y se queda arriba del todo. Las etiquetas tienen su ventana: ves todas,
+cuántas tareas lleva cada una y borras la que sobra de todas sus tareas de una vez.
 
 Está pensado para el día a día, no para montar un sistema: se abre, se escribe lo que hay que hacer
 y se cierra. El panel rápido sale con un atajo de teclado desde la bandeja, sin abrir la ventana
@@ -29,12 +31,13 @@ TU TEXTO NO SE GUARDA LEGIBLE
 Lo que escribes se cifra en tu propio dispositivo antes de salir y se guarda cifrado. Sin anuncios,
 sin rastreadores y sin analítica. Nunca.
 
-PARA ENTRAR
+CON CUENTA O SIN ELLA
 Se entra con una cuenta que ya tienes, de Google o de Microsoft. No creamos ninguna cuenta ni vemos
-tu contraseña. Hace falta porque, sin saber que dos aparatos son la misma persona, no hay forma de
-que las tareas sean las mismas en los dos.
+tu contraseña. Hace falta para la sincronización y los grupos: sin saber que dos aparatos son la
+misma persona, no hay forma de que las tareas sean las mismas en los dos. Si no la quieres,
+«Continuar sin cuenta»: las tareas se quedan solo en este PC, sin servidor de por medio.
 
-También hay aplicación para Android, con las mismas tareas.
+También hay aplicación para Android, con las mismas tareas; el enlace está en «Acerca de».
 ```
 
 ---
