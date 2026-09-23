@@ -12,7 +12,7 @@ estructura de herramientas como Microsoft To-Do con un sistema de gamificación 
 celebración visual y sincronización en tiempo real.
 
 Diseñada para combatir la procrastinación y facilitar el trabajo colaborativo, la aplicación permite
-organizar proyectos en múltiples listas por grupo, desglosar tareas complejas mediante Inteligencia
+organizar proyectos en múltiples listas por grupo, partir lo complejo en micro-pasos
 Artificial y premiar el progreso individual o colectivo con animaciones, sonidos y elementos de
 recompensas.
 
@@ -90,22 +90,12 @@ recompensas.
 
 ### B. Sistema de progresión
 
-- **XP y niveles**: se ganan puntos al completar tareas o desglosar objetivos con IA. Subir de nivel
+- **XP y niveles**: se ganan puntos al completar tareas y micro-pasos. Subir de nivel
   desbloquea temas de color, nuevos estilos de confeti o insignias para el grupo.
 - **Sin castigos punitivos**: se premia la constancia diaria sin penalizar agresivamente al usuario
   cuando necesita tomarse días de descanso.
 
-## 5. Desglose de Tareas con IA ("Pasos Mágicos")
-
-- **Creación rápida**: el usuario escribe un objetivo amplio dentro de cualquier lista
-  (ej. "Organizar la mudanza").
-- **Botón "Desglosar con IA"**: al pulsar la varita mágica, la aplicación genera en menos de un
-  segundo una sublista de 3 a 5 micro-pasos ejecutables de 5 a 10 minutos (ej. "1. Conseguir cajas de
-  cartón", "2. Clasificar ropa por temporada", "3. Etiquetar cajas frágiles").
-- **Progreso progresivo**: cada micro-paso completado suma porciones de XP y hace avanzar la barra de
-  progreso general de la tarea.
-
-## 6. Aplicación de Escritorio en Windows (Tray Icon)
+## 5. Aplicación de Escritorio en Windows (Tray Icon)
 
 ### A. Comportamiento en segundo plano
 
@@ -134,7 +124,7 @@ recompensas.
   navegación a los meses anteriores y posteriores.
 - **Mis listas** y **Grupos**: las listas propias y las compartidas, con sus tareas.
 
-## 7. Aplicación Móvil (Android)
+## 6. Aplicación Móvil (Android)
 
 - **Tablero**: las mismas tres columnas que en Windows —pendientes, en curso y hechas—, con las tres
   a la vista también con la tableta en vertical. Se toca una tarjeta para abrir la tarea y se
@@ -143,6 +133,6 @@ recompensas.
 - **Sincronización inmediata**: los cambios en listas compartidas se reflejan en tiempo real entre
   Windows y Android mediante Supabase Realtime.
 - **Widgets para pantalla de inicio**: widget transparente con la lista "Mi Día" y acceso directo
-  para añadir tareas o desglosar con IA.
+  para añadir tareas.
 - **Funcionamiento offline**: consultar, crear y completar tareas sin conexión, sincronizando los
   cambios en cuanto se restablezca la red.

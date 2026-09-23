@@ -91,17 +91,8 @@ public partial class App : Application
         // cada selector de fecha— tambien tiene que salir en el idioma de la aplicacion.
         Localization.WpfCulture.Install();
 
-        // El desglose intenta primero el modelo local y cae a plantillas: nunca se queda sin pasos.
-        // El modelo local no se configura: se busca donde escuchan por costumbre (Ollama y
-        // LM Studio en el propio equipo). Si no hay ninguno, el desglose cae a plantillas y
-        // funciona igual.
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-        var breakdown = new CascadingBreakdownService(
-            new LocalLlmBreakdownService(_http, () => "http://localhost:11434", () => _settings.LlmModel),
-            new LocalLlmBreakdownService(_http, () => "http://localhost:1234", () => _settings.LlmModel),
-            new HeuristicBreakdownService());
-
-        _tasks = new TaskService(repository, _settings, breakdown);
+        _tasks = new TaskService(repository, _settings);
         await _tasks.InitializeAsync();
 
         // Entrada con Google o con Microsoft: navegador del sistema + servidor local de un solo

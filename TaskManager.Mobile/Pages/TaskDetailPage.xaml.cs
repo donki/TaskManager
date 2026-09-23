@@ -7,7 +7,7 @@ using TaskManager.Mobile.Helpers;
 namespace TaskManager.Mobile.Pages;
 
 /// <summary>
-/// Detalle de una tarea: se edita lo que hay que hacer, el **contexto** que precisa el desglose,
+/// Detalle de una tarea: se edita lo que hay que hacer, las **notas**,
 /// las etiquetas, el plazo y cada cuanto se repite, y se ven y marcan sus micro-pasos.
 /// </summary>
 /// <remarks>
@@ -696,66 +696,6 @@ public partial class TaskDetailPage : ContentPage
         if (celebration is not null)
         {
             Celebration.Celebrate(celebration);
-        }
-    }
-
-    /// <summary>
-    /// Propone pasos a partir del titulo y del contexto. Antes de proponer se guarda lo escrito:
-    /// de nada sirve un contexto que todavia esta solo en pantalla.
-    /// </summary>
-    private async void OnBreakdownClicked(object? sender, EventArgs e)
-    {
-        if (_task is null)
-        {
-            return;
-        }
-
-        await SaveAsync(silent: true);
-
-        WandButton.IsEnabled = false;
-        StepsBusy.IsRunning = true;
-        StepsBusy.IsVisible = true;
-
-        try
-        {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-            var proposal = await _tasks.ProposeBreakdownAsync(_task, cts.Token);
-
-            if (!proposal.HasSomethingNew)
-            {
-                await SocShared.ModernDialog.AlertAsync(this, Localization.Loc.Instance["MagicSteps"],
-                    proposal.AlreadyPresent > 0 ? Localization.Loc.Instance["MagicAllPresent"] : Localization.Loc.Instance["MagicNothing"],
-                    "OK");
-                return;
-            }
-
-            var detail = "• " + string.Join("\n• ", proposal.Steps);
-            if (proposal.AlreadyPresent > 0)
-            {
-                detail += "\n\n" + Localization.Loc.Instance.Format("MagicDiscarded", proposal.AlreadyPresent);
-            }
-
-            var accepted = await SocShared.ModernDialog.AlertAsync(this,
-                $"{Localization.Loc.Instance["MagicSteps"]} · {proposal.Source}", detail, Localization.Loc.Instance["MagicAdd"], Localization.Loc.Instance["MagicNotNow"]);
-
-            if (!accepted)
-            {
-                return;
-            }
-
-            var (_, celebration) = await _tasks.ApplyBreakdownAsync(_task, proposal.Steps);
-            await LoadStepsAsync();
-
-            if (celebration is not null)
-            {
-                Celebration.Celebrate(celebration);
-            }
-        }
-        finally
-        {
-            StepsBusy.IsRunning = false;
-            StepsBusy.IsVisible = false;
-            WandButton.IsEnabled = true;
         }
     }
 

@@ -321,7 +321,7 @@ public partial class MailPage : ContentPage
 
     /// <summary>
     /// Convierte el correo en tarea de hoy: el asunto es el titulo y el remitente, la fecha y el
-    /// principio del mensaje quedan como contexto, que es lo que luego usa el desglose.
+    /// principio del mensaje quedan como notas de la tarea.
     /// </summary>
     private async void OnCreateTaskClicked(object? sender, EventArgs e)
     {

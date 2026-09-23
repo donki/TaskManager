@@ -260,13 +260,8 @@
                 <!-- Pasos: se quedan con el hueco que sobre, que son los que crecen -->
                 <Border Grid.Row="2" Style="{StaticResource Card}">
                     <DockPanel>
-                        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                            <TextBlock Grid.Column="0" Text="{loc:T Steps}" Style="{StaticResource CardTitle}"
-                                       VerticalAlignment="Center" />
-                            <Button Grid.Column="1" x:Name="BreakdownButton" Style="{StaticResource IconButton}"
-                                    Content="&#xE945;" ToolTip="{loc:T BreakdownTooltip}"
-                                    Click="OnBreakdownClick" />
-                        </Grid>
+                        <TextBlock DockPanel.Dock="Top" Text="{loc:T Steps}" Style="{StaticResource CardTitle}"
+                                   VerticalAlignment="Center" Margin="0,0,0,8" />
 
                         <!-- Anadir un paso a mano: escribir y Enter, o el boton. -->
                         <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,10">

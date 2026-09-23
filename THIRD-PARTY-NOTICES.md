@@ -25,12 +25,6 @@ con MIT. Añade una concesión de patentes y la obligación de conservar el avis
 la biblioteca: la aplicación le sustituye el diccionario en el arranque
 (`Localization/HandyControlLang.cs`) para enseñarlos en castellano o en inglés.
 
-## Modelo de IA
-
-El desglose no incluye ningún modelo: habla con un servidor local que ponga el usuario. El
-recomendado, **Qwen2.5 3B Instruct**, es **Apache-2.0** y admite uso comercial. Cualquier modelo que
-se elija tiene que cumplir la misma regla — quedan descartados los de licencia no comercial.
-
 ## Datos
 
 La aplicación **necesita cuenta** y sincroniza contra un servidor: es lo que permite que las mismas

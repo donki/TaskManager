@@ -162,15 +162,11 @@
                 <!-- Pasos -->
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Padding="16" Spacing="10">
-                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                             <Label Grid.Column="0" Text="{loc:T Steps}" Style="{StaticResource CardTitle}"
                                    VerticalOptions="Center" />
                             <ActivityIndicator Grid.Column="1" x:Name="StepsBusy" IsRunning="False" IsVisible="False"
                                                HeightRequest="20" WidthRequest="20" />
-                            <ImageButton Grid.Column="2" x:Name="WandButton" IsVisible="False"
-                                         Style="{StaticResource HeaderIconButton}"
-                                         Source="ic_magic_w.png" BackgroundColor="{StaticResource Accent}"
-                                         Clicked="OnBreakdownClicked" />
                         </Grid>
 
                         <!-- Anadir un paso a mano: escribir y Enter, o el boton. -->

@@ -151,26 +151,9 @@ en Android se ofrece además la hoja de compartir del sistema (WhatsApp, correo,
 Windows el portapapeles, `mailto:` y `wa.me`. No se guarda en el dispositivo, así que quien la pierda
 crea otro grupo.
 
-## 6. "Pasos Mágicos": desglose con IA local
+## 6. Gamificación
 
-`IBreakdownService`, dos implementaciones y una cascada:
-
-1. **`LocalLlmBreakdownService`** — habla con un servidor local compatible con la API de OpenAI
-   (Ollama, `llama.cpp --server`, LM Studio) en `http://localhost:11434`. Modelo recomendado:
-   **Qwen2.5 3B Instruct** (Apache-2.0, compatible con la regla MIT/monetizable). Devuelve JSON con
-   3-5 pasos. En Windows es la vía normal.
-2. **`HeuristicBreakdownService`** — plantillas por dominio (mudanza, compra, limpieza, estudio,
-   trámites, evento, avería…) más un desglose genérico. Sin red, sin modelo y sin latencia.
-
-**Aviso honesto sobre Android.** Ejecutar un LLM *dentro* del móvil con la calidad y el < 1 s que
-pide la especificación no es realista en gama media: los modelos que caben responden mal y tardan
-segundos. Por eso en Android el orden es (a) el servidor local del PC si está accesible en la LAN
-—dirección configurable en Ajustes— y, si no, (b) el desglose heurístico. La interfaz es la misma, así
-que el día que se decida usar un modelo en la nube basta con añadir una tercera implementación.
-
-## 7. Gamificación
-
-- **XP**: tarea completada 50; micro-paso 10; desglosar con IA 15 (una vez por tarea).
+- **XP**: tarea completada 50; micro-paso 10.
 - **Combos**: cada tarea completada dentro de los 90 s de la anterior sube el multiplicador
   (x1 → x1,5 → x2 → x3, tope x3).
 - **Niveles**: curva cuadrática `XP(n) = 100·n·(n+1)/2`; el nivel del grupo sale de la suma de XP de
@@ -180,7 +163,7 @@ que el día que se decida usar un modelo en la nube basta con añadir una tercer
 - Todo el cálculo vive en `TaskManager.Core/Gamification`, sin dependencias de interfaz, para que
   móvil y escritorio celebren exactamente igual.
 
-## 8. Fases
+## 7. Fases
 
 | Fase | Contenido | Estado |
 |---|---|---|
@@ -191,9 +174,8 @@ que el día que se decida usar un modelo en la nube basta con añadir una tercer
 | 5 | Widget de Android, sonidos, temas desbloqueables, reacciones grupales | pendiente |
 | 6 | Ficha de Play Console, iconos y capturas, subida a `alpha` | pendiente |
 
-## 9. Lo que hay que decidir antes de la fase 4
+## 8. Lo que hay que decidir antes de la fase 4
 
 - Crear el proyecto de Supabase (URL + `anon key`), activar los proveedores **Google** y **azure** (Microsoft) y dar de alta
   las dos redirecciones. Los pasos están en [supabase/README.md](supabase/README.md).
-- Si el desglose por IA en Android se queda en heurístico o se acepta depender del PC o de la nube.
 - Nombre de paquete definitivo: por ahora `com.socratic.taskmanager`.

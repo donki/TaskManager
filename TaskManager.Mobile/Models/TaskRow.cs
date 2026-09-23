@@ -135,7 +135,7 @@ public sealed class TaskRow : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
 
-/// <summary>Fila de micro-paso ("Paso Magico").</summary>
+/// <summary>Fila de micro-paso.</summary>
 public sealed class StepRow
 {
     public StepRow(TaskStep step) => Step = step;
@@ -155,5 +155,4 @@ public sealed class StepRow
     public double Opacity => Step.IsDone ? 0.55 : 1.0;
 
     /// <summary>Los pasos que vienen de la IA se distinguen de los escritos a mano.</summary>
-    public bool FromAi => Step.Source == "ai";
 }

@@ -217,7 +217,7 @@ public class TaskItem
 
     public bool Deleted { get; set; }
 
-    /// <summary>Se marca al desglosar con IA para no pagar XP dos veces por la misma tarea.</summary>
+    /// <summary>Columna antigua (de una funcion retirada): se conserva porque hay filas guardadas con ella.</summary>
     public bool BreakdownRewarded { get; set; }
 
     [Ignore]
@@ -251,7 +251,7 @@ public class TaskStep
 
     public int SortOrder { get; set; }
 
-    /// <summary>"ai" o "manual": distingue los Pasos Magicos de los escritos a mano.</summary>
+    /// <summary>Siempre "manual". Se conserva porque hay pasos guardados (y sincronizados) con "ai".</summary>
     public string Source { get; set; } = "manual";
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
@@ -320,6 +320,7 @@ public enum XpKind
 {
     Task,
     Step,
+    /// <summary>Ya no se otorga: quedan partidas antiguas con este valor y el numero no se puede mover.</summary>
     Breakdown,
     Bonus,
 }

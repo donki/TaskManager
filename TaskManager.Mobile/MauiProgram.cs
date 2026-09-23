@@ -46,19 +46,6 @@ public static class MauiProgram
                 services.GetRequiredService<SupabaseAuthService>())
             : new LocalOnlySyncService(services.GetRequiredService<TaskRepository>()));
 
-        // El desglose intenta el modelo local (el PC de la LAN, si esta configurado) y cae a
-        // plantillas: en un movil sin conexion el boton de la varita tiene que responder igual.
-        builder.Services.AddSingleton<IBreakdownService>(services =>
-        {
-            var settings = services.GetRequiredService<SettingsService>();
-            return new CascadingBreakdownService(
-                new LocalLlmBreakdownService(
-                    services.GetRequiredService<HttpClient>(),
-                    () => settings.LlmEndpoint,
-                    () => settings.LlmModel),
-                new HeuristicBreakdownService());
-        });
-
         builder.Services.AddSingleton<INotificationService, Platforms.Android.NotificationService>();
         builder.Services.AddSingleton<IMailReader, MailKitReader>();
         // El correo (oculto) vuelve por el esquema propio de la aplicacion.

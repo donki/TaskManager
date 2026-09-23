@@ -922,55 +922,6 @@ public partial class TaskDetailWindow : Window
         Changed = true;
         await ReloadStepsAsync();
     }
-
-    /// <summary>
-    /// Desglose con el modelo local. Cae a plantillas si no hay ninguno, asi que nunca se queda sin
-    /// proponer nada; por eso el boton no se esconde aunque no haya IA.
-    /// </summary>
-    private async void OnBreakdownClick(object sender, RoutedEventArgs e)
-    {
-        BreakdownButton.IsEnabled = false;
-        StatusLabel.Text = T("BreakdownWorking");
-        HandyControl.Controls.Growl.InfoGlobal(T("BreakdownWorking"));
-
-        try
-        {
-            // Se guarda el titulo y las notas primero: el desglose parte de ellos, y si el usuario
-            // acaba de escribirlos, proponer sobre la version anterior seria desconcertante.
-            ApplyFields();
-            await _tasks.Repository.UpdateTaskAsync(_task);
-
-            var proposal = await _tasks.ProposeBreakdownAsync(_task);
-            if (proposal.Steps.Count == 0)
-            {
-                StatusLabel.Text = T("BreakdownNothing");
-                HandyControl.Controls.Growl.WarningGlobal(T("BreakdownNothing"));
-                return;
-            }
-
-            await _tasks.ApplyBreakdownAsync(_task, [.. proposal.Steps]);
-            Changed = true;
-            await ReloadStepsAsync();
-
-            StatusLabel.Text = string.Empty;
-        }
-        catch (Exception ex)
-        {
-            // Growl y no solo la etiqueta: un fallo del desglose en una linea de 11 pixeles al pie
-            // de la ventana no lo lee nadie.
-            StatusLabel.Text = ex.Message;
-            HandyControl.Controls.Growl.ErrorGlobal(ex.Message);
-        }
-        finally
-        {
-            BreakdownButton.IsEnabled = true;
-        }
-    }
-
-    // -----------------------------------------------------------------------
-    // Guardar y borrar
-    // -----------------------------------------------------------------------
-
     private void ApplyFields()
     {
         _task.Title = TitleBox.Text?.Trim() ?? string.Empty;

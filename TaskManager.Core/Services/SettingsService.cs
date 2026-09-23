@@ -39,8 +39,6 @@ public sealed class SettingsService
     public const string KeyDisplayName = "user.display_name";
     /// <summary>Idioma elegido (es/en). Vacio = seguir al del sistema.</summary>
     public const string KeyLanguage = "user.language";
-    public const string KeyLlmEndpoint = "ai.endpoint";
-    public const string KeyLlmModel = "ai.model";
     public const string KeySound = "celebration.sound";
     public const string KeyHaptics = "celebration.haptics";
     public const string KeyNotifyEnabled = "notify.enabled";
@@ -128,9 +126,7 @@ public sealed class SettingsService
 
     public string DisplayName => Get(KeyDisplayName, "Yo");
 
-    public string LlmEndpoint => Get(KeyLlmEndpoint, "http://localhost:11434");
 
-    public string LlmModel => Get(KeyLlmModel, "qwen2.5:3b-instruct");
 
     public bool SoundEnabled => GetBool(KeySound, true);
 

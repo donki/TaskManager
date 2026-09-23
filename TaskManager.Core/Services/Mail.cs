@@ -15,7 +15,7 @@ public sealed record MailMessage(
 
     /// <summary>
     /// Contexto de la tarea: de quien viene, cuando y las primeras lineas. Es justo lo que hace
-    /// falta para desglosarla sin volver al buzon.
+    /// falta para trabajarla sin volver al buzon.
     /// </summary>
     public string ToTaskContext()
     {

@@ -7,7 +7,6 @@ public static class XpRules
 {
     public const int Task = 50;
     public const int Step = 10;
-    public const int Breakdown = 15;
 
     /// <summary>Ventana para encadenar combo, en segundos.</summary>
     public const int ComboWindowSeconds = 90;

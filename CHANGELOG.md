@@ -2,6 +2,16 @@
 
 Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del día a dos cifras, el mismo que cierra el versionCode.
 
+## 2026.09.23 — Fuera la varita
+
+- **Se ha quitado el desglose con IA («Pasos Mágicos»)** y todo lo que lo acompañaba: el botón de la
+  varita —que en el móvil ya estaba oculto y en Windows seguía a la vista—, el servicio que hablaba
+  con un modelo local, las plantillas de reserva, los ajustes del servidor y del modelo, los textos y
+  la documentación. Los pasos se escriben a mano, como se venía haciendo.
+- **Nada de lo guardado se toca**: los pasos que en su día vinieron de la IA siguen ahí, y la columna
+  del premio y el tipo de XP antiguo se conservan para no romper las partidas ni la sincronización;
+  simplemente ya no se otorgan.
+
 ## 2026.09.18 — El botón de etiquetas, a la vista
 
 Windows `2026.09.18.00` · Android `2026.09.18.01`

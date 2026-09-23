@@ -6,14 +6,13 @@ namespace TaskManager.Core.Services;
 
 /// <summary>
 /// Fachada que usan las dos aplicaciones. Aqui vive lo que tiene que pasar igual en Android y en
-/// Windows: completar una tarea, encadenar combos, repartir XP y desglosar con IA. Las interfaces
+/// Windows: completar una tarea, encadenar combos y repartir XP. Las interfaces
 /// solo pintan lo que esta fachada les cuenta.
 /// </summary>
 public sealed class TaskService
 {
     private readonly TaskRepository _repository;
     private readonly SettingsService _settings;
-    private readonly IBreakdownService _breakdown;
     private readonly INotificationService? _notifications;
 
     private DateTime _lastCompletion = DateTime.MinValue;
@@ -22,12 +21,10 @@ public sealed class TaskService
     public TaskService(
         TaskRepository repository,
         SettingsService settings,
-        IBreakdownService breakdown,
         INotificationService? notifications = null)
     {
         _repository = repository;
         _settings = settings;
-        _breakdown = breakdown;
         _notifications = notifications;
     }
 
@@ -220,8 +217,7 @@ public sealed class TaskService
                 : null,
             CreatedBy = _settings.UserId,
 
-            // Los micro-pasos NO se copian: son el desglose de aquella vez. La nueva vuelta puede
-            // desglosarse otra vez, y con el contexto que tenga entonces.
+            // Los micro-pasos NO se copian: son los de aquella vez. La vuelta nueva lleva los suyos.
         };
 
         await _repository.AddTaskCopyAsync(copy).ConfigureAwait(false);
@@ -327,8 +323,7 @@ public sealed class TaskService
                 DueAt = day.Add(dueTime),
                 CreatedBy = _settings.UserId,
 
-                // Los micro-pasos no se copian, igual que en la vuelta suelta: son el desglose de
-                // aquel dia, y cada vuelta puede desglosarse con lo que haya entonces.
+                // Los micro-pasos no se copian, igual que en la vuelta suelta: son los de aquel dia.
             };
 
             await _repository.AddTaskCopyAsync(copy).ConfigureAwait(false);
@@ -407,99 +402,6 @@ public sealed class TaskService
         return celebration;
     }
 
-    // -----------------------------------------------------------------------
-    // Pasos Magicos
-    // -----------------------------------------------------------------------
-
-    /// <summary>
-    /// Propone micro-pasos para la tarea **sin guardar nada**. Descarta los que ya estan (comparando
-    /// sin tildes ni mayusculas), para no llenar la tarea de duplicados cada vez que se pulsa la
-    /// varita. Quien llama ensena la propuesta y decide si incorporarla.
-    /// </summary>
-    public async Task<BreakdownProposal> ProposeBreakdownAsync(
-        TaskItem task,
-        CancellationToken cancellationToken = default)
-    {
-        // El desglose parte de las notas. Antes habia un campo «contexto» aparte solo para esto:
-        // eran dos cajas de texto libre en la misma pantalla pidiendo casi lo mismo, y quien
-        // escribia en la que no era se quedaba sin pasos utiles.
-        var titles = await _breakdown.BreakdownAsync(task.Title, task.Notes, cancellationToken).ConfigureAwait(false);
-        if (titles.Count == 0)
-        {
-            return new BreakdownProposal([], 0, string.Empty);
-        }
-
-        var existing = await _repository.GetStepsAsync(task.Id).ConfigureAwait(false);
-        var known = existing.Select(s => Normalize(s.Title)).ToHashSet(StringComparer.Ordinal);
-
-        var fresh = new List<string>();
-        var repeated = 0;
-
-        foreach (var title in titles)
-        {
-            if (known.Add(Normalize(title)))
-                fresh.Add(title);
-            else
-                repeated++;
-        }
-
-        return new BreakdownProposal(fresh, repeated, _breakdown.Source);
-    }
-
-    /// <summary>
-    /// Incorpora los pasos aceptados. El XP del desglose se paga una sola vez por tarea; si no,
-    /// bastaria repetir el boton para ir sumando.
-    /// </summary>
-    public async Task<(IReadOnlyList<TaskStep> Steps, Celebration? Celebration)> ApplyBreakdownAsync(
-        TaskItem task,
-        IReadOnlyList<string> titles)
-    {
-        if (titles.Count == 0)
-        {
-            return ([], null);
-        }
-
-        var steps = await _repository.AddStepsAsync(task.Id, titles, "ai").ConfigureAwait(false);
-
-        Celebration? celebration = null;
-        if (!task.BreakdownRewarded)
-        {
-            task.BreakdownRewarded = true;
-            await _repository.UpdateTaskAsync(task).ConfigureAwait(false);
-            celebration = await AwardAsync(XpRules.Breakdown, XpKind.Breakdown, task, chain: false).ConfigureAwait(false);
-            Celebrated?.Invoke(this, celebration);
-        }
-
-        return (steps, celebration);
-    }
-
-    /// <summary>Para comparar pasos: sin tildes, sin mayusculas y sin puntuacion.</summary>
-    private static string Normalize(string text)
-    {
-        var builder = new System.Text.StringBuilder(text.Length);
-        foreach (var c in text.ToLowerInvariant())
-        {
-            var mapped = c switch
-            {
-                'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ñ' => 'n',
-                _ => c,
-            };
-
-            if (char.IsLetterOrDigit(mapped))
-                builder.Append(mapped);
-            else if (builder.Length > 0 && builder[^1] != ' ')
-                builder.Append(' ');
-        }
-
-        return builder.ToString().Trim();
-    }
-
-    // -----------------------------------------------------------------------
-
-    /// <summary>
-    /// Reparte XP aplicando el combo. <paramref name="chain"/> a false para lo que no deberia
-    /// encadenar racha (pasos y desgloses): si no, marcar cinco micro-pasos dispara un x3 vacio.
-    /// </summary>
     private async Task<Celebration> AwardAsync(int baseXp, XpKind kind, TaskItem? task, bool chain = true)
     {
         var now = DateTime.UtcNow;
@@ -546,15 +448,3 @@ public sealed class TaskService
         return list?.GroupId;
     }
 }
-
-/// <summary>
-/// Pasos propuestos por la IA, todavia sin guardar.
-/// </summary>
-/// <param name="Steps">Los que NO estaban ya en la tarea.</param>
-/// <param name="AlreadyPresent">Cuantos se descartaron por estar repetidos.</param>
-/// <param name="Source">De donde salieron (modelo local o plantillas), para decirselo al usuario.</param>
-public sealed record BreakdownProposal(IReadOnlyList<string> Steps, int AlreadyPresent, string Source)
-{
-    public bool HasSomethingNew => Steps.Count > 0;
-}
-
