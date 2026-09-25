@@ -11,7 +11,7 @@ Gestor de tareas diarias con **listas por grupo**, **micro-pasos** y
 ## Dónde conseguirla
 
 - **Google Play:** https://play.google.com/store/apps/details?id=com.socratic.taskmanager
-- **Microsoft Store:** https://apps.microsoft.com/search?query=%22sOC+Task+Manager%22 (enlace directo al producto en cuanto Partner Center dé el identificador)
+- **Microsoft Store:** https://apps.microsoft.com/detail/9PHJK2391727
 - **Releases de GitHub** (APK / EXE / MSIX de cada versión): https://github.com/donki/TaskManager/releases
 
 ## Estado
