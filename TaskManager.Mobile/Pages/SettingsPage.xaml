@@ -56,7 +56,7 @@
                     <Label Text="{loc:T Reminders}" Style="{StaticResource CardTitle}" />
 
                     <Grid ColumnDefinitions="*,Auto">
-                        <Label Grid.Column="0" Text="{loc:T RemindPending}"
+                        <Label Grid.Column="0" Text="{loc:T RemindWhatIsLeft}"
                                VerticalOptions="Center" />
                         <Switch Grid.Column="1" x:Name="NotifySwitch" Toggled="OnNotifyToggled" />
                     </Grid>

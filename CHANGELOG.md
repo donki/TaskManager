@@ -2,6 +2,18 @@
 
 Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del día a dos cifras, el mismo que cierra el versionCode.
 
+## 2026.09.27 — Cada aviso con su texto
+
+Windows `2026.09.27.00` · Android `2026.09.27.00`
+
+- Las opciones «Avisarme de las tareas pendientes» (Windows) y «Avisarme de lo que queda pendiente»
+  (Android) compartían la misma clave de traducción, así que en inglés las dos salían como «Remind me
+  what is left». Ahora cada una tiene la suya: en Windows, «Remind me about pending tasks»; en
+  Android, «Let me know what is still left to do».
+- Fuera dos claves repetidas más en los diccionarios de castellano e inglés («Todas» del filtro, que
+  estaba dos veces con el mismo texto, y el nombre de la lista por defecto, del que solo contaba
+  «Tareas»/«Tasks»). Nada cambia a la vista.
+
 ## 2026.09.23 — Fuera la varita
 
 - **Se ha quitado el desglose con IA («Pasos Mágicos»)** y todo lo que lo acompañaba: el botón de la

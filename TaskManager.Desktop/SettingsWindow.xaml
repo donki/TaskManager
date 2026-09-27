@@ -67,7 +67,7 @@
         <hc:ComboBox x:Name="LanguageBox" />
 
         <!-- Aviso de tareas pendientes: encenderlo y cada cuanto insistir. -->
-        <CheckBox Style="{StaticResource CheckBoxBaseStyle}" x:Name="NotifyBox" Content="{loc:T RemindPending}" Click="OnNotifyToggled" />
+        <CheckBox Style="{StaticResource CheckBoxBaseStyle}" x:Name="NotifyBox" Content="{loc:T RemindPendingTasks}" Click="OnNotifyToggled" />
 
         <TextBlock Text="{loc:T SnoozeLabel}" />
         <hc:ComboBox x:Name="SnoozeBox" />
