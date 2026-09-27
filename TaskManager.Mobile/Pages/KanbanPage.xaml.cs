@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using TaskManager.Core.Data;
 using TaskManager.Core.Models;
 using TaskManager.Core.Services;
@@ -26,8 +26,22 @@ namespace TaskManager.Mobile.Pages;
 /// «hecha». En Windows, donde el raton distingue soltar aqui de soltar alli, se hacen las dos
 /// cosas: a otra columna cambia el estado, a la suya recoloca.</para>
 /// </remarks>
-public partial class KanbanPage : ContentPage
+public partial class KanbanPage : ContentPage, Helpers.IBackHandler
 {
+    /// <summary>
+    /// Atras (Mobile 7): con algo escrito en el buscador, primero se vacia el buscador.
+    /// </summary>
+    public bool HandleBack()
+    {
+        if (!string.IsNullOrEmpty(SearchEntry.Text))
+        {
+            SearchEntry.Text = string.Empty;
+            return true;
+        }
+
+        return false;
+    }
+
     private readonly TaskService _tasks;
     private readonly SettingsService _settings;
     private readonly Dictionary<Guid, string> _listNames = [];

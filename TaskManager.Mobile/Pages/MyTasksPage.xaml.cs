@@ -18,8 +18,29 @@ namespace TaskManager.Mobile.Pages;
 /// <para>Arranca en <see cref="TaskFilter.Pending"/> porque a lo que se viene es a lo que queda por
 /// hacer; lo terminado se consulta, no se vigila.</para>
 /// </remarks>
-public partial class MyTasksPage : ContentPage
+public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
 {
+    /// <summary>
+    /// Atras (Mobile 7): primero sale del modo de marcar varias y despues vacia el buscador; sin
+    /// nada de eso abierto, el Shell oculta la aplicacion (esta es la pantalla de inicio).
+    /// </summary>
+    public bool HandleBack()
+    {
+        if (_selecting)
+        {
+            OnSelectModeClicked(null, EventArgs.Empty);
+            return true;
+        }
+
+        if (!string.IsNullOrEmpty(SearchEntry.Text))
+        {
+            SearchEntry.Text = string.Empty;
+            return true;
+        }
+
+        return false;
+    }
+
     private readonly TaskService _tasks;
     private readonly SettingsService _settings;
     private readonly Dictionary<Guid, string> _listNames = [];

@@ -361,6 +361,13 @@ public sealed class LocalizationService
         ["Share"] = "Share",
         ["Ok"] = "OK",
 
+        // --- Errores inesperados (General 6.12) y cambios sin guardar al volver ---
+        ["UnexpectedErrorTitle"] = "Something went wrong",
+        ["UnexpectedError"] = "Task Manager hit an unexpected error but keeps working. Your tasks are safe; if it happens again, restart the app. The details were saved to the error log.",
+        ["UnsavedTitle"] = "Unsaved changes",
+        ["UnsavedMessage"] = "You changed this task. Save the changes before going back?",
+        ["Discard"] = "Discard",
+
         // --- Ajustes ---
         ["YourAccount"] = "Your account",
         ["ThisDevice"] = "This device",
@@ -737,6 +744,12 @@ public sealed class LocalizationService
         ["JoinFromLinkMessage"] = "Te han invitado con el código {0}.",
         ["Share"] = "Compartir",
         ["Ok"] = "Aceptar",
+
+        ["UnexpectedErrorTitle"] = "Algo ha fallado",
+        ["UnexpectedError"] = "Task Manager ha tenido un error inesperado, pero sigue funcionando. Tus tareas están a salvo; si se repite, reinicia la aplicación. Los detalles se han guardado en el registro de errores.",
+        ["UnsavedTitle"] = "Cambios sin guardar",
+        ["UnsavedMessage"] = "Has cambiado esta tarea. ¿Guardas los cambios antes de volver?",
+        ["Discard"] = "Descartar",
 
 
         ["YourAccount"] = "Tu cuenta",

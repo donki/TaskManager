@@ -39,6 +39,50 @@ public partial class AppShell : Shell
     private async void OnAboutTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//AboutPage");
 
     /// <summary>
+    /// Boton de atras del movil (Mobile 7). Primero se cierra lo que haya encima: el menu lateral,
+    /// un dialogo, o lo que la propia pantalla tenga abierto (seleccion, buscador, cambios sin
+    /// guardar). Despues, con una pantalla apilada (detalle, lista, etiquetas, QR) se vuelve a la
+    /// anterior; desde otra pantalla del menu se vuelve a «Mis tareas», y en «Mis tareas» (o en la
+    /// entrada, si no hay sesion) la aplicacion se oculta.
+    /// </summary>
+    protected override bool OnBackButtonPressed()
+    {
+        if (FlyoutIsPresented)
+        {
+            FlyoutIsPresented = false;
+            return true;
+        }
+
+        var page = CurrentPage;
+        if (Helpers.BackNavigation.CloseDialog(page))
+        {
+            return true;
+        }
+
+        if (page is Helpers.IBackHandler handler && handler.HandleBack())
+        {
+            return true;
+        }
+
+        if (Navigation.NavigationStack.Count > 1)
+        {
+            return base.OnBackButtonPressed();
+        }
+
+        var route = CurrentItem?.CurrentItem?.CurrentItem?.Route;
+        if (route is not (HomeRoute or "LoginPage"))
+        {
+            Dispatcher.Dispatch(async () => await GoToAsync($"//{HomeRoute}"));
+            return true;
+        }
+
+        Helpers.BackNavigation.HideApp();
+        return true;
+    }
+
+    private const string HomeRoute = "MyTasksPage";
+
+    /// <summary>
     /// Se navega ANTES de cerrar el menu: al reves, la animacion de cierre se come la navegacion y
     /// el menu se cierra sin ir a ninguna parte.
     /// </summary>

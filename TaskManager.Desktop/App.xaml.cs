@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Threading;
 using System.Net.Http;
 using System.Windows;
@@ -53,6 +53,8 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        InstalarGestorDeErrores();
 
         if (!TomarLaVez())
         {
@@ -406,6 +408,100 @@ public partial class App : Application
             Icon = TrayIconHost.CreateWindowIcon(),
         };
         window.ShowDialog();
+    }
+
+    // ==================================================================================
+    //  Gestor global de excepciones (General 6.12)
+    // ==================================================================================
+
+    private static readonly string CrashLog = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "Socratic", "TaskManager", "crash.log");
+
+    private static DateTime _ultimoAviso = DateTime.MinValue;
+
+    /// <summary>
+    /// Un error que no se esperaba nunca cierra la aplicacion: se apunta con su traza en
+    /// <c>crash.log</c>, se avisa en el idioma de la aplicacion y se sigue. Es una aplicacion de
+    /// bandeja, a menudo sin ninguna ventana a la vista, asi que el aviso es una notificacion
+    /// flotante (Growl) y no un dialogo que necesita ventana madre.
+    /// </summary>
+    private void InstalarGestorDeErrores()
+    {
+        DispatcherUnhandledException += (_, ex) =>
+        {
+            Apuntar("DispatcherUnhandledException", ex.Exception);
+            Avisar();
+            ex.Handled = true;
+        };
+        TaskScheduler.UnobservedTaskException += (_, ex) =>
+        {
+            Apuntar("TaskScheduler.UnobservedTaskException", ex.Exception);
+            ex.SetObserved();
+        };
+        // Este no se puede frenar (el proceso ya se va): solo se apunta.
+        AppDomain.CurrentDomain.UnhandledException += (_, ex) =>
+            Apuntar("AppDomain.UnhandledException", ex.ExceptionObject as Exception);
+    }
+
+    private static void Apuntar(string origen, Exception? ex)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(CrashLog)!);
+
+            // Nunca crece sin fin: pasado un cuarto de mega se aparta el viejo y se empieza otro.
+            if (File.Exists(CrashLog) && new FileInfo(CrashLog).Length > 256 * 1024)
+            {
+                File.Move(CrashLog, CrashLog + ".old", overwrite: true);
+            }
+
+            var version = typeof(App).Assembly.GetName().Version;
+            File.AppendAllText(CrashLog,
+                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] v{version} {origen}{Environment.NewLine}{ex}{Environment.NewLine}{Environment.NewLine}");
+        }
+        catch
+        {
+            // Si ni siquiera se puede escribir el registro, no hay nada mejor que hacer.
+        }
+    }
+
+    /// <summary>El aviso, sin encadenar: si ya salio uno hace menos de 10 s, solo se apunta.</summary>
+    private static void Avisar()
+    {
+        if (DateTime.Now - _ultimoAviso < TimeSpan.FromSeconds(10))
+        {
+            return;
+        }
+
+        _ultimoAviso = DateTime.Now;
+        try
+        {
+            HandyControl.Controls.Growl.ErrorGlobal($"{Texto("UnexpectedErrorTitle")}{Environment.NewLine}{Texto("UnexpectedError")}");
+        }
+        catch (Exception ex)
+        {
+            Apuntar("Aviso de error", ex);
+        }
+    }
+
+    /// <summary>
+    /// El texto en el idioma de la aplicacion. Un error en el arranque puede llegar antes de que
+    /// esten cargados los textos (Loc devuelve entonces la clave): se tira del idioma del sistema.
+    /// </summary>
+    private static string Texto(string clave)
+    {
+        var texto = Localization.Loc.Get(clave);
+        if (texto != clave)
+        {
+            return texto;
+        }
+
+        var es = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "es";
+        return clave == "UnexpectedErrorTitle"
+            ? (es ? "Algo ha fallado" : "Something went wrong")
+            : (es ? "Task Manager ha tenido un error inesperado, pero sigue funcionando. Los detalles se han guardado en el registro de errores."
+                  : "Task Manager hit an unexpected error but keeps working. The details were saved to the error log.");
     }
 
     protected override void OnExit(ExitEventArgs e)

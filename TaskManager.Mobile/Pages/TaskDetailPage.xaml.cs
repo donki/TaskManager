@@ -15,7 +15,7 @@ namespace TaskManager.Mobile.Pages;
 /// propuestos"): desde Mi Dia solo se podia completar una tarea, no tocarla.
 /// </remarks>
 [QueryProperty(nameof(TaskId), "taskId")]
-public partial class TaskDetailPage : ContentPage
+public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
 {
     private ObservableCollection<StepRow> _steps = [];
     private readonly List<TaskList> _lists = [];
@@ -54,7 +54,88 @@ public partial class TaskDetailPage : ContentPage
             Localization.Loc.Instance["RepeatNever"], Localization.Loc.Instance["RepeatDaily"], Localization.Loc.Instance["RepeatWeekly"],
             Localization.Loc.Instance["RepeatMonthly"], Localization.Loc.Instance["RepeatYearly"],
         };
+
+        // La flecha de la barra hace lo mismo que el boton de atras: si hay cambios sin guardar,
+        // pregunta antes de irse (General 6.8: nunca se pierde lo escrito sin avisar).
+        Shell.SetBackButtonBehavior(this, new BackButtonBehavior
+        {
+            Command = new Command(async () => await LeaveAsync()),
+        });
     }
+
+    /// <summary>Atras (Mobile 7): con cambios sin guardar se pregunta; sin cambios, vuelve.</summary>
+    public bool HandleBack()
+    {
+        if (!HasUnsavedChanges())
+        {
+            return false;
+        }
+
+        Dispatcher.Dispatch(async () => await LeaveAsync());
+        return true;
+    }
+
+    private bool _leaving;
+
+    /// <summary>
+    /// Volver a la pantalla anterior sin perder lo escrito: si algo cambio, guardar, descartar o
+    /// seguir aqui (tocar fuera del dialogo, o atras otra vez, es seguir aqui).
+    /// </summary>
+    private async Task LeaveAsync()
+    {
+        if (_leaving)
+        {
+            return;
+        }
+
+        _leaving = true;
+        try
+        {
+            if (HasUnsavedChanges())
+            {
+                var loc = Localization.Loc.Instance;
+                var choice = await SocShared.ModernDialog.ActionSheetAsync(this,
+                    loc["UnsavedMessage"], loc["Cancel"], loc["Save"], loc["Discard"]);
+
+                if (choice == loc["Save"])
+                {
+                    if (!await SaveAsync(silent: false))
+                    {
+                        return;
+                    }
+                }
+                else if (choice != loc["Discard"])
+                {
+                    return;
+                }
+            }
+
+            await Shell.Current.GoToAsync("..");
+        }
+        finally
+        {
+            _leaving = false;
+        }
+    }
+
+    /// <summary>
+    /// Lo que hay en pantalla, en los campos que se guardan con «Guardar», tal como quedo al
+    /// cargar la tarea. Anclar, empezada, hecha y los pasos se guardan al tocarlos y no cuentan.
+    /// </summary>
+    /// <remarks>
+    /// Se compara pantalla con pantalla, no pantalla con la tarea: la tarea guarda los valores ya
+    /// normalizados (una lista compartida que el desplegable no tiene, notas nulas, una repeticion
+    /// sin intervalo) y compararla con los controles preguntaba al salir sin haber tocado nada.
+    /// </remarks>
+    private string? _loadedState;
+
+    private string CurrentState() => string.Join("\u001f",
+        TitleEntry.Text ?? string.Empty, NotesEditor.Text ?? string.Empty, TagsEntry.Text ?? string.Empty,
+        DueSwitch.IsToggled, DuePicker.Date?.Date, PlannedSwitch.IsToggled, PlannedPicker.Date?.Date,
+        RecurrencePicker.SelectedIndex, IntervalStepper.Value, _days, _monthDay, _month, ListPicker.SelectedIndex);
+
+    private bool HasUnsavedChanges() =>
+        _task is not null && !_loading && _loadedState is not null && CurrentState() != _loadedState;
 
     /// <summary>Llega por la ruta: <c>TaskDetailPage?taskId=...</c>.</summary>
     public string TaskId
@@ -83,6 +164,8 @@ public partial class TaskDetailPage : ContentPage
             await Shell.Current.GoToAsync("..");
             return;
         }
+
+        _loadedState = null;
 
         // Bandera de carga: rellenar los controles dispara sus eventos, y sin esto se reescribiria
         // la tarea con lo que aun se esta pintando.
@@ -134,6 +217,9 @@ public partial class TaskDetailPage : ContentPage
         await LoadKnownTagsAsync();
         await LoadStepsAsync();
         await LoadAttachmentsAsync();
+
+        // Con todo pintado: a partir de aqui, lo que cambie es del usuario.
+        _loadedState = CurrentState();
     }
 
     // ==================================================================================

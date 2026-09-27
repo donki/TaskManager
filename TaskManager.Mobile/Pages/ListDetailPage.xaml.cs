@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using TaskManager.Core.Models;
 using TaskManager.Core.Services;
 using TaskManager.Mobile.Helpers;
@@ -11,8 +11,22 @@ namespace TaskManager.Mobile.Pages;
 /// de grupo no es otra cosa (ARQUITECTURA.md seccion 2).
 /// </summary>
 [QueryProperty(nameof(ListId), "listId")]
-public partial class ListDetailPage : ContentPage
+public partial class ListDetailPage : ContentPage, Helpers.IBackHandler
 {
+    /// <summary>
+    /// Atras (Mobile 7): con algo escrito en el buscador, primero se vacia el buscador.
+    /// </summary>
+    public bool HandleBack()
+    {
+        if (!string.IsNullOrEmpty(SearchEntry.Text))
+        {
+            SearchEntry.Text = string.Empty;
+            return true;
+        }
+
+        return false;
+    }
+
     private string? _search;
 
     private readonly TaskService _tasks;

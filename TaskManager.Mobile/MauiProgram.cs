@@ -13,6 +13,13 @@ public static class MauiProgram
 {
     public static MauiApp CreateMauiApp()
     {
+        // Gestor global de excepciones (General 6.12): lo primero, antes que el builder. Un error que
+        // no se esperaba se apunta en crash.log con su traza, se avisa en el idioma de la
+        // aplicacion (que no es la cultura del sistema: se elige en Ajustes) y la app sigue.
+        SocShared.CrashGuard.Install("Task Manager",
+            message: () => Texto("UnexpectedError"),
+            language: () => Texto(null));
+
         var builder = MauiApp.CreateBuilder();
         builder.UseMauiApp<App>();
 
@@ -92,5 +99,22 @@ public static class MauiProgram
         var app = builder.Build();
         ServiceHelper.Initialize(app.Services);
         return app;
+    }
+
+    /// <summary>
+    /// Texto para el aviso de error (o, con <c>null</c>, el idioma en uso). Puede llamarse antes de
+    /// que el contenedor este listo: entonces se deja el texto por defecto de CrashGuard.
+    /// </summary>
+    private static string? Texto(string? key)
+    {
+        try
+        {
+            var loc = ServiceHelper.Services?.GetService<LocalizationService>();
+            return loc is null ? null : key is null ? loc.Language : loc[key];
+        }
+        catch
+        {
+            return null;
+        }
     }
 }

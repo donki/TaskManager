@@ -34,8 +34,8 @@
     <ApplicationId>com.socratic.taskmanager</ApplicationId>
 
     <!-- Versions (constitucion A.4: ambos valores en sincronia, esquema de fecha) -->
-    <ApplicationDisplayVersion>2026.09.27.00</ApplicationDisplayVersion>
-    <ApplicationVersion>2026092700</ApplicationVersion>
+    <ApplicationDisplayVersion>2026.09.27.01</ApplicationDisplayVersion>
+    <ApplicationVersion>2026092701</ApplicationVersion>
 
     <AcceptAndroidSDKLicenses>true</AcceptAndroidSDKLicenses>
 
@@ -58,8 +58,8 @@
     <AndroidUseLatestPlatformSdk>false</AndroidUseLatestPlatformSdk>
     <AndroidCreatePackagePerAbi>false</AndroidCreatePackagePerAbi>
 
-    <AssemblyVersion>2026.9.27.0</AssemblyVersion>
-    <FileVersion>2026.9.27.0</FileVersion>
+    <AssemblyVersion>2026.9.27.1</AssemblyVersion>
+    <FileVersion>2026.9.27.1</FileVersion>
   </PropertyGroup>
 
   <!--
@@ -102,6 +102,8 @@
   <ItemGroup>
     <Compile Include="..\..\Shared\AuthorNotes.cs" Link="AuthorNotes.cs" />
     <Compile Include="..\..\Shared\ModernDialog.cs" Link="ModernDialog.cs" />
+    <!-- Gestor global de excepciones (General 6.12): un error inesperado avisa y la app sigue. -->
+    <Compile Include="..\..\Shared\CrashGuard.cs" Link="CrashGuard.cs" />
   </ItemGroup>
 
   <!-- Firma Release centralizada: la MISMA clave que File Manager (constitucion Mobile 2). -->

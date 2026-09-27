@@ -2,6 +2,35 @@
 
 Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del día a dos cifras, el mismo que cierra el versionCode.
 
+## 2026.09.27.01 — Atrás vuelve atrás y un error ya no la cierra
+
+Windows `2026.09.27.01` · Android `2026.09.27.01`
+
+**Castellano**
+
+- **Botón de atrás del móvil**: en cualquier pantalla vuelve a la anterior (del detalle de una tarea
+  a su lista, de una lista a «Listas», de Etiquetas o del QR a donde estabas); desde Calendario,
+  Listas, Tablero, Grupos, Ajustes o Acerca de vuelve a «Mis tareas», y en «Mis tareas» la
+  aplicación se oculta sin cerrarse. Si hay algo abierto encima —el menú lateral, un diálogo, el modo
+  de marcar varias o texto en el buscador— atrás cierra primero eso. En Android 16 atrás cerraba la
+  aplicación desde cualquier pantalla; ya no.
+- **No se pierde lo escrito en una tarea**: si cambias algo en el detalle y pulsas atrás (o la
+  flecha de arriba) sin guardar, pregunta si guardar, descartar o seguir editando.
+- **Un error inesperado ya no cierra la aplicación** (Android y Windows): se avisa en tu idioma, la
+  aplicación sigue funcionando y los detalles quedan en el registro de errores (`crash.log`).
+
+**English**
+
+- **Phone back button**: on any screen it goes back to the previous one (from a task to its list,
+  from a list to Lists, from Tags or the QR to where you were); from Calendar, Lists, Board, Groups,
+  Settings or About it returns to My tasks, and on My tasks the app is hidden without closing. If
+  something is open on top —the side menu, a dialog, multi-select mode or text in the search box—
+  back closes that first. On Android 16 back used to close the app from any screen; not any more.
+- **Nothing you type in a task is lost**: if you change something in the task details and press back
+  (or the top arrow) without saving, it asks whether to save, discard or keep editing.
+- **An unexpected error no longer closes the app** (Android and Windows): you get a notice in your
+  language, the app keeps working and the details go to the error log (`crash.log`).
+
 ## 2026.09.27 — Cada aviso con su texto
 
 Windows `2026.09.27.00` · Android `2026.09.27.00`
