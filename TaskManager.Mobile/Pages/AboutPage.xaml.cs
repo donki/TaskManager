@@ -48,16 +48,18 @@ public partial class AboutPage : ContentPage
         }
     }
 
-    /// <summary>La version de Windows: exe y MSIX en las releases de GitHub (y en la Microsoft Store cuando este publicada).</summary>
+    private const string WindowsStoreUrl = "https://apps.microsoft.com/detail/9PHJK2391727";
+
+    /// <summary>La version de Windows: su ficha de la Microsoft Store (publicada; exe y MSIX siguen en las releases de GitHub).</summary>
     private async void OnWindowsClicked(object? sender, EventArgs e)
     {
         try
         {
-            await Browser.Default.OpenAsync("https://github.com/donki/TaskManager/releases", BrowserLaunchMode.SystemPreferred);
+            await Browser.Default.OpenAsync(WindowsStoreUrl, BrowserLaunchMode.SystemPreferred);
         }
         catch (Exception)
         {
-            await Clipboard.Default.SetTextAsync("https://github.com/donki/TaskManager/releases");
+            await Clipboard.Default.SetTextAsync(WindowsStoreUrl);
         }
     }
 

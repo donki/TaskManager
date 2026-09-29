@@ -2,6 +2,10 @@
 
 Todo lo de aquí es para pegar tal cual en el formulario de Partner Center.
 
+**Publicada en la Microsoft Store** (Josep, 2026-09-29: «En Microsoft Store», 240 mercados, gratis):
+https://apps.microsoft.com/detail/9PHJK2391727 · id. de Store `9PHJK2391727`. Para cada versión nueva basta con
+subir el MSIX (con versión mayor que la publicada) y pegar aquí lo que cambie de la ficha.
+
 ---
 
 ## Nombre del producto

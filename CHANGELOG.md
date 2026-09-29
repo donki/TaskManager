@@ -2,6 +2,23 @@
 
 Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del día a dos cifras, el mismo que cierra el versionCode.
 
+## 2026.09.29.01 — En la Microsoft Store
+
+Windows `2026.9.29.1` · Android `2026.09.29.01`
+
+**Castellano**
+
+- Task Manager para Windows está publicada en la Microsoft Store
+  (https://apps.microsoft.com/detail/9PHJK2391727). En el móvil, **Acerca de › También disponible
+  en** dice «Aplicación para Windows en Microsoft Store» y abre su ficha (antes, las releases de
+  GitHub, que siguen teniendo el EXE y el MSIX de cada versión).
+
+**English**
+
+- Task Manager for Windows is published on the Microsoft Store. On the phone, **About › Also
+  available on** says "Windows app on Microsoft Store" and opens its page (it used to open the
+  GitHub releases, which still have the EXE and MSIX of every version).
+
 ## 2026.09.29.00 — Pantalla de Novedades
 
 Windows `2026.9.29.0` · Android `2026.09.29.00`
