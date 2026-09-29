@@ -88,6 +88,14 @@
                     <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnSettingsTapped" /></Grid.GestureRecognizers>
                 </Grid>
 
+                <!-- Novedades de las ultimas versiones (General 6.7). -->
+                <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                    <Image Grid.Column="0" Source="ic_news.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
+                    <Label Grid.Column="1" Text="{loc:T MenuWhatsNew}" VerticalOptions="Center" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnWhatsNewTapped" /></Grid.GestureRecognizers>
+                </Grid>
+
                 <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
                     <Image Grid.Column="0" Source="ic_info.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
                     <Label Grid.Column="1" Text="{loc:T MenuAbout}" VerticalOptions="Center" FontSize="16"
@@ -122,5 +130,6 @@
     <ShellContent Route="MailPage" ContentTemplate="{DataTemplate pages:MailPage}" />
     <ShellContent Route="SettingsPage" ContentTemplate="{DataTemplate pages:SettingsPage}" />
     <ShellContent Route="AboutPage" ContentTemplate="{DataTemplate pages:AboutPage}" />
+    <ShellContent Route="WhatsNewPage" ContentTemplate="{DataTemplate pages:WhatsNewPage}" />
 
 </Shell>

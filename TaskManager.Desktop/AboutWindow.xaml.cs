@@ -96,5 +96,11 @@ public partial class AboutWindow : Window
         }
     }
 
+    private void OnWhatsNewClick(object sender, RoutedEventArgs e)
+    {
+        Close();
+        (Application.Current as App)?.OpenWhatsNew();
+    }
+
     private void OnCloseClick(object sender, RoutedEventArgs e) => Close();
 }

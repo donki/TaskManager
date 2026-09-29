@@ -120,6 +120,10 @@ public sealed class LocalizationService
         ["MenuMail"] = "Mail",
         ["MenuSettings"] = "Settings",
         ["MenuAbout"] = "About",
+        ["MenuWhatsNew"] = "What's new",
+        ["WhatsNewCurrent"] = "{0} (installed)",
+        ["WhatsNewEmpty"] = "Nothing new to show.",
+        ["WhatsNewOpen"] = "See what's new",
 
         // --- Mi Dia ---
         ["MyDayAddPlaceholder"] = "Add a task for today",
@@ -414,7 +418,7 @@ public sealed class LocalizationService
         ["MailSessionRestored"] = "{0} session restored.",
         ["MailHintGmail"] = "Gmail needs an app password (with two-step verification on), not your mail password.",
         ["MailHintOutlook"] = "Outlook.com no longer takes a password for IMAP: sign in with the account.",
-        ["MailHintGeneric"] = "IMAP with an app password works for Gmail, Yahoo, iCloud, Zoho and any own server.",
+        ["MailHintGeneric"] = "IMAP with an app password works for Gmail, most other mail providers and your own server.",
 
         // --- Acerca de ---
         ["AboutDescription"] = "Daily tasks with lists per group, steps and a celebration when you finish.",
@@ -432,7 +436,7 @@ public sealed class LocalizationService
         ["NoAccountHint"] = "Without an account, tasks stay on this device only: no sync with Windows or your phone, and no groups.",
         ["WriteAuthor"] = "Write to the author",
         ["ContactHint"] = "Suggestions, bugs and ideas: all of it gets read.",
-        ["PrivacyText"] = "Tasks are kept on the device and synced with your account so they are the same on every device of yours. The text you write is encrypted here before it goes up, and stored encrypted: it is not readable on the server. No ads, no trackers, no analytics. No ads, no trackers, no analytics.",
+        ["PrivacyText"] = "Tasks are kept on the device and synced with your account so they are the same on every device of yours. The text you write is encrypted here before it goes up, and stored encrypted: it is not readable on the server. No ads, no trackers, no analytics.",
         ["LicenseText"] = "Free software under the MIT licence. Third-party libraries and their licences are in THIRD-PARTY-NOTICES.md.",
         ["LicenseLine"] = "MIT License \u00b7 Copyright \u00a9 2026 Socratic",
         ["Publisher"] = "Socratic",
@@ -509,6 +513,10 @@ public sealed class LocalizationService
         ["MenuMail"] = "Correo",
         ["MenuSettings"] = "Ajustes",
         ["MenuAbout"] = "Acerca de",
+        ["MenuWhatsNew"] = "Novedades",
+        ["WhatsNewCurrent"] = "{0} (la instalada)",
+        ["WhatsNewEmpty"] = "No hay novedades que enseñar.",
+        ["WhatsNewOpen"] = "Ver las novedades",
 
         ["MyDayAddPlaceholder"] = "Añadir una tarea a hoy",
         ["MyDayEmptyTitle"] = "Hoy no hay nada en Mi Día",
@@ -796,7 +804,7 @@ public sealed class LocalizationService
         ["MailSessionRestored"] = "Sesión de {0} recuperada.",
         ["MailHintGmail"] = "Gmail necesita una contraseña de aplicación (con verificación en dos pasos activada), no la del correo.",
         ["MailHintOutlook"] = "Outlook.com ya no admite contraseña para IMAP: entra con la cuenta.",
-        ["MailHintGeneric"] = "Con IMAP y contraseña de aplicación funcionan Gmail, Yahoo, iCloud, Zoho y cualquier servidor propio.",
+        ["MailHintGeneric"] = "Con IMAP y contraseña de aplicación funcionan Gmail, la mayoría de los demás proveedores de correo y tu propio servidor.",
 
         ["AboutDescription"] = "Tareas diarias con listas por grupo, micro-pasos y celebración al completar.",
         ["SignOut"] = "Cerrar sesi\u00f3n",
@@ -813,7 +821,7 @@ public sealed class LocalizationService
         ["NoAccountHint"] = "Sin cuenta, las tareas se quedan solo en este dispositivo: sin sincronizar con Windows o el móvil, y sin grupos.",
         ["WriteAuthor"] = "Escribir al autor",
         ["ContactHint"] = "Sugerencias, fallos o ideas: todo se lee.",
-        ["PrivacyText"] = "Las tareas se guardan en el dispositivo y se sincronizan con tu cuenta para que sean las mismas en todos tus aparatos. El texto que escribes se cifra aquí antes de subir y se guarda cifrado: en el servidor no es legible. Sin anuncios, sin rastreadores y sin analítica.",
+        ["PrivacyText"] = "Las tareas se guardan en el dispositivo y se sincronizan con tu cuenta para que sean las mismas en todos tus dispositivos. El texto que escribes se cifra aquí antes de subir y se guarda cifrado: en el servidor no es legible. Sin anuncios, sin rastreadores y sin analítica.",
         ["LicenseText"] = "Software libre bajo licencia MIT. Las bibliotecas de terceros y sus licencias est\u00e1n en THIRD-PARTY-NOTICES.md.",
         ["LicenseLine"] = "MIT License \u00b7 Copyright \u00a9 2026 Socratic",
         ["Publisher"] = "Socratic",

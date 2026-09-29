@@ -36,6 +36,11 @@
     <PackageReference Include="MailKit" Version="4.17.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Novedades de las ultimas versiones (General 6.7), las mismas en el movil y en Windows. -->
+    <EmbeddedResource Include="whatsnew.json" LogicalName="TaskManager.Core.whatsnew.json" />
+  </ItemGroup>
+
   <!-- Identificadores de OAuth: se generan al compilar, nunca viven en el repositorio. -->
   <Import Project="$(MSBuildThisFileDirectory)..\oauth.props" />
 

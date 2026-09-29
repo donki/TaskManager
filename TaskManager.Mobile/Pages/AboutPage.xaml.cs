@@ -61,6 +61,8 @@ public partial class AboutPage : ContentPage
         }
     }
 
+    private async void OnWhatsNewClicked(object? sender, EventArgs e) => await Shell.Current.GoToAsync("//WhatsNewPage");
+
     private async void OnContactClicked(object? sender, EventArgs e)
     {
         try

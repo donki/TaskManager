@@ -90,6 +90,16 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
         await _tasks.InitializeAsync();
         Celebration.HapticsEnabled = _settings.HapticsEnabled;
         await ReloadAsync();
+
+        // Version nueva: sus novedades salen solas una vez (General 6.7). El permiso de avisos se
+        // pide a la vuelta, para no encadenar una pantalla y un dialogo del sistema.
+        if (_settings.HasUnseenVersion(AppInfo.Current.VersionString))
+        {
+            await _settings.MarkVersionSeenAsync(AppInfo.Current.VersionString);
+            await Shell.Current.GoToAsync("//WhatsNewPage");
+            return;
+        }
+
         await AskForNotificationsOnceAsync();
     }
 

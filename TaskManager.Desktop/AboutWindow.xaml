@@ -47,6 +47,22 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Novedades de las ultimas versiones (General 6.7). -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,12" Padding="20,18">
+                    <StackPanel>
+                        <TextBlock Text="{loc:T MenuWhatsNew}" Style="{StaticResource CardTitle}"
+                                   Margin="0,0,0,10" />
+                        <Button Style="{StaticResource OutlineButton}" Click="OnWhatsNewClick"
+                                HorizontalAlignment="Stretch">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE789;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                           VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <TextBlock Text="{loc:T WhatsNewOpen}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
+
                 <!-- Contacto -->
                 <Border Style="{StaticResource Card}" Margin="0,0,0,12" Padding="20,18">
                     <StackPanel>

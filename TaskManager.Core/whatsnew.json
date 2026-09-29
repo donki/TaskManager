@@ -1,0 +1,60 @@
+[
+  {
+    "version": "2026.09.29.00",
+    "date": "2026-09-29",
+    "es": [
+      "Nueva pantalla de Novedades: sale sola la primera vez que abres una versión nueva y puedes volver a ella cuando quieras desde el menú (en Windows, desde el menú del icono de la bandeja y desde Acerca de).",
+      "Pequeños retoques en los textos."
+    ],
+    "en": [
+      "New What's new screen: it opens by itself the first time you start a new version, and you can come back to it any time from the menu (on Windows, from the tray icon menu and from About).",
+      "Small touch-ups to the texts."
+    ]
+  },
+  {
+    "version": "2026.09.27.01",
+    "date": "2026-09-27",
+    "es": [
+      "El botón de atrás del móvil vuelve a la pantalla anterior; desde Calendario, Listas, Tablero, Grupos, Ajustes o Acerca de vuelve a «Mis tareas», y en «Mis tareas» la aplicación se oculta sin cerrarse. Si hay algo abierto encima (el menú, un diálogo, la selección o el buscador), primero cierra eso.",
+      "Si cambias algo en una tarea y vuelves atrás sin guardar, te pregunta si guardar, descartar o seguir editando.",
+      "Un error inesperado ya no cierra la aplicación: se avisa en tu idioma y sigue funcionando."
+    ],
+    "en": [
+      "The phone back button goes back to the previous screen; from Calendar, Lists, Board, Groups, Settings or About it returns to My tasks, and on My tasks the app is hidden without closing. If something is open on top (the menu, a dialog, multi-select or the search box), it closes that first.",
+      "If you change something in a task and go back without saving, it asks whether to save, discard or keep editing.",
+      "An unexpected error no longer closes the app: you get a notice in your language and it keeps working."
+    ]
+  },
+  {
+    "version": "2026.09.27.00",
+    "date": "2026-09-27",
+    "es": [
+      "En inglés, las opciones de avisos de Windows y de Android salían con el mismo texto; ahora cada una dice lo suyo."
+    ],
+    "en": [
+      "The reminder options on Windows and on Android showed the same English text; now each one says what it does."
+    ]
+  },
+  {
+    "version": "2026.09.23",
+    "date": "2026-09-23",
+    "es": [
+      "Se ha quitado el desglose automático en pasos (la varita): los pasos se escriben a mano. Los que ya tenías siguen ahí."
+    ],
+    "en": [
+      "The automatic step breakdown (the magic wand) has been removed: steps are written by hand. The ones you already had are still there."
+    ]
+  },
+  {
+    "version": "2026.09.18",
+    "date": "2026-09-18",
+    "es": [
+      "El botón de la pantalla de etiquetas va fijo a la izquierda de la fila de etiquetas, siempre a la vista, y la fila se queda mientras exista alguna etiqueta.",
+      "En Android, el icono de ese botón ya se ve bien con el tema oscuro."
+    ],
+    "en": [
+      "The tags screen button sits fixed at the left of the tag row, always in view, and the row stays while any tag exists.",
+      "On Android, that button's icon now shows properly with the dark theme."
+    ]
+  }
+]

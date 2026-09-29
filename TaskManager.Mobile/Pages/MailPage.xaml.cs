@@ -232,7 +232,7 @@ public partial class MailPage : ContentPage
                 "Gmail: hace falta una contraseña de aplicación (con verificación en dos pasos activada), no la del correo.",
             _ when address.EndsWith("@outlook.com") || address.EndsWith("@hotmail.com") || address.EndsWith("@live.com") =>
                 "Outlook.com ya no admite contraseña para IMAP: solo entra por OAuth2, que todavía no está implementado.",
-            _ => "Con IMAP y contraseña de aplicación funcionan Gmail, Yahoo, iCloud, Zoho y cualquier servidor propio.",
+            _ => "Con IMAP y contraseña de aplicación funcionan Gmail, la mayoría de los demás proveedores de correo y tu propio servidor.",
         };
     }
 

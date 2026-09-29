@@ -410,7 +410,7 @@ public sealed class SupabaseAuthService
         var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
         {
-            throw new AuthException($"Supabase rechazó la sesión ({(int)response.StatusCode}): {body}");
+            throw new AuthException($"El servidor rechazó la sesión ({(int)response.StatusCode}): {body}");
         }
 
         using var document = JsonDocument.Parse(body);

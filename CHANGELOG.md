@@ -2,6 +2,30 @@
 
 Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del día a dos cifras, el mismo que cierra el versionCode.
 
+## 2026.09.29.00 — Pantalla de Novedades
+
+Windows `2026.9.29.0` · Android `2026.09.29.00`
+
+**Castellano**
+
+- **Novedades** (constitución General 6.7): lo que cambió en las cinco últimas versiones, de la más
+  nueva a la más antigua, en tu idioma. Sale sola la primera vez que se abre una versión nueva (en
+  el móvil, al llegar a «Mis tareas»; en Windows, al arrancar) y después se abre cuando quieras: en
+  el móvil desde el menú lateral y desde Acerca de; en Windows desde el menú del icono de la bandeja
+  y desde Acerca de. El contenido vive en el núcleo (`TaskManager.Core/whatsnew.json`), el mismo
+  para las dos.
+- Textos: el texto de privacidad dice «dispositivos» (no «aparatos»); la ayuda del correo (oculto
+  todavía) ya no nombra proveedores ajenos, y un rechazo de la sesión habla de «el servidor».
+
+**English**
+
+- **What's new** screen: the changes of the last five versions, newest first, in your language. It
+  opens by itself the first time a new version starts (on the phone, on My tasks; on Windows, at
+  start-up) and any time later from the side menu and About (phone) or the tray icon menu and About
+  (Windows).
+- Texts: the privacy text says "devices"; the (still hidden) mail hint no longer names other
+  providers, and a rejected session mentions "the server".
+
 ## 2026.09.27.01 — Atrás vuelve atrás y un error ya no la cierra
 
 Windows `2026.09.27.01` · Android `2026.09.27.01`

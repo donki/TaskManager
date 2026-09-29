@@ -56,6 +56,29 @@ public partial class App : Application
 
         InstalarGestorDeErrores();
 
+#if DEBUG
+        // Solo en Debug: «--preview-novedades [es|en]» enseña Acerca de y las Novedades con una
+        // base temporal, sin cuenta, sin la instancia unica y sin tocar los datos de verdad.
+        if (e.Args.Length > 0 && e.Args[0] == "--preview-novedades")
+        {
+            ShutdownMode = ShutdownMode.OnLastWindowClose;
+            ThemeManager.Apply();
+            var previewDb = Path.Combine(Path.GetTempPath(), $"taskmanager-preview-{Guid.NewGuid():N}.db3");
+            _settings = new SettingsService(new LocalDatabase(previewDb));
+            await _settings.LoadAsync();
+            await _settings.SetAsync(SettingsService.KeyLanguage, e.Args.Length > 1 ? e.Args[1] : "es");
+            Localization.Loc.Use(new LocalizationService(_settings));
+            if (_settings.HasUnseenVersion(WhatsNewWindow.CurrentVersion()))
+            {
+                OpenWhatsNew();
+            }
+
+            OpenAbout();
+
+            return;
+        }
+#endif
+
         if (!TomarLaVez())
         {
             return;
@@ -136,6 +159,7 @@ public partial class App : Application
         _tray.Activated += (_, _) => _flyout.ShowFlyout();
         _tray.SettingsRequested += (_, _) => OpenSettings();
         _tray.MainRequested += (_, _) => OpenMain();
+        _tray.WhatsNewRequested += (_, _) => OpenWhatsNew();
         _tray.ExitRequested += (_, _) => Shutdown();
 
         // El atajo global necesita un handle: se fuerza sin llegar a mostrar la ventana.
@@ -183,6 +207,12 @@ public partial class App : Application
 
             OpenMain();
             _main?.AtenderInvitacion();
+        }
+
+        // Version nueva: sus novedades salen solas una vez (General 6.7).
+        if (_settings.HasUnseenVersion(WhatsNewWindow.CurrentVersion()))
+        {
+            OpenWhatsNew();
         }
     }
 
@@ -408,6 +438,23 @@ public partial class App : Application
             Icon = TrayIconHost.CreateWindowIcon(),
         };
         window.ShowDialog();
+    }
+
+    private WhatsNewWindow? _whatsNew;
+
+    /// <summary>Novedades de las ultimas versiones (General 6.7), o al frente si ya estaba abierta.</summary>
+    public void OpenWhatsNew()
+    {
+        if (_whatsNew is { IsLoaded: true })
+        {
+            _whatsNew.Activate();
+            return;
+        }
+
+        _whatsNew = new WhatsNewWindow(_settings) { Icon = TrayIconHost.CreateWindowIcon() };
+        _whatsNew.Closed += (_, _) => _whatsNew = null;
+        _whatsNew.Show();
+        _whatsNew.Activate();
     }
 
     // ==================================================================================

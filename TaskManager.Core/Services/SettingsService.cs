@@ -70,6 +70,12 @@ public sealed class SettingsService
     /// <summary>La etiqueta del panel rapido, que tiene su propia fila de etiquetas.</summary>
     public const string KeyFlyoutTag = "filter.flyout_tag";
 
+    /// <summary>
+    /// La ultima version cuyas novedades se enseñaron (General 6.7). Si la instalada es otra, la
+    /// pantalla de Novedades sale sola una vez.
+    /// </summary>
+    public const string KeyWhatsNewSeen = "app.whatsnew_seen";
+
     private readonly LocalDatabase _db;
     private readonly Dictionary<string, string> _cache = new(StringComparer.Ordinal);
     private bool _loaded;
@@ -121,6 +127,11 @@ public sealed class SettingsService
     }
 
     public Task SetBoolAsync(string key, bool value) => SetAsync(key, value ? "1" : "0");
+
+    /// <summary>La version <paramref name="current"/> todavia no ha enseñado sus novedades.</summary>
+    public bool HasUnseenVersion(string current) => !WhatsNew.SameVersion(Get(KeyWhatsNewSeen), current);
+
+    public Task MarkVersionSeenAsync(string current) => SetAsync(KeyWhatsNewSeen, current);
 
     public string UserId => Get(KeyUserId);
 

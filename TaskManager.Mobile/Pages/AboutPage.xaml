@@ -25,6 +25,19 @@
                 </VerticalStackLayout>
             </Border>
 
+            <!-- Novedades de las ultimas versiones (General 6.7). -->
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Padding="25,20" Spacing="12">
+                    <Label Text="{loc:T MenuWhatsNew}" Style="{StaticResource CardTitle}" />
+                    <Button Text="{loc:T WhatsNewOpen}"
+                            Style="{StaticResource OutlineButton}"
+                            ImageSource="ic_news.png"
+                            ContentLayout="Left,8"
+                            Clicked="OnWhatsNewClicked"
+                            HorizontalOptions="Fill" />
+                </VerticalStackLayout>
+            </Border>
+
             <!-- Contacto -->
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Padding="25,20" Spacing="12">

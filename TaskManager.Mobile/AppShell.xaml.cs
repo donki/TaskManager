@@ -38,6 +38,8 @@ public partial class AppShell : Shell
 
     private async void OnAboutTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//AboutPage");
 
+    private async void OnWhatsNewTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//WhatsNewPage");
+
     /// <summary>
     /// Boton de atras del movil (Mobile 7). Primero se cierra lo que haya encima: el menu lateral,
     /// un dialogo, o lo que la propia pantalla tenga abierto (seleccion, buscador, cambios sin
