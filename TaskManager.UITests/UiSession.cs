@@ -117,7 +117,19 @@ public sealed class UiSession : IDisposable
     public AppiumElement Require(By by, string what, double seconds = 10) =>
         WaitFor(by, seconds) ?? throw new Xunit.Sdk.XunitException($"No aparece {what} ({by}).");
 
-    public static By Id(string automationId) => MobileBy.AccessibilityId(automationId);
+    /// <summary>
+    /// El AutomationId de MAUI llega a Android como resource-id (paquete:id/Nombre) en los
+    /// controles, pero como content-desc en los botones de la cabecera (ToolbarItem): se busca por
+    /// los dos.
+    /// </summary>
+    public static By Id(string automationId) =>
+        By.XPath($"//*[@resource-id='{Package}:id/{automationId}' or @content-desc='{automationId}']");
+
+    /// <summary>Desplaza la pantalla hasta que se vea el control (por su resource-id).</summary>
+    public static By ScrollTo(string automationId) =>
+        MobileBy.AndroidUIAutomator(
+            "new UiScrollable(new UiSelector().scrollable(true))" +
+            $".scrollIntoView(new UiSelector().resourceId(\"{Package}:id/{automationId}\"))");
 
     public static By Text(string text) =>
         By.XPath($"//*[@text={XPathLiteral(text)}]");

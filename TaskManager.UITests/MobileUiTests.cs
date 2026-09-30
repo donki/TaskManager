@@ -27,7 +27,7 @@ public sealed class MobileUiTests
     {
         // App recien borrada: primero la puerta de entrada, y se sigue sin cuenta.
         _s.Require(UiSession.Id("LoginLocal"), "el boton «Seguir sin cuenta»", 30).Click();
-        _s.Require(UiSession.Id("QuickAdd"), "la captura rapida de Mis tareas", 15);
+        SettleHome();
         Assert.NotNull(_s.WaitFor(TitleOf("MenuMyTasks"), 5));
         _s.Shot("01-mis-tareas");
     }
@@ -90,7 +90,8 @@ public sealed class MobileUiTests
             GoHome();
             OpenMenu();
             _s.Require(UiSession.Id("MenuAbout"), "Acerca de").Click();
-            _s.Require(UiSession.Id(lang == "es" ? "LanguageEs" : "LanguageEn"), $"el boton de {lang}", 10).Click();
+            var id = lang == "es" ? "LanguageEs" : "LanguageEn";
+            _s.Require(UiSession.ScrollTo(id), $"el boton de {lang}", 10).Click();
 
             // Se rehace el Shell y se vuelve a Mis tareas, ya en el idioma elegido.
             _s.Require(TitleOf("MenuMyTasks", lang), $"«{UiSession.T("MenuMyTasks", lang)}»", 10);
@@ -121,10 +122,18 @@ public sealed class MobileUiTests
     /// Con la letra al 145 % ningun texto de «Mis tareas» ni del menu queda cortado.
     /// </summary>
     /// <remarks>
-    /// Desde fuera no se puede medir lo que ocupa un texto, asi que se compara cada texto con el
-    /// mismo a letra 1.0: al 145 % tiene que crecer ~1.45 en alto (o partirse en mas lineas). Si
-    /// crece menos en alto, lo esta recortando su contenedor; si no crece en ancho y tampoco gana
-    /// lineas, esta cortado (elipsis o recorte). Tambien falla un texto que se salga de la pantalla.
+    /// Desde fuera no se ve la elipsis (el atributo text sigue siendo el texto entero) ni se puede
+    /// medir lo que el texto querria ocupar. Lo que si se ve es el rectangulo visible de cada texto,
+    /// que Android recorta a lo que deja ver su contenedor. Se compara con el mismo texto a letra
+    /// 1.0 y:
+    /// <list type="bullet">
+    /// <item>FALLA si se sale de la pantalla, o si su parte visible es MENOR que con la letra normal
+    ///   fuera de una zona desplazable (lo esta tapando o recortando su contenedor).</item>
+    /// <item>AVISA (solo en el informe de artefactos) si crece en alto menos de x1.2: su fila no le
+    ///   deja crecer y puede estar comiendose el aire de la letra. Dentro de una zona desplazable no
+    ///   cuenta: puede ser solo que el texto queda al borde y se ve al desplazar.</item>
+    /// </list>
+    /// El ancho no se compara: un texto que llena su columna mide lo mismo con cualquier letra.
     /// </remarks>
     [Fact]
     public void T06_Letra_grande_sin_textos_cortados()
@@ -142,44 +151,35 @@ public sealed class MobileUiTests
 
             var screen = _s.Driver.Manage().Window.Size;
             var problems = new List<string>();
-            foreach (var (key, b) in big)
+            var warnings = new List<string>();
+            foreach (var (key, (b, inScroll)) in big)
             {
-                if (b.Right > screen.Width + 1 || b.Bottom > screen.Height + 1)
+                if (b.Right > screen.Width + 1 || b.Bottom > screen.Height + 1 || b.Left < 0)
                 {
                     problems.Add($"«{key}» se sale de la pantalla ({b}).");
+                    continue;
                 }
 
-                if (key.Contains('…'))
-                {
-                    problems.Add($"«{key}» lleva elipsis.");
-                }
-
-                if (!normal.TryGetValue(key, out var n) || n.Height == 0 || n.Width == 0)
+                if (!normal.TryGetValue(key, out var n) || n.Rect.Height == 0 || inScroll)
                 {
                     continue;
                 }
 
-                var hRatio = (double)b.Height / n.Height;
-                var wRatio = (double)b.Width / n.Width;
-                var moreLines = hRatio > 1.9;
-                if (hRatio < 1.25)
+                var hRatio = (double)b.Height / n.Rect.Height;
+                if (hRatio < 0.98)
                 {
-                    problems.Add($"«{key}» no crece en alto (x{hRatio:0.00}): lo recorta su contenedor.");
+                    problems.Add($"«{key}» se ve menos que con la letra normal (alto x{hRatio:0.00}): lo recorta su contenedor.");
                 }
-                else if (!moreLines && wRatio < 1.25 && b.Right < screen.Width - 2)
+                else if (hRatio < 1.2)
                 {
-                    // No crece en ancho, no gana lineas y aun le quedaba sitio: cortado.
-                    problems.Add($"«{key}» no crece en ancho (x{wRatio:0.00}) ni parte en lineas: cortado.");
-                }
-                else if (!moreLines && wRatio < 1.25)
-                {
-                    problems.Add($"«{key}» llega al borde sin partir en lineas (x{wRatio:0.00}): cortado.");
+                    warnings.Add($"«{key}» apenas crece en alto (x{hRatio:0.00}): su fila no le deja sitio.");
                 }
             }
 
             File.WriteAllLines(Path.Combine(_s.ArtifactsDir, "06-letra145.txt"),
-                big.Select(kv => $"{kv.Key}\t1.0={(normal.TryGetValue(kv.Key, out var n) ? n.ToString() : "-")}\t1.45={kv.Value}")
-                   .Concat(["", "PROBLEMAS:"]).Concat(problems));
+                big.Select(kv => $"{kv.Key}	1.0={(normal.TryGetValue(kv.Key, out var n) ? n.Rect.ToString() : "-")}	1.45={kv.Value.Rect}{(kv.Value.InScroll ? "	(desplazable)" : "")}")
+                   .Concat(["", "FALLOS:"]).Concat(problems)
+                   .Concat(["", "AVISOS:"]).Concat(warnings));
             Assert.True(problems.Count == 0, string.Join(Environment.NewLine, problems));
         }
         finally
@@ -196,21 +196,33 @@ public sealed class MobileUiTests
 
     // ------------------------------------------------------------------ pasos comunes
 
-    /// <summary>Textos visibles de «Mis tareas» y del menu, con sus limites en pantalla.</summary>
-    private Dictionary<string, Rectangle> Measure(string shot)
+    /// <summary>
+    /// Textos visibles de «Mis tareas» y del menu: su rectangulo visible y si estan dentro de algo
+    /// desplazable.
+    /// </summary>
+    private Dictionary<string, (Rectangle Rect, bool InScroll)> Measure(string shot)
     {
-        var result = new Dictionary<string, Rectangle>();
+        var result = new Dictionary<string, (Rectangle, bool)>();
+
+        // Se lee el arbol entero de una vez (page source): pedir elemento a elemento es lento y
+        // con listas se queda en los primeros.
         void Collect()
         {
-            foreach (var e in _s.Driver.FindElements(By.ClassName("android.widget.TextView")))
+            var xml = System.Xml.Linq.XDocument.Parse(_s.Driver.PageSource);
+            foreach (var node in xml.Descendants())
             {
-                var text = e.Text;
-                if (string.IsNullOrWhiteSpace(text) || result.ContainsKey(text))
+                var text = (string?)node.Attribute("text");
+                var bounds = (string?)node.Attribute("bounds");
+                if ((string?)node.Attribute("class") != "android.widget.TextView"
+                    || (string?)node.Attribute("package") != UiSession.Package
+                    || string.IsNullOrWhiteSpace(text) || bounds is null || result.ContainsKey(text))
                 {
                     continue;
                 }
 
-                result[text] = e.Rect;
+                var n = System.Text.RegularExpressions.Regex.Matches(bounds, @"\d+").Select(m => int.Parse(m.Value)).ToArray();
+                var inScroll = node.Ancestors().Any(a => (string?)a.Attribute("scrollable") == "true");
+                result[text] = (Rectangle.FromLTRB(n[0], n[1], n[2], n[3]), inScroll);
             }
         }
 
@@ -253,6 +265,7 @@ public sealed class MobileUiTests
         if (_s.WaitFor(UiSession.Id("LoginLocal"), 1) is { } local)
         {
             local.Click();
+            SettleHome();
         }
         else
         {
@@ -261,6 +274,36 @@ public sealed class MobileUiTests
         }
 
         _s.Require(UiSession.Id("QuickAdd"), "Mis tareas", 10);
+    }
+
+    /// <summary>
+    /// Tras entrar sin cuenta salen, una vez, el permiso de avisos de Android y la pantalla de
+    /// Novedades de la version recien instalada: se acepta el permiso (es un emulador de pruebas)
+    /// y se sale de Novedades con atras, que tiene que llevar a «Mis tareas» (Mobile 7).
+    /// </summary>
+    private void SettleHome()
+    {
+        var until = DateTime.UtcNow.AddSeconds(25);
+        while (DateTime.UtcNow < until)
+        {
+            if (_s.Driver.FindElements(By.Id("com.android.permissioncontroller:id/permission_allow_button")) is { Count: > 0 } allow)
+            {
+                allow[0].Click();
+            }
+            else if (_s.Driver.FindElements(UiSession.Id("QuickAdd")).Count > 0)
+            {
+                return;
+            }
+            else if (_s.Driver.FindElements(TitleOf("MenuWhatsNew")).Count > 0)
+            {
+                _s.Shot("00-novedades");
+                _s.Back();
+            }
+
+            Thread.Sleep(400);
+        }
+
+        throw new Xunit.Sdk.XunitException("No se llega a «Mis tareas» tras entrar sin cuenta.");
     }
 
     /// <summary>
@@ -299,11 +342,16 @@ public sealed class MobileUiTests
         entry.Click();
         entry.SendKeys(title);
         _s.Require(UiSession.Id("QuickAddButton"), "el boton de añadir").Click();
+
+        // Al añadir se abre el detalle de la tarea nueva; atras vuelve a la lista (Mobile 7).
+        _s.Require(UiSession.Id("TaskDelete"), "el detalle de la tarea nueva", 10);
         if (_s.Driver.IsKeyboardShown())
         {
             _s.Driver.HideKeyboard();
         }
 
+        _s.Back();
+        _s.Require(UiSession.Id("QuickAdd"), "Mis tareas tras atras desde el detalle", 10);
         _s.Require(UiSession.Text(title), $"la tarea «{title}» en la lista", 10);
         return title;
     }
