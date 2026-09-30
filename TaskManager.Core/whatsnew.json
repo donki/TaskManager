@@ -1,5 +1,15 @@
 [
   {
+    "version": "2026.09.30.00",
+    "date": "2026-09-30",
+    "es": [
+      "La sincronización ya no vuelve a subir, vuelta tras vuelta, una tarea que cambiaste varias veces sin conexión: sube una sola vez, con cómo quedó al final."
+    ],
+    "en": [
+      "Sync no longer uploads again and again a task you changed several times while offline: it goes up once, as it ended up."
+    ]
+  },
+  {
     "version": "2026.09.29.01",
     "date": "2026-09-29",
     "es": [

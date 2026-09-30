@@ -46,6 +46,25 @@ dotnet publish TaskManager.Mobile -c Release -f net10.0-android36.0 -p:AndroidPa
   -p:AndroidSigningStorePass=<pass> -p:AndroidSigningKeyPass=<pass>
 ```
 
+## Pruebas
+
+`TaskManager.Tests` (xUnit) prueba el núcleo compartido `TaskManager.Core`: repeticiones y series,
+filtros, etiquetas, XP/niveles/rachas, repositorio SQLite (en ficheros temporales), `TaskService`,
+cifrado de texto y de grupo, invitaciones, traducciones (mismas claves y marcadores en es/en, y
+que existan todas las que piden las pantallas), novedades, ajustes, y la entrada con cuenta y la
+sincronización con Supabase contra un servidor HTTP falso (nada sale a la red). La interfaz (MAUI
+y WPF) no se prueba aquí.
+
+| Fecha | Pruebas | Cobertura del núcleo | Cobertura sobre toda la app | Tiempo del banco |
+|---|---|---|---|---|
+| 2026-09-30 | 254 (pasan todas) | 97,3 % (3919 de 4026 líneas) | ≈39 % (3919 de ≈10 000 líneas) | ≈11 s |
+
+```
+dotnet test TaskManager.Tests
+dotnet test TaskManager.Tests --collect:"XPlat Code Coverage"
+dotnet tool restore && dotnet reportgenerator -reports:"**/coverage.cobertura.xml" -targetdir:cobertura -reporttypes:TextSummary
+```
+
 ## La aplicación de escritorio
 
 - Vive en la bandeja; el icono lleva un globo rojo con las tareas pendientes de Mi Día.

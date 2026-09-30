@@ -138,10 +138,15 @@ public sealed class SupabaseSyncService : ISyncService
 
         // Una misma tarea puede haberse tocado diez veces sin conexion. Solo interesa como ha
         // quedado, asi que de cada entidad se sube su estado actual una unica vez.
-        var latest = pending
+        //
+        // Lo que se da por hecho, en cambio, son TODAS las entradas de esa entidad: antes solo salia
+        // de la cola la ultima, y una tarea tocada diez veces sin conexion se volvia a subir en diez
+        // vueltas seguidas, una por cada entrada que quedaba atras.
+        var byEntity = pending
             .GroupBy(op => (op.Entity, op.EntityId))
-            .Select(g => g.Last())
-            .ToList();
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var latest = byEntity.Values.Select(ops => ops[^1]).ToList();
 
         var done = new List<SyncOp>();
 
@@ -156,7 +161,7 @@ public sealed class SupabaseSyncService : ISyncService
 
             if (await DeleteRemoteAsync(op.Entity, id, token, cancellationToken).ConfigureAwait(false))
             {
-                done.AddRange(pending.Where(o => o.Entity == op.Entity && o.EntityId == op.EntityId));
+                done.AddRange(byEntity[(op.Entity, op.EntityId)]);
             }
         }
 
@@ -179,7 +184,7 @@ public sealed class SupabaseSyncService : ISyncService
                     // entidad que no se sincroniza— y no se va a poder nunca. Se saca de la cola
                     // en vez de reintentarla en cada vuelta: quedaban ahi para siempre, haciendo
                     // creer que habia algo pendiente de subir.
-                    done.Add(op);
+                    done.AddRange(byEntity[(op.Entity, op.EntityId)]);
                 }
             }
 
@@ -193,7 +198,7 @@ public sealed class SupabaseSyncService : ISyncService
                 // Solo se da por hecho lo que de verdad se ha mandado. Antes se descartaba TODO lo
                 // pendiente de esa entidad, incluidas las filas que no se pudieron construir: se
                 // perdian sin haber subido nunca.
-                done.AddRange(sent);
+                done.AddRange(sent.SelectMany(o => byEntity[(o.Entity, o.EntityId)]));
             }
         }
 

@@ -2,6 +2,24 @@
 
 Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del día a dos cifras, el mismo que cierra el versionCode.
 
+## 2026.09.30.00 — Una subida por tarea, no una por cambio
+
+Windows `2026.9.30.0` · Android `2026.09.30.00`
+
+**Castellano**
+
+- Corregido: de una tarea (o lista, paso o adjunto) tocada varias veces sin conexión solo salía de
+  la cola de sincronización la última entrada, y la misma fila se volvía a subir en cada vuelta
+  siguiente, una por cada cambio que quedaba atrás. Ahora sube una vez y la cola queda vacía. Lo
+  encontró el banco de pruebas nuevo (`TaskManager.Tests`).
+
+**English**
+
+- Fixed: for a task (or list, step or attachment) changed several times while offline, only the
+  last entry left the sync queue, and the same row was uploaded again on every following round.
+  Now it goes up once and the queue is left empty. Found by the new test suite
+  (`TaskManager.Tests`).
+
 ## 2026.09.29.01 — En la Microsoft Store
 
 Windows `2026.9.29.1` · Android `2026.09.29.01`
