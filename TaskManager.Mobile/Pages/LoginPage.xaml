@@ -43,7 +43,7 @@
             <!-- Sin cuenta: todo se queda en el aparato (AuthOptions.LocalModeEnabled). Va debajo y
                  sin logotipo porque es la opcion de quien renuncia a sincronizar, no una tercera
                  cuenta. -->
-            <Button x:Name="LocalButton"
+            <Button x:Name="LocalButton" AutomationId="LoginLocal"
                     Text="{loc:T ContinueWithoutAccount}"
                     Style="{StaticResource OutlineButton}"
                     Clicked="OnLocalClicked"

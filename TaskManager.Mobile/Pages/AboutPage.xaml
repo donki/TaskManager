@@ -72,9 +72,9 @@
                 <VerticalStackLayout Padding="25,20" Spacing="12">
                     <Label Text="{loc:T LanguageTitle}" Style="{StaticResource CardTitle}" />
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
-                        <Button Grid.Column="0" x:Name="SpanishButton" Text="Español"
+                        <Button Grid.Column="0" x:Name="SpanishButton" AutomationId="LanguageEs" Text="Español"
                                 Style="{StaticResource OutlineButton}" Clicked="OnSpanishClicked" />
-                        <Button Grid.Column="1" x:Name="EnglishButton" Text="English"
+                        <Button Grid.Column="1" x:Name="EnglishButton" AutomationId="LanguageEn" Text="English"
                                 Style="{StaticResource OutlineButton}" Clicked="OnEnglishClicked" />
                     </Grid>
                     <Label Text="{loc:T LanguageHint}" Style="{StaticResource HintText}"

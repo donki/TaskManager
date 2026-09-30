@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Pruebas de interfaz de la app movil: Appium (servidor Node, Apache-2.0) con el driver
+    UiAutomator2 contra un dispositivo o emulador Android que ya tenga la app instalada (o con
+    TM_APK para instalarla). No se ejecutan en la compilacion normal: hacen falta el servidor y el
+    dispositivo. Ver README.md de esta carpeta.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Appium.WebDriver (Apache-2.0, trae Selenium.WebDriver, Apache-2.0), xunit (Apache-2.0) y
+         Microsoft.NET.Test.Sdk (MIT): solo para probar, no se distribuyen. -->
+    <PackageReference Include="Appium.WebDriver" Version="8.4.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Solo para leer los textos es/en de la app y no copiarlos a mano en las pruebas. -->
+    <ProjectReference Include="..\TaskManager.Core\TaskManager.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

@@ -31,21 +31,21 @@
         <ScrollView>
             <VerticalStackLayout Padding="0,8" Spacing="0">
 
-                <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                <Grid AutomationId="MenuMyTasks" ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
                     <Image Grid.Column="0" Source="ic_day.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
                     <Label Grid.Column="1" Text="{loc:T MenuMyTasks}" VerticalOptions="Center" FontSize="16"
                            TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
                     <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnMyTasksTapped" /></Grid.GestureRecognizers>
                 </Grid>
 
-                <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                <Grid AutomationId="MenuCalendar" ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
                     <Image Grid.Column="0" Source="ic_calendar.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
                     <Label Grid.Column="1" Text="{loc:T MenuCalendar}" VerticalOptions="Center" FontSize="16"
                            TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
                     <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnCalendarTapped" /></Grid.GestureRecognizers>
                 </Grid>
 
-                <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                <Grid AutomationId="MenuLists" ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
                     <Image Grid.Column="0" Source="ic_list.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
                     <Label Grid.Column="1" Text="{loc:T MenuLists}" VerticalOptions="Center" FontSize="16"
                            TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
@@ -54,7 +54,7 @@
 
                 <!-- El tablero, el mismo que en Windows. Va detras de las listas, en el mismo
                      orden que las pestañas de alli. -->
-                <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                <Grid AutomationId="MenuKanban" ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
                     <Image Grid.Column="0" Source="ic_board.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
                     <Label Grid.Column="1" Text="{loc:T MenuKanban}" VerticalOptions="Center" FontSize="16"
                            TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
@@ -62,7 +62,7 @@
                 </Grid>
 
                 <!-- Grupos: oculto mientras FeatureOptions.GroupsEnabled sea false. -->
-                <Grid x:Name="GroupsMenuRow" ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                <Grid AutomationId="MenuGroups" x:Name="GroupsMenuRow" ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
                     <Image Grid.Column="0" Source="ic_group.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
                     <Label Grid.Column="1" Text="{loc:T MenuGroups}" VerticalOptions="Center" FontSize="16"
                            TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
@@ -71,7 +71,7 @@
 
                 <!-- Correo: oculto mientras FeatureOptions.MailEnabled sea false (se apaga en el
                      constructor del Shell, que es donde se puede leer la constante). -->
-                <Grid x:Name="MailMenuRow" ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                <Grid AutomationId="MenuMail" x:Name="MailMenuRow" ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
                     <Image Grid.Column="0" Source="ic_mail.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
                     <Label Grid.Column="1" Text="{loc:T MenuMail}" VerticalOptions="Center" FontSize="16"
                            TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
@@ -81,7 +81,7 @@
                 <BoxView HeightRequest="1" Margin="20,8"
                          Color="{AppThemeBinding Light={StaticResource SeparatorLight}, Dark={StaticResource SeparatorDark}}" />
 
-                <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                <Grid AutomationId="MenuSettings" ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
                     <Image Grid.Column="0" Source="ic_settings.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
                     <Label Grid.Column="1" Text="{loc:T MenuSettings}" VerticalOptions="Center" FontSize="16"
                            TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
@@ -89,14 +89,14 @@
                 </Grid>
 
                 <!-- Novedades de las ultimas versiones (General 6.7). -->
-                <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                <Grid AutomationId="MenuWhatsNew" ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
                     <Image Grid.Column="0" Source="ic_news.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
                     <Label Grid.Column="1" Text="{loc:T MenuWhatsNew}" VerticalOptions="Center" FontSize="16"
                            TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
                     <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnWhatsNewTapped" /></Grid.GestureRecognizers>
                 </Grid>
 
-                <Grid ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
+                <Grid AutomationId="MenuAbout" ColumnDefinitions="26,*" Padding="20,0" HeightRequest="52" ColumnSpacing="16">
                     <Image Grid.Column="0" Source="ic_info.png" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
                     <Label Grid.Column="1" Text="{loc:T MenuAbout}" VerticalOptions="Center" FontSize="16"
                            TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
@@ -110,7 +110,7 @@
     <!-- Pie del menu: version de la app (constitucion E.7). -->
     <Shell.FlyoutFooter>
         <Grid Padding="20,12">
-            <Label x:Name="VersionLabel"
+            <Label x:Name="VersionLabel" AutomationId="MenuVersion"
                    Style="{StaticResource HintText}"
                    HorizontalOptions="Center"
                    VerticalOptions="Center" />

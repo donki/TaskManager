@@ -13,8 +13,8 @@
         Arriba estan siempre a la vista y a un dedo, se mire donde se mire.
     -->
     <ContentPage.ToolbarItems>
-        <ToolbarItem IconImageSource="ic_check_w.png" Clicked="OnSaveClicked" />
-        <ToolbarItem IconImageSource="ic_delete_w.png" Clicked="OnDeleteClicked" />
+        <ToolbarItem AutomationId="TaskSave" IconImageSource="ic_check_w.png" Clicked="OnSaveClicked" />
+        <ToolbarItem AutomationId="TaskDelete" IconImageSource="ic_delete_w.png" Clicked="OnDeleteClicked" />
     </ContentPage.ToolbarItems>
 
     <Grid>

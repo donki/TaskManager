@@ -3,4 +3,5 @@
   <Project Path="TaskManager.Mobile/TaskManager.Mobile.csproj" />
   <Project Path="TaskManager.Desktop/TaskManager.Desktop.csproj" />
   <Project Path="TaskManager.Tests/TaskManager.Tests.csproj" />
+  <Project Path="TaskManager.UITests/TaskManager.UITests.csproj" />
 </Solution>
