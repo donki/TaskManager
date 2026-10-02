@@ -265,12 +265,18 @@ public partial class CalendarView : UserControl
         await LoadListNamesAsync();
         await ReloadAsync();
 
-        var window = new TaskDetailWindow(_tasks, task)
+        await OpenAsync(task);
+    }
+
+    /// <summary>Abre el detalle de la tarea y, si se guardo algo, vuelve a leer el mes.</summary>
+    private async Task OpenAsync(TaskItem task)
+    {
+        var window = new TaskDetailWindow(_tasks!, task)
         {
             Owner = Window.GetWindow(this),
         };
 
-        if (window.ShowDialog() == true && window.Changed)
+        if (Services.Ventanas.Modal(window) == true && window.Changed)
         {
             await LoadListNamesAsync();
             await ReloadAsync();
@@ -294,22 +300,12 @@ public partial class CalendarView : UserControl
             return;
         }
 
-        if (await _tasks.Repository.GetTaskAsync(row.Id) is not { } task)
+        if (await _tasks.Repository.GetTaskAsync(row.Id) is { } task)
         {
-            return;
-        }
-
-        var window = new TaskDetailWindow(_tasks, task)
-        {
-            Owner = Window.GetWindow(this),
-        };
-
-        if (window.ShowDialog() == true && window.Changed)
-        {
-            await LoadListNamesAsync();
-            await ReloadAsync();
+            await OpenAsync(task);
         }
     }
+
 
     private async Task MoveMonthAsync(int months)
     {

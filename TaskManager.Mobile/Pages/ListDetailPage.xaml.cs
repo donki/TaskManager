@@ -143,7 +143,7 @@ public partial class ListDetailPage : ContentPage, Helpers.IBackHandler
         // Se abre el detalle: la caja de arriba solo recoge el titulo, y una tarea recien escrita
         // casi siempre necesita etiqueta (la lista ya la tiene, es esta). Quien no quiera tocar
         // nada mas, vuelve atras.
-        await Shell.Current.GoToAsync($"{nameof(TaskDetailPage)}?taskId={task.Id}");
+        await Ui.Platform.GoToAsync($"{nameof(TaskDetailPage)}?taskId={task.Id}");
         return task;
     }
 
@@ -207,7 +207,7 @@ public partial class ListDetailPage : ContentPage, Helpers.IBackHandler
             return;
         }
 
-        var name = await SocShared.ModernDialog.PromptAsync(this,
+        var name = await Ui.Platform.PromptAsync(this,
             Localization.Loc.Instance["ListNameTitle"], null, Localization.Loc.Instance["Save"], Localization.Loc.Instance["Cancel"], initialValue: list.Name);
 
         name = name?.Trim();
@@ -225,7 +225,7 @@ public partial class ListDetailPage : ContentPage, Helpers.IBackHandler
     {
         if (e.Parameter is Guid id)
         {
-            await Shell.Current.GoToAsync($"{nameof(TaskDetailPage)}?taskId={id}");
+            await Ui.Platform.GoToAsync($"{nameof(TaskDetailPage)}?taskId={id}");
         }
     }
 

@@ -2,6 +2,42 @@
 
 Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del día a dos cifras, el mismo que cierra el versionCode.
 
+## 2026.10.03.00 — Las pantallas, también probadas
+
+Windows `2026.10.3.0` · Android `2026.10.03.00`
+
+**Castellano**
+
+- Corregido: la racha («¡Racha x1,5!») y la subida de nivel de la celebración salían en castellano
+  con la aplicación en inglés (en el móvil y en el panel de Windows).
+- Corregido (Windows): la ventana principal podía enseñar tareas, listas y grupos repetidos cuando dos
+  recargas se cruzaban (elegir una lista dispara otra).
+- Corregido (Windows): la barra de marcar varias actuaba sobre la lista que se acababa de vaciar y
+  sus botones no hacían nada.
+- Corregido (Windows): si la entrada con la cuenta se quedaba sin respuesta, salía «Cannot access a
+  disposed object» en vez de «entrada cancelada».
+- Pruebas: además del núcleo, ahora se prueban las pantallas del móvil y las ventanas de Windows
+  (427 pruebas, `dotnet test TaskManager.Pruebas.slnx`). La cobertura sobre toda la aplicación pasa
+  del 36,8 % al **96,6 %**, contada de una forma nueva (solo sentencias; ver el README). Para poder
+  probarlas, la lógica que vivía en las pantallas pasa a clases propias y lo que toca el sistema va
+  detrás de interfaces; lo que se ve y lo que hace la aplicación no cambia.
+
+**English**
+
+- Fixed: the streak ("Streak x1.5!") and level-up messages of the celebration appeared in Spanish
+  with the app in English (on the phone and in the Windows panel).
+- Fixed (Windows): the main window could show duplicated tasks, lists and groups when two reloads
+  overlapped (picking a list triggers another one).
+- Fixed (Windows): the multi-select bar acted on the list that had just been emptied and its buttons
+  did nothing.
+- Fixed (Windows): when signing in timed out, it showed "Cannot access a disposed object" instead
+  of "sign-in cancelled".
+- Tests: besides the core, the phone screens and the Windows windows are now tested (427 tests,
+  `dotnet test TaskManager.Pruebas.slnx`). Line coverage over the whole app goes from 36.8 % to
+  **96.6 %**, counted in a new way (statements only; see the README). To test them, the logic that
+  lived in the screens moved to its own classes and what touches the system sits behind interfaces;
+  what the app shows and does is unchanged.
+
 ## 2026.09.30.00 — Una subida por tarea, no una por cambio
 
 Windows `2026.9.30.0` · Android `2026.09.30.00`

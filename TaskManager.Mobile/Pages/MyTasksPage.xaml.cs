@@ -93,10 +93,10 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
 
         // Version nueva: sus novedades salen solas una vez (General 6.7). El permiso de avisos se
         // pide a la vuelta, para no encadenar una pantalla y un dialogo del sistema.
-        if (_settings.HasUnseenVersion(AppInfo.Current.VersionString))
+        if (_settings.HasUnseenVersion(Ui.Platform.VersionString))
         {
-            await _settings.MarkVersionSeenAsync(AppInfo.Current.VersionString);
-            await Shell.Current.GoToAsync("//WhatsNewPage");
+            await _settings.MarkVersionSeenAsync(Ui.Platform.VersionString);
+            await Ui.Platform.GoToAsync("//WhatsNewPage");
             return;
         }
 
@@ -328,7 +328,7 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
     {
         var page = new TagsPage(_tasks);
         page.Disappearing += async (_, _) => { if (page.Changed) await ReloadAsync(); };
-        await Navigation.PushAsync(page);
+        await Ui.Platform.PushAsync(this, page);
     }
 
     private View BuildTagChip(string text, string? tag)
@@ -360,7 +360,7 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
                 if (button.Handler?.PlatformView is Android.Views.View native)
                 {
                     native.LongClickable = true;
-                    native.LongClick += (_, _) => MainThread.BeginInvokeOnMainThread(async () => await DeleteTagAsync(tag));
+                    native.LongClick += (_, _) => Ui.Platform.BeginInvokeOnMainThread(async () => await DeleteTagAsync(tag));
                 }
 #endif
             };
@@ -378,7 +378,7 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
         var loc = Localization.Loc.Instance;
         var (pending, total) = await _tasks.Repository.CountTagAsync(tag);
         var message = pending > 0 ? loc.Format("DeleteTagPending", tag, pending, total) : loc.Format("DeleteTagDone", tag, total);
-        if (!await SocShared.ModernDialog.AlertAsync(this, loc["DeleteTag"], message, loc["Delete"], loc["Cancel"]))
+        if (!await Ui.Platform.AlertAsync(this, loc["DeleteTag"], message, loc["Delete"], loc["Cancel"]))
         {
             return;
         }
@@ -390,7 +390,7 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
             await _settings.SetTaskTagAsync(null);
         }
         await ReloadAsync();
-        await SocShared.ModernDialog.AlertAsync(this, loc["DeleteTag"], loc.Format("TagDeleted", tag, removed), "OK");
+        await Ui.Platform.AlertAsync(this, loc["DeleteTag"], loc.Format("TagDeleted", tag, removed), "OK");
     }
 
     private static void Paint(Button chip, bool active)
@@ -443,7 +443,7 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
             return;
         }
 
-        await Shell.Current.GoToAsync($"{nameof(TaskDetailPage)}?taskId={id}");
+        await Ui.Platform.GoToAsync($"{nameof(TaskDetailPage)}?taskId={id}");
     }
 
     // -----------------------------------------------------------------------
@@ -541,7 +541,7 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
         var known = await _tasks.Repository.GetTagsAsync();
         var newOne = Localization.Loc.Instance["BulkTagHint"];
 
-        var chosen = await SocShared.ModernDialog.ActionSheetAsync(
+        var chosen = await Ui.Platform.ActionSheetAsync(
             this,
             Localization.Loc.Instance["BulkTag"],
             Localization.Loc.Instance["Cancel"],
@@ -553,7 +553,7 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
         }
 
         var tag = chosen == newOne
-            ? await SocShared.ModernDialog.PromptAsync(
+            ? await Ui.Platform.PromptAsync(
                 this, Localization.Loc.Instance["BulkTag"], Localization.Loc.Instance["BulkTagHint"])
             : chosen;
 
@@ -580,7 +580,7 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
             return;
         }
 
-        var chosen = await SocShared.ModernDialog.ActionSheetAsync(
+        var chosen = await Ui.Platform.ActionSheetAsync(
             this,
             Localization.Loc.Instance["BulkMove"],
             Localization.Loc.Instance["Cancel"],
@@ -603,7 +603,7 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
             return;
         }
 
-        var confirmed = await SocShared.ModernDialog.AlertAsync(
+        var confirmed = await Ui.Platform.AlertAsync(
             this,
             Localization.Loc.Instance["BulkDelete"],
             Localization.Loc.Instance.Format("BulkDeleteConfirm", ids.Count),
@@ -624,7 +624,7 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
             var loc = Localization.Loc.Instance;
             var whole = loc["WholeSeries"];
             var only = loc["OnlySelected"];
-            var choice = await SocShared.ModernDialog.ActionSheetAsync(this,
+            var choice = await Ui.Platform.ActionSheetAsync(this,
                 loc.Format("BulkDeleteSeriesQuestion", inSeries), loc["Cancel"], whole, only);
 
             if (choice is null)
@@ -669,7 +669,7 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
 
         // Se abre el detalle: la caja de arriba solo recoge el titulo, y una tarea recien escrita
         // casi siempre necesita lista y etiqueta. Quien no quiera tocar nada mas, vuelve atras.
-        await Shell.Current.GoToAsync($"{nameof(TaskDetailPage)}?taskId={task.Id}");
+        await Ui.Platform.GoToAsync($"{nameof(TaskDetailPage)}?taskId={task.Id}");
     }
 
     private async void OnToggleDoneClicked(object? sender, EventArgs e)

@@ -175,7 +175,7 @@ public partial class SettingsWindow : Window
         ShowAccount();
 
         var login = new LoginWindow(_auth) { Icon = Services.TrayIconHost.CreateWindowIcon() };
-        login.ShowDialog();
+        Ventanas.Modal(login);
 
         if (login.User is not null)
         {

@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Linq;
+using TaskManager.Desktop.Services;
 
 namespace TaskManager.Desktop.Controls;
 
@@ -88,7 +89,7 @@ public static class ModernDialog
 
         content.Children.Add(botones);
 
-        window.ShowDialog();
+        Ventanas.Modal(window);
     }
 
     /// <summary>Los bytes de un PNG, listos para pintar. Se congela: se comparte entre hilos.</summary>
@@ -144,7 +145,7 @@ public static class ModernDialog
             }
         };
 
-        return window.ShowDialog() == true;
+        return Ventanas.Modal(window) == true;
     }
 
     /// <summary>Un solo botón: enterarse y cerrar.</summary>
@@ -166,7 +167,7 @@ public static class ModernDialog
             }
         };
 
-        window.ShowDialog();
+        Ventanas.Modal(window);
     }
 
     /// <summary>
@@ -236,7 +237,7 @@ public static class ModernDialog
         };
 
         // Cerrar la ventana sin pulsar nada NO es "borralas": es no hacer nada.
-        cancelled = window.ShowDialog() != true;
+        cancelled = Ventanas.Modal(window) != true;
         if (cancelled || !chosen)
         {
             return null;
@@ -303,7 +304,7 @@ public static class ModernDialog
             }
         };
 
-        if (window.ShowDialog() != true || list.SelectedIndex < 0)
+        if (Ventanas.Modal(window) != true || list.SelectedIndex < 0)
         {
             return null;
         }
@@ -396,7 +397,7 @@ public static class ModernDialog
 
         box.Loaded += (_, _) => box.Focus();
 
-        if (window.ShowDialog() != true)
+        if (Ventanas.Modal(window) != true)
         {
             return null;
         }

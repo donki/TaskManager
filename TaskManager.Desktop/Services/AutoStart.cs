@@ -1,5 +1,3 @@
-using Microsoft.Win32;
-
 namespace TaskManager.Desktop.Services;
 
 /// <summary>
@@ -11,35 +9,22 @@ public static class AutoStart
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string ValueName = "TaskManager";
 
-    public static bool IsEnabled
-    {
-        get
-        {
-            using var key = Registry.CurrentUser.OpenSubKey(RunKey);
-            return key?.GetValue(ValueName) is string value && value.Contains("TaskManager", StringComparison.OrdinalIgnoreCase);
-        }
-    }
+    public static bool IsEnabled =>
+        Sistema.Actual.LeerRegistro(RunKey, ValueName) is string value &&
+        value.Contains("TaskManager", StringComparison.OrdinalIgnoreCase);
 
     public static void Set(bool enabled)
     {
-        using var key = Registry.CurrentUser.OpenSubKey(RunKey, writable: true);
-        if (key is null)
-        {
-            return;
-        }
+        var executable = Environment.ProcessPath;
 
-        if (enabled)
+        if (!enabled)
         {
-            var executable = Environment.ProcessPath;
-            if (!string.IsNullOrEmpty(executable))
-            {
-                // --tray: arrancar directamente escondido en la bandeja, sin abrir el panel.
-                key.SetValue(ValueName, $"\"{executable}\" --tray");
-            }
+            Sistema.Actual.BorrarRegistro(RunKey, ValueName);
         }
-        else
+        else if (!string.IsNullOrEmpty(executable))
         {
-            key.DeleteValue(ValueName, throwOnMissingValue: false);
+            // --tray: arrancar directamente escondido en la bandeja, sin abrir el panel.
+            Sistema.Actual.EscribirRegistro(RunKey, ValueName, $"\"{executable}\" --tray");
         }
     }
 }

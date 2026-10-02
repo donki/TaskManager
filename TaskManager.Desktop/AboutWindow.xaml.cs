@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Windows;
 using System.Windows.Navigation;
 using TaskManager.Core.Services;
@@ -27,26 +26,9 @@ public partial class AboutWindow : Window
         Services.ThemeManager.StyleTitleBar(this);
 
         LogoImage.Source = Services.TrayIconHost.CreateWindowIcon();
-        VersionLabel.Text = $"v{Version()}";   // Igual que en Android.
-    }
 
-    /// <summary>
-    /// La version que de verdad esta corriendo, leida del propio ejecutable.
-    /// </summary>
-    /// <remarks>
-    /// De <see cref="AssemblyInformationalVersionAttribute"/> y no de la del ensamblado, porque esa
-    /// es la que lleva el numero completo del csproj. Se le quita lo que .NET añade detras del «+»
-    /// (el hash del commit), que no le dice nada a nadie.
-    /// </remarks>
-    private static string Version()
-    {
-        var informativa = Assembly.GetExecutingAssembly()
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
-
-        var texto = informativa ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "?";
-        var mas = texto.IndexOf('+');
-
-        return mas > 0 ? texto[..mas] : texto;
+        // La version que de verdad esta corriendo, leida del propio ejecutable, igual que en Android.
+        VersionLabel.Text = $"v{WhatsNewWindow.CurrentVersion()}";
     }
 
     // -----------------------------------------------------------------------
@@ -55,10 +37,7 @@ public partial class AboutWindow : Window
     {
         try
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri)
-            {
-                UseShellExecute = true,
-            });
+            Services.Sistema.Actual.Abrir(e.Uri.AbsoluteUri);
         }
         catch (Exception ex)
         {

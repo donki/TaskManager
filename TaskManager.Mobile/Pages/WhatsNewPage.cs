@@ -24,20 +24,22 @@ public sealed class WhatsNewPage : ContentPage
     {
         base.OnAppearing();
 
-        var current = AppInfo.Current.VersionString;
+        var current = Ui.Platform.VersionString;
         await ServiceHelper.GetRequiredService<SettingsService>().MarkVersionSeenAsync(current);
 
         Fill(current);
     }
 
-    private void Fill(string current)
+    private void Fill(string current) => Fill(current, WhatsNew.Load(Localization.Loc.Instance.Language));
+
+    /// <summary>Pinta las versiones dadas (las pruebas pasan sus propias, tambien ninguna).</summary>
+    internal void Fill(string current, IReadOnlyList<WhatsNew.Release> releases)
     {
         var loc = Localization.Loc.Instance;
         var resources = Application.Current!.Resources;
         var culture = new CultureInfo(loc.Language);
 
         _list.Clear();
-        var releases = WhatsNew.Load(loc.Language);
         if (releases.Count == 0)
         {
             _list.Add(new Label { Text = loc["WhatsNewEmpty"], Style = (Style)resources["HintText"] });

@@ -32,19 +32,21 @@ public sealed class ReminderScheduler : IDisposable
         _settings = settings;
         _tray = tray;
 
-        _timer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
-        _timer.Tick += async (_, _) => await CheckAsync();
+        _timer = new DispatcherTimer { Interval = Interval };
+        _timer.Tick += async (_, _) => await CheckAsync(DateTime.Now);
         _timer.Start();
     }
 
-    private async Task CheckAsync()
+    /// <summary>Cada cuanto se mira el reloj. Un minuto; las pruebas lo acortan.</summary>
+    internal static TimeSpan Interval { get; set; } = TimeSpan.FromMinutes(1);
+
+    /// <summary>Lo que se hace en cada vuelta del reloj, con la hora que sea.</summary>
+    internal async Task CheckAsync(DateTime now)
     {
         if (!_settings.NotificationsEnabled)
         {
             return;
         }
-
-        var now = DateTime.Now;
 
         // Al cambiar el dia se olvida lo avisado: las tareas de hoy vuelven a poder avisar.
         if (_lastDailySummary.Date != now.Date)

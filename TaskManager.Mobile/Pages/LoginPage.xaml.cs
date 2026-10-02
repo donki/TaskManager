@@ -43,7 +43,7 @@ public partial class LoginPage : ContentPage
         // La demostracion entra sola, con tareas inventadas: es para las capturas de las tiendas, y
         // ahi no hay cuenta con la que entrar ni datos de nadie que se puedan enseñar.
         await Helpers.DemoData.SeedAsync(_tasks.Repository, _settings);
-        await Shell.Current.GoToAsync("//MyTasksPage");
+        await Ui.Platform.GoToAsync("//MyTasksPage");
         return;
 #endif
 
@@ -53,7 +53,7 @@ public partial class LoginPage : ContentPage
 
         if (restored is not null)
         {
-            await Shell.Current.GoToAsync("//MyTasksPage");
+            await Ui.Platform.GoToAsync("//MyTasksPage");
         }
     }
 
@@ -71,7 +71,7 @@ public partial class LoginPage : ContentPage
         {
             var user = await _auth.SignInLocallyAsync();
             await _tasks.AdoptAccountAsync(user.Id);
-            await Shell.Current.GoToAsync("//MyTasksPage");
+            await Ui.Platform.GoToAsync("//MyTasksPage");
         }
         catch (Exception ex)
         {
@@ -97,7 +97,7 @@ public partial class LoginPage : ContentPage
             // Lo hecho antes de entrar pasa a la cuenta: el nivel y las rachas no se pierden.
             await _tasks.AdoptAccountAsync(user.Id);
 
-            await Shell.Current.GoToAsync("//MyTasksPage");
+            await Ui.Platform.GoToAsync("//MyTasksPage");
         }
         catch (OperationCanceledException)
         {

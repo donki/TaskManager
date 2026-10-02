@@ -1,4 +1,5 @@
 using TaskManager.Core.Services;
+using TaskManager.Mobile.Helpers;
 
 namespace TaskManager.Mobile.Services;
 
@@ -58,11 +59,6 @@ public static class InviteShare
         }
 #endif
 
-        await Share.Default.RequestAsync(new ShareTextRequest
-        {
-            Text = texto,
-            Subject = asunto,
-            Title = titulo,
-        });
+        await Helpers.Ui.Platform.ShareTextAsync(texto, asunto, titulo);
     }
 }

@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using System.Windows.Interop;
 
 namespace TaskManager.Desktop.Services;
@@ -53,7 +52,7 @@ public sealed class GlobalHotkey : IDisposable
             return false;
         }
 
-        _registered = RegisterHotKey(_source.Handle, HotkeyId, (uint)(modifiers | Modifiers.NoRepeat), key);
+        _registered = Sistema.Actual.RegistrarAtajo(_source.Handle, HotkeyId, modifiers | (uint)Modifiers.NoRepeat, key);
         return _registered;
     }
 
@@ -61,7 +60,7 @@ public sealed class GlobalHotkey : IDisposable
     {
         if (_registered)
         {
-            UnregisterHotKey(_source.Handle, HotkeyId);
+            Sistema.Actual.SoltarAtajo(_source.Handle, HotkeyId);
             _registered = false;
         }
     }
@@ -77,7 +76,7 @@ public sealed class GlobalHotkey : IDisposable
         return IntPtr.Zero;
     }
 
-    private static (Modifiers Modifiers, uint Key) Parse(string combination)
+    internal static (uint Modifiers, uint Key) Parse(string combination)
     {
         Modifiers modifiers = 0;
         uint key = 0;
@@ -100,16 +99,8 @@ public sealed class GlobalHotkey : IDisposable
             }
         }
 
-        return (modifiers, key);
+        return ((uint)modifiers, key);
     }
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
     public void Dispose()
     {

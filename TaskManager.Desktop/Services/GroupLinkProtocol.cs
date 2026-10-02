@@ -1,5 +1,4 @@
 using System.IO;
-using Microsoft.Win32;
 using TaskManager.Core.Services;
 
 namespace TaskManager.Desktop.Services;
@@ -21,9 +20,7 @@ namespace TaskManager.Desktop.Services;
 public static class GroupLinkProtocol
 {
     /// <summary>Donde la copia nueva deja la invitacion para la que ya estaba abierta.</summary>
-    public static string BuzonPath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Socratic", "TaskManager", "invitacion.link");
+    public static string BuzonPath => Path.Combine(Rutas.Carpeta, "invitacion.link");
 
     /// <summary>
     /// Deja el esquema apuntando a este ejecutable. Si algo falla, se traga: no poder abrir
@@ -39,17 +36,11 @@ public static class GroupLinkProtocol
                 return;
             }
 
-            using var clave = Registry.CurrentUser.CreateSubKey(
-                $@"Software\Classes\{GroupLink.Scheme}");
-
-            clave.SetValue(string.Empty, "URL:Task Manager");
-            clave.SetValue("URL Protocol", string.Empty);
-
-            using var icono = clave.CreateSubKey("DefaultIcon");
-            icono.SetValue(string.Empty, $"\"{exe}\",0");
-
-            using var comando = clave.CreateSubKey(@"shell\open\command");
-            comando.SetValue(string.Empty, $"\"{exe}\" \"%1\"");
+            var clave = $@"Software\Classes\{GroupLink.Scheme}";
+            Sistema.Actual.EscribirRegistro(clave, string.Empty, "URL:Task Manager");
+            Sistema.Actual.EscribirRegistro(clave, "URL Protocol", string.Empty);
+            Sistema.Actual.EscribirRegistro($@"{clave}\DefaultIcon", string.Empty, $"\"{exe}\",0");
+            Sistema.Actual.EscribirRegistro($@"{clave}\shell\open\command", string.Empty, $"\"{exe}\" \"%1\"");
         }
         catch (Exception ex)
         {

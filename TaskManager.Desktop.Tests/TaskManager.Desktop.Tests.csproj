@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Pruebas de la interfaz de Windows (TaskManager.Desktop). Crean las ventanas WPF de verdad en un
+    hilo STA, fuera de la pantalla, con servicios reales sobre SQLite temporal, y pulsan sus botones.
+    Lo que toca el sistema (navegador, portapapeles, registro, atajo global, bandeja, avisos) va por
+    un sistema de mentira (Banco/SistemaFalso.cs): ninguna prueba toca el equipo de quien las corre.
+    Ejecutar: dotnet test TaskManager.Desktop.Tests
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Mismos usings implicitos que la aplicacion: WinForms y System.Drawing chocan con WPF. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+    <Using Include="Xunit" />
+    <Using Include="System.IO" />
+    <Using Include="System.Net.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- xunit (Apache-2.0), su runner (Apache-2.0), Microsoft.NET.Test.Sdk (MIT) y coverlet (MIT): solo para probar, no se distribuyen. -->
+    <PackageReference Include="coverlet.collector" Version="10.1.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TaskManager.Desktop\TaskManager.Desktop.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- La base temporal y el servidor de mentira son los mismos que usan las pruebas del nucleo. -->
+    <Compile Include="..\TaskManager.Tests\TestStore.cs" Link="Banco\TestStore.cs" />
+    <Compile Include="..\TaskManager.Tests\FakeHttp.cs" Link="Banco\FakeHttp.cs" />
+  </ItemGroup>
+
+</Project>

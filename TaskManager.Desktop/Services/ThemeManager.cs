@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
-using Microsoft.Win32;
 
 namespace TaskManager.Desktop.Services;
 
@@ -114,8 +113,7 @@ public static class ThemeManager
     {
         try
         {
-            using var key = Registry.CurrentUser.OpenSubKey(PersonalizeKey);
-            return key?.GetValue("AppsUseLightTheme") is int light && light == 0;
+            return Sistema.Actual.LeerRegistro(PersonalizeKey, "AppsUseLightTheme") is int light && light == 0;
         }
         catch
         {

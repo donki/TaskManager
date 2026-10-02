@@ -224,7 +224,7 @@ public partial class CalendarPage : ContentPage
     {
         if ((sender as BindableObject)?.BindingContext is TaskRow row)
         {
-            await Shell.Current.GoToAsync($"{nameof(TaskDetailPage)}?taskId={row.Id}");
+            await Ui.Platform.GoToAsync($"{nameof(TaskDetailPage)}?taskId={row.Id}");
         }
     }
 
@@ -249,7 +249,7 @@ public partial class CalendarPage : ContentPage
         QuickAdd.Text = string.Empty;
         await ReloadAsync();
 
-        await Shell.Current.GoToAsync($"{nameof(TaskDetailPage)}?taskId={task.Id}");
+        await Ui.Platform.GoToAsync($"{nameof(TaskDetailPage)}?taskId={task.Id}");
     }
 
     private async void OnPreviousMonthClicked(object? sender, EventArgs e) => await MoveMonthAsync(-1);

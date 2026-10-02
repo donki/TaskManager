@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Pruebas de la interfaz movil (TaskManager.Mobile): las paginas de verdad, construidas con su
+    XAML, con sus botones pulsados y sus resultados comprobados contra una base SQLite temporal.
+    Lo que solo existe en el movil (Shell, dialogos, portapapeles, camara, avisos) va detras de
+    IUiPlatform / IReminderPlatform y aqui lleva un doble.
+
+    Se apoya en el TFM net10.0 de la aplicacion (la via que documenta Microsoft para probar apps
+    MAUI): el APK sigue saliendo de net10.0-android36.0, que no cambia.
+    Ejecutar: dotnet test TaskManager.Mobile.Tests
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- xunit (Apache-2.0), su runner (Apache-2.0), Microsoft.NET.Test.Sdk (MIT) y coverlet (MIT): solo para probar, no se distribuyen. -->
+    <PackageReference Include="coverlet.collector" Version="10.1.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TaskManager.Mobile\TaskManager.Mobile.csproj" />
+    <ProjectReference Include="..\TaskManager.Core\TaskManager.Core.csproj" />
+  </ItemGroup>
+
+  <!-- El servidor de mentira y los dobles de sesion de las pruebas del nucleo: los mismos. -->
+  <ItemGroup>
+    <Compile Include="..\TaskManager.Tests\FakeHttp.cs" Link="FakeHttp.cs" />
+  </ItemGroup>
+
+</Project>

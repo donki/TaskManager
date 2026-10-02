@@ -37,7 +37,7 @@ public sealed class LoopbackOAuthBrowser : IOAuthBrowser
         listener.Prefixes.Add(RedirectUri);
         listener.Start();
 
-        Process.Start(new ProcessStartInfo(authorizeUrl.ToString()) { UseShellExecute = true });
+        Sistema.Actual.Abrir(authorizeUrl.ToString());
 
         // Sin este registro, cerrar el navegador sin entrar dejaria la espera colgada para siempre.
         using var registration = cancellationToken.Register(listener.Abort);
@@ -47,8 +47,12 @@ public sealed class LoopbackOAuthBrowser : IOAuthBrowser
         {
             context = await listener.GetContextAsync().ConfigureAwait(false);
         }
-        catch (HttpListenerException) when (cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (cancellationToken.IsCancellationRequested &&
+                                   ex is HttpListenerException or ObjectDisposedException)
         {
+            // Al abortar la escucha, .NET 10 ya no da HttpListenerException sino
+            // ObjectDisposedException: sin contar con ella, al vencer el tope de la entrada la
+            // puerta enseñaba «Cannot access a disposed object» en vez de «entrada cancelada».
             throw new TaskCanceledException("Entrada cancelada.");
         }
 

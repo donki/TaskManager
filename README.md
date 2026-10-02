@@ -48,22 +48,50 @@ dotnet publish TaskManager.Mobile -c Release -f net10.0-android36.0 -p:AndroidPa
 
 ## Pruebas
 
-`TaskManager.Tests` (xUnit) prueba el núcleo compartido `TaskManager.Core`: repeticiones y series,
-filtros, etiquetas, XP/niveles/rachas, repositorio SQLite (en ficheros temporales), `TaskService`,
-cifrado de texto y de grupo, invitaciones, traducciones (mismas claves y marcadores en es/en, y
-que existan todas las que piden las pantallas), novedades, ajustes, y la entrada con cuenta y la
-sincronización con Supabase contra un servidor HTTP falso (nada sale a la red). La interfaz (MAUI
-y WPF) no se prueba aquí.
+El banco entero se lanza con un solo `dotnet test TaskManager.Pruebas.slnx` (tres proyectos xUnit):
 
-| Fecha | Pruebas | Cobertura del núcleo | Cobertura sobre toda la app | Tiempo del banco |
+- `TaskManager.Tests` prueba el núcleo compartido `TaskManager.Core`: repeticiones y series,
+  filtros, etiquetas, XP/niveles/rachas, repositorio SQLite (en ficheros temporales), `TaskService`,
+  cifrado de texto y de grupo, invitaciones, traducciones (mismas claves y marcadores en es/en),
+  novedades, ajustes, y la entrada con cuenta y la sincronización con Supabase contra un servidor
+  HTTP falso (nada sale a la red).
+- `TaskManager.Mobile.Tests` construye de verdad las páginas MAUI del móvil (el proyecto de la app
+  compila también para `net10.0`, solo para esto) con un dispatcher de prueba y servicios reales sobre
+  SQLite temporal, y pulsa sus botones: Mis tareas, detalle, listas, tablero, calendario, grupos,
+  correo, ajustes, entrada, novedades, el Shell y el botón de atrás. Lo que toca el sistema
+  (navegación, diálogos, portapapeles, avisos, navegador) va por interfaces con un doble.
+- `TaskManager.Desktop.Tests` crea las ventanas WPF de Windows en un hilo STA, fuera de la pantalla y
+  con la `App` real, y las maneja igual: la bandeja, el panel rápido, la ventana principal, el detalle,
+  el calendario, ajustes, entrada y el arranque entero. No toca el registro, ni
+  `%LOCALAPPDATA%`, ni el portapapeles, ni la bandeja de verdad, ni la app que esté abierta.
+
+| Fecha | Pruebas | Cobertura de lo instrumentado | Cobertura sobre toda la app | Tiempo del banco |
 |---|---|---|---|---|
+| 2026-10-02 | 427 (pasan todas: 255 + 97 + 75) | 98,1 % (7878 de 8031 líneas) | **96,6 %** (7878 de 8153 líneas) | ≈2 min 20 s (los tres a la vez; el de Windows marca el tiempo) |
 | 2026-09-30 | 254 (pasan todas) | 97,3 % (3919 de 4026 líneas) | ≈39 % (3919 de ≈10 000 líneas) | ≈11 s |
 
+**Cómo se cuenta «toda la app»** (`tools/cobertura-app.py`, desde el 2026-10-02): todos los `.cs`
+de `TaskManager.Core`, `TaskManager.Mobile` y `TaskManager.Desktop` (fuera `obj/`, `bin/`, `*.g.cs`,
+`*.Designer.cs` y los proyectos de pruebas). Solo cuentan las líneas con **sentencias**, que es lo
+que coverlet mide: no cuentan llaves sueltas, `using`, `namespace`, atributos, constantes, campos sin
+valor, firmas de métodos ni el interior de interfaces y enum. De los ficheros que compila el banco se
+toman las líneas que marca coverlet (sin excluir `CompilerGeneratedAttribute`, así que cuentan los
+métodos `async` y las lambdas); los que el banco no compila (`Platforms/Android`) se cuentan con
+esas reglas y entran enteros como **no cubiertos**. En lo instrumentado, las reglas y coverlet
+difieren en un 0,2 %. La cifra del 2026-09-30 contaba también llaves y declaraciones; con la
+cuenta nueva aquel banco daba el 36,8 %.
+
+Lo que queda sin cubrir (275 líneas): el código nativo de Android (`Platforms/Android`, ≈125: avisos,
+sincronización de fondo, actividad), las llamadas finales a Windows de verdad (registro, navegador,
+portapapeles, captura), el arranque de MAUI en el móvil y ramas defensivas que no se dan.
+
 ```
-dotnet test TaskManager.Tests
-dotnet test TaskManager.Tests --collect:"XPlat Code Coverage"
-dotnet tool restore && dotnet reportgenerator -reports:"**/coverage.cobertura.xml" -targetdir:cobertura -reporttypes:TextSummary
+dotnet test TaskManager.Pruebas.slnx
+dotnet test TaskManager.Pruebas.slnx --collect:"XPlat Code Coverage" --results-directory cobertura
+python tools/cobertura-app.py cobertura --detalle
 ```
+
+Las pruebas de interfaz en el dispositivo (Appium, `TaskManager.UITests`) van aparte: ver su README.
 
 ## La aplicación de escritorio
 

@@ -18,6 +18,7 @@ public sealed class Loc : INotifyPropertyChanged
     private static Loc? _instance;
 
     private LocalizationService? _service;
+    private IServiceProvider? _from;
 
     private Loc()
     {
@@ -30,8 +31,23 @@ public sealed class Loc : INotifyPropertyChanged
     /// <summary>El servicio de textos, para lo que necesita el objeto y no solo una clave.</summary>
     public LocalizationService Textos => Service;
 
-    private LocalizationService Service =>
-        _service ??= ServiceHelper.GetRequiredService<LocalizationService>();
+    /// <summary>
+    /// El servicio del contenedor en uso. Se vuelve a pedir si el contenedor cambia: en la
+    /// aplicacion no cambia nunca, pero las pruebas montan uno nuevo por prueba.
+    /// </summary>
+    private LocalizationService Service
+    {
+        get
+        {
+            if (_service is null || !ReferenceEquals(_from, ServiceHelper.Services))
+            {
+                _service = ServiceHelper.GetRequiredService<LocalizationService>();
+                _from = ServiceHelper.Services;
+            }
+
+            return _service;
+        }
+    }
 
     public string this[string key] => Service[key];
 
@@ -47,7 +63,7 @@ public sealed class Loc : INotifyPropertyChanged
         // que aqui ya se esta en un hilo del pool y MAUI ignora los cambios de enlace que llegan
         // desde fuera del hilo principal (se veia como que el idioma se guardaba pero la pantalla
         // seguia igual).
-        MainThread.BeginInvokeOnMainThread(() =>
+        Ui.Platform.BeginInvokeOnMainThread(() =>
         {
             // "Item[]" es la forma de decirle a los enlaces que TODO el indexador cambio.
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("Item[]"));

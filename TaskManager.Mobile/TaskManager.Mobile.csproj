@@ -19,8 +19,10 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <TargetFrameworks>net10.0-android36.0</TargetFrameworks>
-    <OutputType>Exe</OutputType>
+    <!-- net10.0 no es una plataforma: es la biblioteca que prueba TaskManager.Mobile.Tests (la via
+         que documenta Microsoft para probar apps MAUI). El APK sale solo de net10.0-android36.0. -->
+    <TargetFrameworks>net10.0-android36.0;net10.0</TargetFrameworks>
+    <OutputType Condition="'$(TargetFramework)' != 'net10.0'">Exe</OutputType>
     <RootNamespace>TaskManager.Mobile</RootNamespace>
     <UseMaui>true</UseMaui>
     <SingleProject>true</SingleProject>
@@ -34,8 +36,8 @@
     <ApplicationId>com.socratic.taskmanager</ApplicationId>
 
     <!-- Versions (constitucion A.4: ambos valores en sincronia, esquema de fecha) -->
-    <ApplicationDisplayVersion>2026.09.30.00</ApplicationDisplayVersion>
-    <ApplicationVersion>2026093000</ApplicationVersion>
+    <ApplicationDisplayVersion>2026.10.03.00</ApplicationDisplayVersion>
+    <ApplicationVersion>2026100300</ApplicationVersion>
 
     <AcceptAndroidSDKLicenses>true</AcceptAndroidSDKLicenses>
 
@@ -58,8 +60,8 @@
     <AndroidUseLatestPlatformSdk>false</AndroidUseLatestPlatformSdk>
     <AndroidCreatePackagePerAbi>false</AndroidCreatePackagePerAbi>
 
-    <AssemblyVersion>2026.9.30.0</AssemblyVersion>
-    <FileVersion>2026.9.30.0</FileVersion>
+    <AssemblyVersion>2026.10.3.0</AssemblyVersion>
+    <FileVersion>2026.10.3.0</FileVersion>
   </PropertyGroup>
 
   <!--
@@ -96,6 +98,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TaskManager.Core\TaskManager.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Las pruebas de la interfaz (TaskManager.Mobile.Tests) ven lo interno: el TFM net10.0 de
+       arriba existe solo para ellas. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="TaskManager.Mobile.Tests" />
   </ItemGroup>
 
   <!-- Ficheros compartidos por las apps sOCratic (una sola fuente de verdad, anexo E). -->

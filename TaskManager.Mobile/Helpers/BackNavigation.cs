@@ -13,11 +13,56 @@ public interface IBackHandler
     bool HandleBack();
 }
 
+/// <summary>Lo que hace el boton de atras cuando no hay menu lateral abierto.</summary>
+public enum BackAction
+{
+    /// <summary>Lo ha atendido la pantalla (o un dialogo): no se navega.</summary>
+    Handled,
+
+    /// <summary>Hay una pantalla apilada: se vuelve a la anterior.</summary>
+    Pop,
+
+    /// <summary>Otra pantalla del menu: se vuelve a «Mis tareas».</summary>
+    GoHome,
+
+    /// <summary>En «Mis tareas» o en la entrada: se oculta la aplicacion.</summary>
+    Hide,
+}
+
 /// <summary>
 /// Lo que el boton de atras cierra antes de navegar.
 /// </summary>
 public static class BackNavigation
 {
+    /// <summary>La pantalla de inicio: atras desde otra del menu vuelve aqui.</summary>
+    public const string HomeRoute = "MyTasksPage";
+
+    /// <summary>
+    /// Que hace atras (Mobile 7): primero se cierra lo que haya encima —un dialogo, o lo que la
+    /// propia pantalla tenga abierto—; despues, con una pantalla apilada se vuelve a la anterior;
+    /// desde otra pantalla del menu se vuelve a «Mis tareas», y en «Mis tareas» (o en la entrada,
+    /// si no hay sesion) la aplicacion se oculta.
+    /// </summary>
+    public static BackAction Decide(Page? page, int stackCount, string? route)
+    {
+        if (CloseDialog(page))
+        {
+            return BackAction.Handled;
+        }
+
+        if (page is IBackHandler handler && handler.HandleBack())
+        {
+            return BackAction.Handled;
+        }
+
+        if (stackCount > 1)
+        {
+            return BackAction.Pop;
+        }
+
+        return route is not (HomeRoute or "LoginPage") ? BackAction.GoHome : BackAction.Hide;
+    }
+
     // El mismo identificador con el que SocShared.ModernDialog marca su velo.
     private const string DialogOverlayId = "__modernDialogOverlay";
 
@@ -58,15 +103,4 @@ public static class BackNavigation
     // tocarlo, y la unica forma de lanzar su evento desde fuera.
     private static readonly System.Reflection.MethodInfo? SendTapped = typeof(TapGestureRecognizer).GetMethod(
         "SendTapped", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
-
-    /// <summary>
-    /// En la pantalla de inicio, atras oculta la aplicacion (se ve la pantalla del sistema) sin
-    /// cerrarla: al volver sigue donde estaba.
-    /// </summary>
-    public static void HideApp()
-    {
-#if ANDROID
-        Platform.CurrentActivity?.MoveTaskToBack(true);
-#endif
-    }
 }

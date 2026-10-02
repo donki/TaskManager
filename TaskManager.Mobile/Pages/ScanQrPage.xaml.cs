@@ -1,5 +1,6 @@
 using TaskManager.Core.Services;
 using ZXing.Net.Maui;
+using TaskManager.Mobile.Helpers;
 
 namespace TaskManager.Mobile.Pages;
 
@@ -19,7 +20,7 @@ namespace TaskManager.Mobile.Pages;
 public partial class ScanQrPage : ContentPage
 {
     /// <summary>Lo que se espera a que la camara empiece a dar imagen antes de sospechar.</summary>
-    private static readonly TimeSpan Paciencia = TimeSpan.FromSeconds(6);
+    internal static TimeSpan Paciencia { get; set; } = TimeSpan.FromSeconds(6);
 
     private readonly TaskCompletionSource<GroupInvite?> _resultado = new();
     private int _entregado;
@@ -63,17 +64,11 @@ public partial class ScanQrPage : ContentPage
     /// </summary>
     public static async Task<GroupInvite?> PedirAsync(Page origen)
     {
-        var permiso = await Permissions.CheckStatusAsync<Permissions.Camera>();
-        if (permiso != PermissionStatus.Granted)
-        {
-            permiso = await Permissions.RequestAsync<Permissions.Camera>();
-        }
-
-        if (permiso != PermissionStatus.Granted)
+        if (!await Ui.Platform.CameraAllowedAsync())
         {
             // Sin camara no hay lectura, pero el codigo y la clave se pueden teclear: se dice, en
             // vez de dejar una pantalla en negro sin explicacion.
-            await SocShared.ModernDialog.AlertAsync(
+            await Ui.Platform.AlertAsync(
                 origen,
                 Localization.Loc.Instance["ScanTitle"],
                 Localization.Loc.Instance["ScanNoCamera"],
@@ -83,7 +78,7 @@ public partial class ScanQrPage : ContentPage
         }
 
         var pagina = new ScanQrPage();
-        await origen.Navigation.PushAsync(pagina);
+        await Ui.Platform.PushAsync(origen, pagina);
 
         return await pagina._resultado.Task;
     }
@@ -135,7 +130,7 @@ public partial class ScanQrPage : ContentPage
                 // con lo que ponia dentro, que es lo unico que distingue «he leido otra cosa» de «he
                 // leido el nuestro y ha llegado roto», y se sigue mirando: cerrar la camara
                 // obligaria a volver a abrirla para el bueno.
-                await SocShared.ModernDialog.AlertAsync(
+                await Ui.Platform.AlertAsync(
                     this,
                     Localization.Loc.Instance["ScanTitle"],
                     Localization.Loc.Instance["ScanNotOurs"] + Environment.NewLine + Environment.NewLine + texto,
@@ -149,7 +144,7 @@ public partial class ScanQrPage : ContentPage
             // Primero se guarda y luego se cierra: al cerrar salta OnNavigatedFrom, que responde con
             // esto mismo. Al reves se perdia la lectura.
             _leido = invite;
-            await Navigation.PopAsync();
+            await Ui.Platform.PopAsync(this);
             _resultado.TrySetResult(invite);
         });
     }
@@ -157,7 +152,7 @@ public partial class ScanQrPage : ContentPage
     private async void OnCloseClicked(object? sender, EventArgs e)
     {
         Camara.IsDetecting = false;
-        await Navigation.PopAsync();
+        await Ui.Platform.PopAsync(this);
     }
 
     /// <summary>

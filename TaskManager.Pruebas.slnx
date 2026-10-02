@@ -1,0 +1,10 @@
+<!-- El banco de pruebas entero (constitucion General 8.6): dotnet test TaskManager.Pruebas.slnx.
+     Sin TaskManager.UITests, que necesita Appium y un emulador (General 8.7). -->
+<Solution>
+  <Project Path="TaskManager.Core/TaskManager.Core.csproj" />
+  <Project Path="TaskManager.Mobile/TaskManager.Mobile.csproj" />
+  <Project Path="TaskManager.Desktop/TaskManager.Desktop.csproj" />
+  <Project Path="TaskManager.Tests/TaskManager.Tests.csproj" />
+  <Project Path="TaskManager.Mobile.Tests/TaskManager.Mobile.Tests.csproj" />
+  <Project Path="TaskManager.Desktop.Tests/TaskManager.Desktop.Tests.csproj" />
+</Solution>

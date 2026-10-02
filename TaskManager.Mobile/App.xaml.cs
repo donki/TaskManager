@@ -1,3 +1,5 @@
+using TaskManager.Mobile.Helpers;
+
 namespace TaskManager.Mobile;
 
 public partial class App : Application
@@ -53,11 +55,11 @@ public partial class App : Application
             // que en cuanto vuelve a estar viva se lleva a «Mis grupos», que es quien sabe entrar.
             if (Services.GroupInviteLinks.Hay && Shell.Current is not null)
             {
-                MainThread.BeginInvokeOnMainThread(async () =>
+                Ui.Platform.BeginInvokeOnMainThread(async () =>
                 {
                     try
                     {
-                        await Shell.Current.GoToAsync("//GroupsPage");
+                        await Ui.Platform.GoToAsync("//GroupsPage");
                     }
                     catch (Exception ex)
                     {
@@ -98,7 +100,7 @@ public partial class App : Application
         var notifications = Helpers.ServiceHelper.GetRequiredService<Core.Services.INotificationService>();
         var texts = Helpers.ServiceHelper.GetRequiredService<Core.Services.LocalizationService>();
 
-        _syncing.TaskArrived += (_, task) => MainThread.BeginInvokeOnMainThread(() =>
+        _syncing.TaskArrived += (_, task) => Ui.Platform.BeginInvokeOnMainThread(() =>
             notifications.Notify(texts["MenuMyTasks"], texts.Format("TaskArrivedFromDevice", task.Title)));
 
         return _syncing;

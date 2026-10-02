@@ -1,4 +1,5 @@
 using TaskManager.Core.Services;
+using TaskManager.Mobile.Helpers;
 
 namespace TaskManager.Mobile.Pages;
 
@@ -50,7 +51,7 @@ public sealed class TagsPage : ContentPage
             delete.Clicked += async (_, _) =>
             {
                 var message = pending > 0 ? loc.Format("DeleteTagPending", tag, pending, total) : loc.Format("DeleteTagDone", tag, total);
-                if (!await SocShared.ModernDialog.AlertAsync(this, loc["DeleteTag"], message, loc["Delete"], loc["Cancel"]))
+                if (!await Ui.Platform.AlertAsync(this, loc["DeleteTag"], message, loc["Delete"], loc["Cancel"]))
                     return;
                 await _tasks.Repository.DeleteTagAsync(tag);
                 Changed = true;

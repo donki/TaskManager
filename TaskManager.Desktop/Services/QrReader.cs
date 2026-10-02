@@ -2,7 +2,6 @@ using System.IO;
 using System.Windows.Media.Imaging;
 using TaskManager.Core.Services;
 using Drawing = System.Drawing;
-using Forms = System.Windows.Forms;
 
 namespace TaskManager.Desktop.Services;
 
@@ -62,42 +61,37 @@ public static class QrReader
     /// </summary>
     public static GroupInvite? DesdePortapapeles()
     {
-        if (System.Windows.Clipboard.ContainsText() &&
-            Uri.TryCreate(System.Windows.Clipboard.GetText().Trim(), UriKind.Absolute, out var enlace) &&
+        if (Sistema.Actual.HayTexto() &&
+            Uri.TryCreate(Sistema.Actual.LeerTexto().Trim(), UriKind.Absolute, out var enlace) &&
             GroupLink.Read(enlace) is { } deTexto)
         {
             return deTexto;
         }
 
-        if (!System.Windows.Clipboard.ContainsImage())
+        if (!Sistema.Actual.HayImagen())
         {
             return null;
         }
 
-        using var imagen = AMapaDeBits(System.Windows.Clipboard.GetImage());
+        using var imagen = AMapaDeBits(Sistema.Actual.LeerImagen());
         return imagen is null ? null : Leer(imagen);
     }
 
     /// <summary>Busca el QR en lo que se este viendo, monitor por monitor.</summary>
     public static GroupInvite? DesdePantalla()
     {
-        foreach (var pantalla in Forms.Screen.AllScreens)
+        var fotos = Sistema.Actual.CapturarPantallas();
+        try
         {
-            var area = pantalla.Bounds;
-            using var foto = new Drawing.Bitmap(area.Width, area.Height);
-
-            using (var lienzo = Drawing.Graphics.FromImage(foto))
+            return fotos.Select(Leer).FirstOrDefault(invite => invite is not null);
+        }
+        finally
+        {
+            foreach (var foto in fotos)
             {
-                lienzo.CopyFromScreen(area.Location, Drawing.Point.Empty, area.Size);
-            }
-
-            if (Leer(foto) is { } invite)
-            {
-                return invite;
+                foto.Dispose();
             }
         }
-
-        return null;
     }
 
     /// <summary>

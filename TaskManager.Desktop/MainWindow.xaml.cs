@@ -6,6 +6,8 @@ using System.Windows.Input;
 using TaskManager.Core.Data;
 using TaskManager.Core.Models;
 using TaskManager.Core.Services;
+using TaskManager.Desktop.Controls;
+using TaskManager.Desktop.Services;
 
 namespace TaskManager.Desktop;
 
@@ -264,7 +266,7 @@ public partial class MainWindow : Window
     private async void OnTagsClick(object sender, RoutedEventArgs e)
     {
         var window = new TagsWindow(this, _tasks);
-        window.ShowDialog();
+        Ventanas.Modal(window);
         if (window.Changed)
             await ReloadAllTasksAsync();
     }
@@ -433,16 +435,17 @@ public partial class MainWindow : Window
     {
         var selected = _selectedList;
 
-        _lists.Clear();
-        _listNames.Clear();
+        // Se lee todo antes de tocar lo que se ve. Dos recargas pueden solaparse —elegir la lista
+        // dispara otra—, y vaciar antes de esperar a la base dejaba que las dos rellenaran la
+        // misma coleccion: salian las listas repetidas.
+        var rows = new List<ListRow>();
 
         foreach (var list in await _tasks.Repository.GetPrivateListsAsync())
         {
             var tasks = await _tasks.Repository.GetTasksAsync(list.Id);
             var pending = tasks.Count(t => !t.IsDone);
 
-            _listNames[list.Id] = list.Name;
-            _lists.Add(new ListRow(list.Id, list.Name,
+            rows.Add(new ListRow(list.Id, list.Name,
                 pending == 1 ? T("OnePending") : F("ManyPending", pending)));
         }
 
@@ -456,10 +459,17 @@ public partial class MainWindow : Window
                 var tasks = await _tasks.Repository.GetTasksAsync(list.Id);
                 var pending = tasks.Count(t => !t.IsDone);
 
-                _listNames[list.Id] = list.Name;
-                _lists.Add(new ListRow(list.Id, list.Name,
+                rows.Add(new ListRow(list.Id, list.Name,
                     $"{group.Name} · {(pending == 1 ? T("OnePending") : F("ManyPending", pending))}"));
             }
+        }
+
+        _lists.Clear();
+        _listNames.Clear();
+        foreach (var row in rows)
+        {
+            _lists.Add(row);
+            _listNames[row.Id] = row.Name;
         }
 
         if (_lists.Count == 0)
@@ -489,21 +499,27 @@ public partial class MainWindow : Window
 
     private async Task ReloadListTasksAsync()
     {
-        _listTasks.Clear();
-
         if (_selectedList == Guid.Empty)
         {
+            _listTasks.Clear();
             ListFooterLabel.Text = string.Empty;
             return;
         }
 
-        foreach (var task in await _tasks.Repository.GetTasksAsync(_selectedList, search: _listSearch))
+        // Todo lo que hay que esperar, antes de tocar la coleccion: elegir una lista dispara otra
+        // recarga, y si las dos vaciaban y luego esperaban, las dos la rellenaban y salian las
+        // tareas repetidas.
+        var listId = _selectedList;
+        var tasks = await _tasks.Repository.GetTasksAsync(listId, search: _listSearch);
+        var progress = await _tasks.Repository.CountProgressAsync(listId);
+
+        _listTasks.Clear();
+        foreach (var task in tasks)
         {
             _listTasks.Add(new TaskRow(task, string.Empty));
         }
 
-        ListFooterLabel.Text = Footer(_listTasks.Count(r => !r.IsDone),
-            await _tasks.Repository.CountProgressAsync(_selectedList));
+        ListFooterLabel.Text = Footer(tasks.Count(t => !t.IsDone), progress);
     }
 
     private async void OnNewListClick(object sender, RoutedEventArgs e)
@@ -681,39 +697,23 @@ public partial class MainWindow : Window
     /// </remarks>
     private void OnTaskDragStart(object sender, MouseButtonEventArgs e)
     {
-        _dragStart = e.GetPosition(null);
+        _dragStart = Arrastre.Posicion(e);
         _dragList = sender as ListBox;
-        _dragging = RowUnder(e.OriginalSource as DependencyObject);
+        _dragging = Arrastre.Contenido<TaskRow>(e.OriginalSource as DependencyObject);
     }
 
     private void OnTaskDragMove(object sender, MouseEventArgs e)
     {
-        if (_dragging is null || _dragList is null || e.LeftButton != MouseButtonState.Pressed)
-        {
-            return;
-        }
-
         // Con Ctrl o Mayus pulsados no se arrastra: esos son los gestos de marcar varias.
-        if (Keyboard.Modifiers != ModifierKeys.None)
+        if (_dragging is null || _dragList is null || !Arrastre.Empieza(e, _dragStart, sinTeclas: true))
         {
             return;
         }
 
-        var moved = e.GetPosition(null) - _dragStart;
-        if (Math.Abs(moved.X) < SystemParameters.MinimumHorizontalDragDistance &&
-            Math.Abs(moved.Y) < SystemParameters.MinimumVerticalDragDistance)
-        {
-            return;
-        }
-
-        DragDrop.DoDragDrop(_dragList, _dragging, DragDropEffects.Move);
+        Sistema.Actual.Arrastrar(_dragList, _dragging);
     }
 
-    private void OnTaskDragOver(object sender, DragEventArgs e)
-    {
-        e.Effects = e.Data.GetDataPresent(typeof(TaskRow)) ? DragDropEffects.Move : DragDropEffects.None;
-        e.Handled = true;
-    }
+    private void OnTaskDragOver(object sender, DragEventArgs e) => Arrastre.AlPasar<TaskRow>(e);
 
     private async void OnTaskDrop(object sender, DragEventArgs e)
     {
@@ -723,18 +723,15 @@ public partial class MainWindow : Window
         }
 
         var rows = ReferenceEquals(list, AllTasksBox) ? _allTasks : _listTasks;
-        var target = RowUnder(e.OriginalSource as DependencyObject);
-
-        var from = rows.IndexOf(moved);
 
         // Soltar fuera de cualquier fila deja la tarea al final: es lo que se espera al arrastrar
         // hacia el hueco de abajo.
-        var to = target is null ? rows.Count - 1 : rows.IndexOf(target);
+        var move = Arrastre.Destino(rows, moved, Arrastre.Contenido<TaskRow>(e.OriginalSource as DependencyObject));
 
         _dragging = null;
         _dragList = null;
 
-        if (from < 0 || to < 0 || from == to)
+        if (move is not var (from, to))
         {
             return;
         }
@@ -926,35 +923,19 @@ public partial class MainWindow : Window
     // Arrastrar de una columna a otra
     // -----------------------------------------------------------------------
 
-    private void OnKanbanDragStart(object sender, MouseButtonEventArgs e)
-    {
-        _dragStart = e.GetPosition(null);
-        _dragging = RowUnder(e.OriginalSource as DependencyObject);
-        _dragList = sender as ListBox;
-    }
+    private void OnKanbanDragStart(object sender, MouseButtonEventArgs e) => OnTaskDragStart(sender, e);
 
     private void OnKanbanDragMove(object sender, MouseEventArgs e)
     {
-        if (_dragging is null || _dragList is null || e.LeftButton != MouseButtonState.Pressed)
+        if (_dragging is null || _dragList is null || !Arrastre.Empieza(e, _dragStart))
         {
             return;
         }
 
-        var moved = e.GetPosition(null) - _dragStart;
-        if (Math.Abs(moved.X) < SystemParameters.MinimumHorizontalDragDistance &&
-            Math.Abs(moved.Y) < SystemParameters.MinimumVerticalDragDistance)
-        {
-            return;
-        }
-
-        DragDrop.DoDragDrop(_dragList, _dragging, DragDropEffects.Move);
+        Sistema.Actual.Arrastrar(_dragList, _dragging);
     }
 
-    private void OnKanbanDragOver(object sender, DragEventArgs e)
-    {
-        e.Effects = e.Data.GetDataPresent(typeof(TaskRow)) ? DragDropEffects.Move : DragDropEffects.None;
-        e.Handled = true;
-    }
+    private void OnKanbanDragOver(object sender, DragEventArgs e) => Arrastre.AlPasar<TaskRow>(e);
 
     /// <summary>
     /// Soltar una tarjeta en <b>otra</b> columna le cambia el estado; soltarla en <b>la suya</b> la
@@ -984,13 +965,9 @@ public partial class MainWindow : Window
         // Dentro de su propia columna no se cambia nada de estado: se recoloca.
         if (target.Contains(moved))
         {
-            var from = target.IndexOf(moved);
-            var over = RowUnder(e.OriginalSource as DependencyObject);
-
             // Soltar en el hueco de abajo deja la tarjeta la ultima, que es lo que se espera.
-            var to = over is null ? target.Count - 1 : target.IndexOf(over);
-
-            if (from >= 0 && to >= 0 && from != to)
+            if (Arrastre.Destino(target, moved, Arrastre.Contenido<TaskRow>(e.OriginalSource as DependencyObject))
+                is var (from, to))
             {
                 target.Move(from, to);
 
@@ -1033,16 +1010,6 @@ public partial class MainWindow : Window
         await ReloadListTasksAsync();
     }
 
-    /// <summary>La fila sobre la que esta el raton, subiendo desde lo que se pulso.</summary>
-    private static TaskRow? RowUnder(DependencyObject? source)
-    {
-        while (source is not null and not ListBoxItem)
-        {
-            source = System.Windows.Media.VisualTreeHelper.GetParent(source);
-        }
-
-        return (source as ListBoxItem)?.Content as TaskRow;
-    }
 
     // =======================================================================
     // Acciones sobre una tarea
@@ -1065,7 +1032,13 @@ public partial class MainWindow : Window
             return;
         }
 
-        _selectionBox = box;
+        // La barra actua sobre la lista donde hay algo marcado. Al marcar en una, la otra se
+        // suelta (mas abajo) y avisa de que se ha quedado vacia: si eso cambiara la lista de la
+        // barra, sus botones actuarian sobre la que ya no tiene nada y no harian nada.
+        if (box.SelectedItems.Count > 0)
+        {
+            _selectionBox = box;
+        }
 
         var mine = ReferenceEquals(box, AllTasksBox);
         var bar = mine ? SelectionBar : ListSelectionBar;
@@ -1274,14 +1247,7 @@ public partial class MainWindow : Window
     /// </remarks>
     private async void OnRowDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
-        var source = e.OriginalSource as DependencyObject;
-
-        while (source is not null and not ListBoxItem)
-        {
-            source = System.Windows.Media.VisualTreeHelper.GetParent(source);
-        }
-
-        if (source is ListBoxItem { Content: TaskRow row })
+        if (Arrastre.Contenido<TaskRow>(e.OriginalSource as DependencyObject) is { } row)
         {
             await OpenTaskAsync(row.Id);
         }
@@ -1310,7 +1276,7 @@ public partial class MainWindow : Window
             Icon = Services.TrayIconHost.CreateWindowIcon(),
         };
 
-        window.ShowDialog();
+        Ventanas.Modal(window);
 
         if (window.Changed)
         {
@@ -1334,7 +1300,9 @@ public partial class MainWindow : Window
     /// </remarks>
     private async Task ReloadGroupsAsync()
     {
-        _groups.Clear();
+        // Como en las listas: se lee todo y despues se pinta, para que dos recargas solapadas no
+        // repitan grupos.
+        var groups = new List<GroupRow>();
 
         foreach (var group in await _tasks.Repository.GetGroupsAsync())
         {
@@ -1349,9 +1317,16 @@ public partial class MainWindow : Window
                     pending == 1 ? T("OnePending") : F("ManyPending", pending)));
             }
 
-            _groups.Add(new GroupRow(group.Id, group.Name,
+            groups.Add(new GroupRow(group.Id, group.Name,
                 F("GroupCaption", group.JoinCode, lists.Count), lists));
         }
+
+        _groups.Clear();
+        foreach (var row in groups)
+        {
+            _groups.Add(row);
+        }
+
 
         GroupsEmpty.Visibility = _groups.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -1489,7 +1464,7 @@ public partial class MainWindow : Window
     {
         var texto = GroupLink.Message(Localization.Loc.Texts, groupName, invite);
 
-        System.Windows.Clipboard.SetText(texto);
+        Sistema.Actual.EscribirTexto(texto);
 
         // Derecho al QR, que es a lo que se viene: lo enfoca OTRO aparato y se le abre la
         // aplicacion con el grupo puesto, sin teclear el codigo ni la clave. Mandarlo por correo o
@@ -1497,7 +1472,7 @@ public partial class MainWindow : Window
         // ya esta, desde antes de abrir la ventana.
         Controls.ModernDialog.ShowQr(this, T("QrTitle"), T("QrHint"),
             GroupLink.QrPng(GroupLink.For(invite)),
-            ("\uE8C8", T("ShareCopy"), () => System.Windows.Clipboard.SetText(texto)),
+            ("\uE8C8", T("ShareCopy"), () => Sistema.Actual.EscribirTexto(texto)),
             ("\uE715", T("ShareMail"), () => Abrir(
                 $"mailto:?subject={Uri.EscapeDataString(T("GroupInviteSubject"))}" +
                 $"&body={Uri.EscapeDataString(texto)}")),
@@ -1513,10 +1488,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url)
-            {
-                UseShellExecute = true,
-            });
+            Sistema.Actual.Abrir(url);
         }
         catch (Exception ex)
         {
@@ -1585,21 +1557,13 @@ public partial class MainWindow : Window
         switch (elegido)
         {
             case DondeEstaElQr.Fichero:
-                var dialogo = new Microsoft.Win32.OpenFileDialog
-                {
-                    Filter = "PNG, JPG, BMP|*.png;*.jpg;*.jpeg;*.bmp;*.gif|*.*|*.*",
-                    CheckFileExists = true,
-                };
-
-                if (dialogo.ShowDialog(this) == true)
-                {
-                    invite = Services.QrReader.DesdeFichero(dialogo.FileName);
-                }
-                else
+                if (Sistema.Actual.ElegirFichero(this, "PNG, JPG, BMP|*.png;*.jpg;*.jpeg;*.bmp;*.gif|*.*|*.*")
+                    is not { } fichero)
                 {
                     return;
                 }
 
+                invite = Services.QrReader.DesdeFichero(fichero);
                 break;
 
             case DondeEstaElQr.Portapapeles:
@@ -1889,6 +1853,7 @@ public static class Prompt
             box.SelectAll();   // Escribir de cero sigue siendo un gesto: teclear encima.
         };
 
-        return window.ShowDialog() == true ? box.Text.Trim() : null;
+        return Ventanas.Modal(window) == true ? box.Text.Trim() : null;
+
     }
 }

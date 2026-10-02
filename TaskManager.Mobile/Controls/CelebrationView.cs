@@ -1,4 +1,5 @@
 using TaskManager.Core.Gamification;
+using TaskManager.Mobile.Helpers;
 
 namespace TaskManager.Mobile.Controls;
 
@@ -63,6 +64,9 @@ public sealed class CelebrationView : Grid
     /// <summary>Sonido y vibracion son configurables (especificacion 4.A); los lee la pagina.</summary>
     public bool HapticsEnabled { get; set; } = true;
 
+    /// <summary>Lo que se queda a la vista la pastilla de XP. Las pruebas no esperan tanto.</summary>
+    internal static TimeSpan BadgeHold { get; set; } = TimeSpan.FromMilliseconds(1300);
+
     public async void Celebrate(Celebration celebration)
     {
         var width = Width > 0 ? Width : 360;
@@ -81,29 +85,19 @@ public sealed class CelebrationView : Grid
         }
 
         _xpLabel.Text = celebration.LeveledUp
-            ? $"¡Nivel {celebration.Level}!  +{celebration.Xp} XP"
+            ? Localization.Loc.Instance.Format("LevelUp", celebration.Level, celebration.Xp)
             : celebration.IsCombo
-                ? $"+{celebration.Xp} XP  ·  ¡Racha x{celebration.Combo:0.#}!"
+                ? Localization.Loc.Instance.Format("ComboXp", celebration.Xp, celebration.Combo.ToString("0.#"))
                 : $"+{celebration.Xp} XP";
 
         _xpBadge.Opacity = 0;
         _xpBadge.TranslationY = 10;
         await Task.WhenAll(_xpBadge.FadeToAsync(1, 120), _xpBadge.TranslateToAsync(0, 0, 160, Easing.CubicOut));
-        await Task.Delay(1300);
+        await Task.Delay(BadgeHold);
         await _xpBadge.FadeToAsync(0, 350);
     }
 
-    private static void TryHaptic(bool strong)
-    {
-        try
-        {
-            HapticFeedback.Default.Perform(strong ? HapticFeedbackType.LongPress : HapticFeedbackType.Click);
-        }
-        catch (FeatureNotSupportedException)
-        {
-            // Dispositivo sin vibrador: la celebracion visual se basta.
-        }
-    }
+    private static void TryHaptic(bool strong) => Helpers.Ui.Platform.Haptic(strong);
 
     /// <summary>
     /// Confeti dibujado a mano sobre el lienzo de MAUI Graphics: sin dependencias externas y sin

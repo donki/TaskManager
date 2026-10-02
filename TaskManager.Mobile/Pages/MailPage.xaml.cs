@@ -142,7 +142,7 @@ public partial class MailPage : ContentPage
 
         if (problem == "AppNotRegistered" || provider.Name == "Google")
         {
-            await SocShared.ModernDialog.AlertAsync(this, loc["SignInMicrosoft"], message, "OK");
+            await Ui.Platform.AlertAsync(this, loc["SignInMicrosoft"], message, "OK");
             return;
         }
 
@@ -151,13 +151,13 @@ public partial class MailPage : ContentPage
         var hint = loc["AdminConsentHint"];
         var detail = message + Environment.NewLine + Environment.NewLine + hint;
 
-        var consent = await SocShared.ModernDialog.AlertAsync(this,
+        var consent = await Ui.Platform.AlertAsync(this,
             loc["AdminConsent"], detail,
             loc["AdminConsent"], loc["Cancel"]);
 
         if (consent)
         {
-            await Launcher.OpenAsync(new Uri(_oauth.BuildAdminConsentUrl(provider)));
+            await Ui.Platform.OpenUriAsync(new Uri(_oauth.BuildAdminConsentUrl(provider)));
         }
     }
 
@@ -193,7 +193,7 @@ public partial class MailPage : ContentPage
         catch (MailException ex)
         {
             StatusLabel.Text = string.Empty;
-            await SocShared.ModernDialog.AlertAsync(this, "Correo", ex.Message, "OK");
+            await Ui.Platform.AlertAsync(this, "Correo", ex.Message, "OK");
         }
         catch (TaskCanceledException)
         {
@@ -307,7 +307,7 @@ public partial class MailPage : ContentPage
         catch (MailException ex)
         {
             StatusLabel.Text = string.Empty;
-            await SocShared.ModernDialog.AlertAsync(this, "Correo", ex.Message, "OK");
+            await Ui.Platform.AlertAsync(this, "Correo", ex.Message, "OK");
         }
         catch (OperationCanceledException)
         {

@@ -7,6 +7,8 @@ using System.Windows.Media.Animation;
 using TaskManager.Core.Gamification;
 using TaskManager.Core.Models;
 using TaskManager.Core.Services;
+using TaskManager.Desktop.Controls;
+using TaskManager.Desktop.Services;
 
 namespace TaskManager.Desktop;
 
@@ -120,8 +122,8 @@ public partial class FlyoutWindow : Window
         Top = work.Bottom - Height;
 
         Visibility = Visibility.Visible;
-        Show();
-        Activate();
+        Ventanas.Mostrar(this);
+        Ventanas.Activar(this);
 
         await ReloadAsync();
 
@@ -367,17 +369,9 @@ public partial class FlyoutWindow : Window
 
     private async void OnTaskDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        var source = e.OriginalSource as DependencyObject;
-
-        while (source is not null and not System.Windows.Controls.ListBoxItem)
+        if (Arrastre.Contenido<TaskRow>(e.OriginalSource as DependencyObject) is { } row)
         {
-            source = System.Windows.Media.VisualTreeHelper.GetParent(source);
-        }
-
-        if (source is System.Windows.Controls.ListBoxItem { Content: { } row }
-            && row.GetType().GetProperty("Id")?.GetValue(row) is Guid id)
-        {
-            await OpenTaskAsync(id);
+            await OpenTaskAsync(row.Id);
         }
     }
 
@@ -398,7 +392,7 @@ public partial class FlyoutWindow : Window
             Icon = Services.TrayIconHost.CreateWindowIcon(),
         };
 
-        window.ShowDialog();
+        Ventanas.Modal(window);
 
         if (window.Changed)
         {
@@ -464,7 +458,7 @@ public partial class FlyoutWindow : Window
         var text = celebration.LeveledUp
             ? Localization.Loc.Format("LevelUp", celebration.Level, celebration.Xp)
             : celebration.IsCombo
-                ? $"+{celebration.Xp} XP · ¡Racha x{celebration.Combo:0.#}!"
+                ? Localization.Loc.Format("ComboXp", celebration.Xp, celebration.Combo.ToString("0.#"))
                 : $"+{celebration.Xp} XP";
 
         ShowToast(text);
@@ -509,8 +503,8 @@ public partial class FlyoutWindow : Window
 
     private void OnTaskDragStart(object sender, MouseButtonEventArgs e)
     {
-        _dragStart = e.GetPosition(null);
-        _dragging = RowUnder(e.OriginalSource as DependencyObject);
+        _dragStart = Arrastre.Posicion(e);
+        _dragging = Arrastre.Contenido<TaskRow>(e.OriginalSource as DependencyObject);
     }
 
     /// <summary>
@@ -520,26 +514,15 @@ public partial class FlyoutWindow : Window
     /// </summary>
     private void OnTaskDragMove(object sender, MouseEventArgs e)
     {
-        if (_dragging is null || e.LeftButton != MouseButtonState.Pressed)
+        if (_dragging is null || !Arrastre.Empieza(e, _dragStart))
         {
             return;
         }
 
-        var moved = e.GetPosition(null) - _dragStart;
-        if (Math.Abs(moved.X) < SystemParameters.MinimumHorizontalDragDistance &&
-            Math.Abs(moved.Y) < SystemParameters.MinimumVerticalDragDistance)
-        {
-            return;
-        }
-
-        DragDrop.DoDragDrop(TaskList, _dragging, DragDropEffects.Move);
+        Sistema.Actual.Arrastrar(TaskList, _dragging);
     }
 
-    private void OnTaskDragOver(object sender, DragEventArgs e)
-    {
-        e.Effects = e.Data.GetDataPresent(typeof(TaskRow)) ? DragDropEffects.Move : DragDropEffects.None;
-        e.Handled = true;
-    }
+    private void OnTaskDragOver(object sender, DragEventArgs e) => Arrastre.AlPasar<TaskRow>(e);
 
     private async void OnTaskDrop(object sender, DragEventArgs e)
     {
@@ -548,16 +531,13 @@ public partial class FlyoutWindow : Window
             return;
         }
 
-        var target = RowUnder(e.OriginalSource as DependencyObject);
-        var from = _rows.IndexOf(moved);
-
         // Soltar fuera de cualquier fila deja la tarea al final; es lo que se espera al arrastrar
         // hacia el hueco de abajo.
-        var to = target is null ? _rows.Count - 1 : _rows.IndexOf(target);
+        var move = Arrastre.Destino(_rows, moved, Arrastre.Contenido<TaskRow>(e.OriginalSource as DependencyObject));
 
         _dragging = null;
 
-        if (from < 0 || to < 0 || from == to)
+        if (move is not var (from, to))
         {
             return;
         }
@@ -566,16 +546,6 @@ public partial class FlyoutWindow : Window
         await _tasks.Repository.ReorderTasksAsync([.. _rows.Select(r => r.Id)]);
     }
 
-    /// <summary>Fila del listado que hay bajo un elemento visual cualquiera de la plantilla.</summary>
-    private static TaskRow? RowUnder(DependencyObject? source)
-    {
-        while (source is not null and not ListBoxItem)
-        {
-            source = System.Windows.Media.VisualTreeHelper.GetParent(source);
-        }
-
-        return (source as ListBoxItem)?.DataContext as TaskRow;
-    }
 
     public sealed class TaskRow
     {

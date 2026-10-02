@@ -24,21 +24,33 @@ public sealed class TrayIconHost : IDisposable
     {
         _icon = new WinForms.NotifyIcon
         {
-            Visible = true,
+            Visible = Sistema.Actual.BandejaVisible,
             Text = "Task Manager",
             ContextMenuStrip = BuildMenu(),
         };
 
-        _icon.MouseClick += (_, e) =>
-        {
-            if (e.Button == WinForms.MouseButtons.Left)
-            {
-                Activated?.Invoke(this, EventArgs.Empty);
-            }
-        };
+        _icon.MouseClick += (_, e) => OnMouseClick(e.Button);
 
         SetPending(0);
     }
+
+    /// <summary>Clic sobre el icono: con el izquierdo se despliega el panel; el derecho es el menu.</summary>
+    internal void OnMouseClick(WinForms.MouseButtons button)
+    {
+        if (button == WinForms.MouseButtons.Left)
+        {
+            Activated?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>El menu del boton derecho, tal como esta montado ahora.</summary>
+    internal WinForms.ContextMenuStrip? Menu => _icon.ContextMenuStrip;
+
+    /// <summary>El ultimo globo que se ha pedido enseñar: titulo y texto.</summary>
+    public (string Title, string Message)? LastNotification { get; private set; }
+
+    /// <summary>El texto que sale al pasar el raton por el icono.</summary>
+    internal string Tooltip => _icon.Text;
 
     /// <summary>Clic izquierdo: desplegar el panel rapido.</summary>
     public event EventHandler? Activated;
@@ -78,8 +90,11 @@ public sealed class TrayIconHost : IDisposable
         previous?.Dispose();
     }
 
-    public void Notify(string title, string message) =>
+    public void Notify(string title, string message)
+    {
+        LastNotification = (title, message);
         _icon.ShowBalloonTip(3000, title, message, WinForms.ToolTipIcon.None);
+    }
 
     /// <summary>
     /// El mismo icono que en Android —tick blanco sobre el indigo de marca— para la ventana y la
@@ -94,31 +109,17 @@ public sealed class TrayIconHost : IDisposable
     /// Explorador enseñan exactamente el mismo icono. Si no se pudiera leer —un despliegue raro, un
     /// recurso que falta— se cae al dibujado en memoria, que es el mismo diseño y nunca falla.
     /// </remarks>
-    public static System.Windows.Media.ImageSource CreateWindowIcon()
+    public static System.Windows.Media.ImageSource CreateWindowIcon() => IconFrom(Environment.ProcessPath);
+
+    /// <summary>El icono de ese ejecutable o, si no se puede leer, el dibujado.</summary>
+    internal static System.Windows.Media.ImageSource IconFrom(string? exe)
     {
         try
         {
-            var exe = Environment.ProcessPath;
-            if (exe is not null)
+            using var embedded = Icon.ExtractAssociatedIcon(exe!);
+            if (embedded is not null)
             {
-                using var embedded = Icon.ExtractAssociatedIcon(exe);
-                if (embedded is not null)
-                {
-                    using var bmp = embedded.ToBitmap();
-                    using var ms = new MemoryStream();
-
-                    bmp.Save(ms, ImageFormat.Png);
-                    ms.Position = 0;
-
-                    var fromExe = new System.Windows.Media.Imaging.BitmapImage();
-                    fromExe.BeginInit();
-                    fromExe.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
-                    fromExe.StreamSource = ms;
-                    fromExe.EndInit();
-                    fromExe.Freeze();
-
-                    return fromExe;
-                }
+                return ToImage(embedded);
             }
         }
         catch (Exception)
@@ -127,6 +128,12 @@ public sealed class TrayIconHost : IDisposable
         }
 
         using var icon = Render(0);
+        return ToImage(icon);
+    }
+
+    /// <summary>Un icono de Windows como imagen de WPF, pasando por PNG para no perder la transparencia.</summary>
+    private static System.Windows.Media.ImageSource ToImage(Icon icon)
+    {
         using var bitmap = icon.ToBitmap();
         using var stream = new MemoryStream();
 

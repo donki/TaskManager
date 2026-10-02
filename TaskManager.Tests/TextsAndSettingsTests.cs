@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Text.RegularExpressions;
 using TaskManager.Core.Models;
 using TaskManager.Core.Services;
@@ -122,6 +122,18 @@ public partial class LocalizationTests
         }
 
         return dir?.FullName ?? throw new InvalidOperationException("No se encuentra TaskManager.slnx");
+    }
+
+    [Fact]
+    public async Task Celebration_IsTranslated_NotSpanishInEnglish()
+    {
+        // La racha y la subida de nivel salian escritas en castellano tambien con la app en ingles.
+        await using var store = await TestStore.CreateAsync(language: "en");
+        Assert.Equal("+15 XP · Streak x1.5!", store.Texts.Format("ComboXp", 15, 1.5.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)));
+        Assert.Equal("Level 3! +20 XP", store.Texts.Format("LevelUp", 3, 20));
+
+        await store.Texts.SetLanguageAsync("es");
+        Assert.Equal("+15 XP · ¡Racha x2!", store.Texts.Format("ComboXp", 15, "2"));
     }
 
     [Fact]

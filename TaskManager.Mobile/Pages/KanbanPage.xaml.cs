@@ -164,7 +164,7 @@ public partial class KanbanPage : ContentPage, Helpers.IBackHandler
     {
         if (e.Parameter is Guid id && id != Guid.Empty)
         {
-            await Shell.Current.GoToAsync($"{nameof(TaskDetailPage)}?taskId={id}");
+            await Ui.Platform.GoToAsync($"{nameof(TaskDetailPage)}?taskId={id}");
         }
     }
 
@@ -298,7 +298,7 @@ public partial class KanbanPage : ContentPage, Helpers.IBackHandler
         QuickAdd.Text = string.Empty;
         await ReloadAsync();
 
-        await Shell.Current.GoToAsync($"{nameof(TaskDetailPage)}?taskId={task.Id}");
+        await Ui.Platform.GoToAsync($"{nameof(TaskDetailPage)}?taskId={task.Id}");
     }
 
     private async void OnRefreshClicked(object? sender, EventArgs e)

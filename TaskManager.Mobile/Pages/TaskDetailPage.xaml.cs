@@ -94,7 +94,7 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
             if (HasUnsavedChanges())
             {
                 var loc = Localization.Loc.Instance;
-                var choice = await SocShared.ModernDialog.ActionSheetAsync(this,
+                var choice = await Ui.Platform.ActionSheetAsync(this,
                     loc["UnsavedMessage"], loc["Cancel"], loc["Save"], loc["Discard"]);
 
                 if (choice == loc["Save"])
@@ -110,7 +110,7 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
                 }
             }
 
-            await Shell.Current.GoToAsync("..");
+            await Ui.Platform.GoToAsync("..");
         }
         finally
         {
@@ -161,7 +161,7 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
         _task = await _tasks.Repository.GetTaskAsync(_taskId);
         if (_task is null)
         {
-            await Shell.Current.GoToAsync("..");
+            await Ui.Platform.GoToAsync("..");
             return;
         }
 
@@ -536,7 +536,7 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
             return;
         }
 
-        var written = await SocShared.ModernDialog.PromptAsync(
+        var written = await Ui.Platform.PromptAsync(
             this, Localization.Loc.Instance["EditStepTooltip"], null,
             Localization.Loc.Instance["Save"], Localization.Loc.Instance["Cancel"], step.Title);
 
@@ -632,7 +632,7 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
             return;
         }
 
-        var url = await SocShared.ModernDialog.PromptAsync(
+        var url = await Ui.Platform.PromptAsync(
             this, Localization.Loc.Instance["AddLinkTooltip"], null,
             Localization.Loc.Instance["Save"], Localization.Loc.Instance["Cancel"], null,
             Localization.Loc.Instance["LinkPlaceholder"]);
@@ -660,7 +660,7 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
 
         try
         {
-            var picked = await FilePicker.Default.PickAsync();
+            var picked = await Ui.Platform.PickFileAsync();
             if (picked is null)
             {
                 return;
@@ -672,7 +672,7 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
 
             if (memory.Length > TaskAttachment.MaxFileBytes)
             {
-                await SocShared.ModernDialog.AlertAsync(this,
+                await Ui.Platform.AlertAsync(this,
                     Localization.Loc.Instance["AddFileTooltip"],
                     Localization.Loc.Instance.Format("FileTooBig", TaskAttachment.MaxFileBytes / (1024 * 1024)),
                     "OK");
@@ -684,7 +684,7 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
         }
         catch (Exception ex)
         {
-            await SocShared.ModernDialog.AlertAsync(this,
+            await Ui.Platform.AlertAsync(this,
                 Localization.Loc.Instance["AddFileTooltip"], ex.Message, "OK");
         }
     }
@@ -709,10 +709,10 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
 
         try
         {
-            var image = await Services.ClipboardImage.ReadAsync();
+            var image = await Ui.Platform.ReadClipboardImageAsync();
             if (image is null)
             {
-                await SocShared.ModernDialog.AlertAsync(this,
+                await Ui.Platform.AlertAsync(this,
                     Localization.Loc.Instance["PasteAttachmentTooltip"], Localization.Loc.Instance["PasteNothing"], "OK");
                 return;
             }
@@ -720,7 +720,7 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
             var (bytes, extension) = image.Value;
             if (bytes.Length > TaskAttachment.MaxFileBytes)
             {
-                await SocShared.ModernDialog.AlertAsync(this,
+                await Ui.Platform.AlertAsync(this,
                     Localization.Loc.Instance["PasteAttachmentTooltip"],
                     Localization.Loc.Instance.Format("FileTooBig", TaskAttachment.MaxFileBytes / (1024 * 1024)),
                     "OK");
@@ -733,7 +733,7 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
         }
         catch (Exception ex)
         {
-            await SocShared.ModernDialog.AlertAsync(this,
+            await Ui.Platform.AlertAsync(this,
                 Localization.Loc.Instance["PasteAttachmentTooltip"], ex.Message, "OK");
         }
     }
@@ -744,21 +744,21 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
         {
             if (item.IsUrl)
             {
-                await Browser.Default.OpenAsync(item.Url, BrowserLaunchMode.SystemPreferred);
+                await Ui.Platform.OpenBrowserAsync(item.Url);
                 return;
             }
 
-            var folder = Path.Combine(FileSystem.CacheDirectory, "adjuntos", item.Id.ToString("N"));
+            var folder = Path.Combine(Ui.Platform.CacheDirectory, "adjuntos", item.Id.ToString("N"));
             Directory.CreateDirectory(folder);
 
             var path = Path.Combine(folder, item.Name);
             await File.WriteAllBytesAsync(path, item.Data ?? []);
 
-            await Launcher.Default.OpenAsync(new OpenFileRequest(item.Name, new ReadOnlyFile(path)));
+            await Ui.Platform.OpenFileAsync(item.Name, path);
         }
         catch (Exception ex)
         {
-            await SocShared.ModernDialog.AlertAsync(this,
+            await Ui.Platform.AlertAsync(this,
                 Localization.Loc.Instance["Attachments"], ex.Message, "OK");
         }
     }
@@ -842,7 +842,7 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
     {
         if (await SaveAsync(silent: false))
         {
-            await Shell.Current.GoToAsync("..");
+            await Ui.Platform.GoToAsync("..");
         }
     }
 
@@ -861,7 +861,7 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
         {
             if (!silent)
             {
-                await SocShared.ModernDialog.AlertAsync(this,
+                await Ui.Platform.AlertAsync(this,
                     Localization.Loc.Instance["NeedTitleTitle"], Localization.Loc.Instance["NeedTitleMessage"], "OK");
             }
 
@@ -888,7 +888,7 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
 
             if (!silent)
             {
-                await SocShared.ModernDialog.AlertAsync(this,
+                await Ui.Platform.AlertAsync(this,
                     Localization.Loc.Instance["Recurrence"],
                     Localization.Loc.Instance["RecurrenceNeedsDates"], "OK");
             }
@@ -912,7 +912,7 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
 
             if (series.Created > 1 && !silent)
             {
-                await SocShared.ModernDialog.AlertAsync(this,
+                await Ui.Platform.AlertAsync(this,
                     Localization.Loc.Instance["Recurrence"],
                     series.Truncated
                         ? Localization.Loc.Instance.Format("SeriesTruncated", series.Created, Recurrence.MaxOccurrences)
@@ -943,7 +943,7 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
             var thisOnly = loc["DeleteThisOnly"];
             var whole = loc.Format("DeleteWholeSeries", count);
 
-            var choice = await SocShared.ModernDialog.ActionSheetAsync(this,
+            var choice = await Ui.Platform.ActionSheetAsync(this,
                 loc.Format("DeleteSeriesQuestion", _task.Title), loc["Cancel"], thisOnly, whole);
 
             if (choice == whole)
@@ -959,11 +959,11 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
                 return;
             }
 
-            await Shell.Current.GoToAsync("..");
+            await Ui.Platform.GoToAsync("..");
             return;
         }
 
-        var confirmed = await SocShared.ModernDialog.AlertAsync(this,
+        var confirmed = await Ui.Platform.AlertAsync(this,
             loc["DeleteTask"], loc.Format("DeleteTaskMessage", _task.Title),
             loc["Delete"], loc["Cancel"]);
 
@@ -973,6 +973,6 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
         }
 
         await _tasks.Repository.DeleteTaskAsync(_task);
-        await Shell.Current.GoToAsync("..");
+        await Ui.Platform.GoToAsync("..");
     }
 }

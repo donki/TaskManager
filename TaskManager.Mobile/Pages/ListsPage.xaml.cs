@@ -77,7 +77,7 @@ public partial class ListsPage : ContentPage
 
     private async void OnNewListClicked(object? sender, EventArgs e)
     {
-        var name = await SocShared.ModernDialog.PromptAsync(this,
+        var name = await Ui.Platform.PromptAsync(this,
             Localization.Loc.Instance["NewListTitle"], null, Localization.Loc.Instance["Create"], Localization.Loc.Instance["Cancel"],
             placeholder: Localization.Loc.Instance["ListNamePlaceholder"]);
 
@@ -92,7 +92,7 @@ public partial class ListsPage : ContentPage
     {
         if (e.Parameter is Guid id)
         {
-            await Shell.Current.GoToAsync($"{nameof(ListDetailPage)}?listId={id}");
+            await Ui.Platform.GoToAsync($"{nameof(ListDetailPage)}?listId={id}");
         }
     }
 
@@ -110,7 +110,7 @@ public partial class ListsPage : ContentPage
         }
 
         // Borrar una lista se lleva sus tareas por delante: se pregunta siempre.
-        var confirmed = await SocShared.ModernDialog.AlertAsync(this,
+        var confirmed = await Ui.Platform.AlertAsync(this,
             Localization.Loc.Instance["DeleteListTitle"], Localization.Loc.Instance.Format("DeleteListMessage", list.Name),
             Localization.Loc.Instance["Delete"], Localization.Loc.Instance["Cancel"]);
 

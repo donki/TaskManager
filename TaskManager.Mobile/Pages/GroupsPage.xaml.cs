@@ -99,7 +99,7 @@ public partial class GroupsPage : ContentPage
 
     private async void OnNewGroupClicked(object? sender, EventArgs e)
     {
-        var name = await SocShared.ModernDialog.PromptAsync(this, "Nuevo grupo", null, "Crear", "Cancelar",
+        var name = await Ui.Platform.PromptAsync(this, "Nuevo grupo", null, "Crear", "Cancelar",
             placeholder: "Familia, Piso compartido, Proyecto...");
 
         if (string.IsNullOrWhiteSpace(name))
@@ -134,7 +134,7 @@ public partial class GroupsPage : ContentPage
             await _tasks.Repository.DeleteGroupAsync(group);
             await ReloadAsync();
 
-            await SocShared.ModernDialog.AlertAsync(
+            await Ui.Platform.AlertAsync(
                 this, Localization.Loc.Instance["NotYetTitle"], ex.Message,
                 Localization.Loc.Instance["Ok"]);
         }
@@ -172,7 +172,7 @@ public partial class GroupsPage : ContentPage
         }
         catch (Exception ex)
         {
-            await SocShared.ModernDialog.AlertAsync(
+            await Ui.Platform.AlertAsync(
                 this, Localization.Loc.Instance["NotYetTitle"], ex.Message,
                 Localization.Loc.Instance["Ok"]);
         }
@@ -192,8 +192,8 @@ public partial class GroupsPage : ContentPage
         var texto = GroupLink.Message(
             Helpers.ServiceHelper.GetRequiredService<LocalizationService>(), groupName, invite);
 
-        await Clipboard.SetTextAsync(texto);
-        await Navigation.PushAsync(new GroupQrPage(groupName, invite));
+        await Ui.Platform.SetClipboardTextAsync(texto);
+        await Ui.Platform.PushAsync(this, new GroupQrPage(groupName, invite));
     }
 
     /// <summary>
@@ -212,7 +212,7 @@ public partial class GroupsPage : ContentPage
             return;
         }
 
-        var entrar = await SocShared.ModernDialog.AlertAsync(
+        var entrar = await Ui.Platform.AlertAsync(
             this,
             Localization.Loc.Instance["JoinFromLinkTitle"],
             Localization.Loc.Instance.Format("JoinFromLinkMessage", invite.JoinCode),
@@ -247,8 +247,10 @@ public partial class GroupsPage : ContentPage
         {
             // Se enseña el fallo en vez de no hacer nada: una pantalla que no reacciona al pulsarla
             // no se puede ni contar ni arreglar.
+#if ANDROID
             Android.Util.Log.Error("TMQR", ex.ToString());
-            await SocShared.ModernDialog.AlertAsync(
+#endif
+            await Ui.Platform.AlertAsync(
                 this, Localization.Loc.Instance["ScanTitle"], ex.Message,
                 Localization.Loc.Instance["Ok"]);
             return;
@@ -259,7 +261,7 @@ public partial class GroupsPage : ContentPage
             return;
         }
 
-        var entrar = await SocShared.ModernDialog.AlertAsync(
+        var entrar = await Ui.Platform.AlertAsync(
             this,
             Localization.Loc.Instance["JoinFromLinkTitle"],
             Localization.Loc.Instance.Format("JoinFromLinkMessage", invite.JoinCode),
@@ -288,13 +290,13 @@ public partial class GroupsPage : ContentPage
             await _sync.PullAsync();
             await ReloadAsync();
 
-            await SocShared.ModernDialog.AlertAsync(
+            await Ui.Platform.AlertAsync(
                 this, Localization.Loc.Instance["JoinedTitle"],
                 Localization.Loc.Instance["GroupCodeShare"], Localization.Loc.Instance["Ok"]);
         }
         catch (Exception ex)
         {
-            await SocShared.ModernDialog.AlertAsync(
+            await Ui.Platform.AlertAsync(
                 this, Localization.Loc.Instance["NotYetTitle"], ex.Message,
                 Localization.Loc.Instance["Ok"]);
         }
@@ -304,7 +306,7 @@ public partial class GroupsPage : ContentPage
     {
         var textos = Localization.Loc.Instance;
 
-        var code = await SocShared.ModernDialog.PromptAsync(this, textos["JoinGroupTitle"],
+        var code = await Ui.Platform.PromptAsync(this, textos["JoinGroupTitle"],
             textos["JoinGroupMessage"], textos["Next"], textos["Cancel"], placeholder: "ABC123");
 
         if (string.IsNullOrWhiteSpace(code))
@@ -312,7 +314,7 @@ public partial class GroupsPage : ContentPage
             return;
         }
 
-        var key = await SocShared.ModernDialog.PromptAsync(this, textos["SharedKeyTitle"], null,
+        var key = await Ui.Platform.PromptAsync(this, textos["SharedKeyTitle"], null,
             textos["Join"], textos["Cancel"], placeholder: textos["SharedKeyPlaceholder"]);
 
         if (string.IsNullOrWhiteSpace(key))
@@ -330,7 +332,7 @@ public partial class GroupsPage : ContentPage
             return;
         }
 
-        var name = await SocShared.ModernDialog.PromptAsync(this, "Nueva lista del grupo", null, "Crear", "Cancelar",
+        var name = await Ui.Platform.PromptAsync(this, "Nueva lista del grupo", null, "Crear", "Cancelar",
             placeholder: "Compras, Mantenimiento, Vacaciones...");
 
         if (!string.IsNullOrWhiteSpace(name))
@@ -359,7 +361,7 @@ public partial class GroupsPage : ContentPage
         // borrarlo para todos (solo quien lo creo). Se pregunta cual.
         var leaveText = loc["LeaveGroupOption"];
         var deleteText = loc["DeleteGroupOption"];
-        var choice = await SocShared.ModernDialog.ActionSheetAsync(this,
+        var choice = await Ui.Platform.ActionSheetAsync(this,
             loc.Format("GroupTrashTitle", group.Name), loc["Cancel"], leaveText, deleteText);
 
         if (choice is null)
@@ -374,17 +376,17 @@ public partial class GroupsPage : ContentPage
             var owner = await _sync.IsGroupOwnerAsync(group.Id);
             if (owner == false)
             {
-                await SocShared.ModernDialog.AlertAsync(this, loc["DeleteGroupTitle"], loc["GroupNotOwner"], loc["Ok"]);
+                await Ui.Platform.AlertAsync(this, loc["DeleteGroupTitle"], loc["GroupNotOwner"], loc["Ok"]);
                 return;
             }
 
-            if (!await SocShared.ModernDialog.AlertAsync(this, loc["DeleteGroupTitle"],
+            if (!await Ui.Platform.AlertAsync(this, loc["DeleteGroupTitle"],
                     loc.Format("DeleteGroupMessage", group.Name), loc["Delete"], loc["Cancel"]))
             {
                 return;
             }
         }
-        else if (!await SocShared.ModernDialog.AlertAsync(this, loc["LeaveGroupTitle"],
+        else if (!await Ui.Platform.AlertAsync(this, loc["LeaveGroupTitle"],
                      loc.Format("LeaveGroupMessage", group.Name), loc["Leave"], loc["Cancel"]))
         {
             return;
@@ -405,7 +407,7 @@ public partial class GroupsPage : ContentPage
         {
             // Sin servidor no se sale ni se borra: quitarlo solo de aqui lo traeria de vuelta en
             // la siguiente bajada, y el usuario creeria que ya no esta.
-            await SocShared.ModernDialog.AlertAsync(this, loc["DeleteGroupTitle"],
+            await Ui.Platform.AlertAsync(this, loc["DeleteGroupTitle"],
                 $"{loc["GroupActionFailed"]}\n{ex.Message}", loc["Ok"]);
             return;
         }
@@ -418,7 +420,7 @@ public partial class GroupsPage : ContentPage
     {
         if (e.Parameter is Guid id)
         {
-            await Shell.Current.GoToAsync($"{nameof(ListDetailPage)}?listId={id}");
+            await Ui.Platform.GoToAsync($"{nameof(ListDetailPage)}?listId={id}");
         }
     }
 }

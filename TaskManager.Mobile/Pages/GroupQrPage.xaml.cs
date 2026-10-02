@@ -1,4 +1,5 @@
 using TaskManager.Core.Services;
+using TaskManager.Mobile.Helpers;
 
 namespace TaskManager.Mobile.Pages;
 
@@ -41,12 +42,12 @@ public partial class GroupQrPage : ContentPage
         await Services.InviteShare.EnviarAsync(_groupName, _invite);
 
     private async void OnCloseClicked(object? sender, EventArgs e) =>
-        await Navigation.PopAsync();
+        await Ui.Platform.PopAsync(this);
 
     private async void OnCopyClicked(object? sender, EventArgs e)
     {
-        await Clipboard.SetTextAsync(Texto());
-        await SocShared.ModernDialog.AlertAsync(
+        await Ui.Platform.SetClipboardTextAsync(Texto());
+        await Ui.Platform.AlertAsync(
             this,
             Localization.Loc.Instance["InviteTitle"],
             Localization.Loc.Instance["GroupInviteSaved"],

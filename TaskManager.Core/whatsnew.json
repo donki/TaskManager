@@ -1,5 +1,19 @@
 [
   {
+    "version": "2026.10.03.00",
+    "date": "2026-10-03",
+    "es": [
+      "La racha y la subida de nivel de la celebración ya salen en el idioma de la aplicación (en inglés salían en castellano).",
+      "En Windows, la ventana principal ya no enseña tareas, listas o grupos repetidos, y la barra de marcar varias vuelve a actuar sobre la lista que se ve.",
+      "En Windows, si la entrada con la cuenta se queda sin respuesta, dice que se ha cancelado en vez de un error en inglés."
+    ],
+    "en": [
+      "The streak and level-up messages of the celebration now follow the app language (in English they appeared in Spanish).",
+      "On Windows, the main window no longer shows duplicated tasks, lists or groups, and the multi-select bar acts on the list you see again.",
+      "On Windows, when signing in times out it says it was cancelled instead of showing an error."
+    ]
+  },
+  {
     "version": "2026.09.30.00",
     "date": "2026-09-30",
     "es": [

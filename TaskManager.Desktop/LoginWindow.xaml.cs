@@ -115,7 +115,7 @@ public partial class LoginWindow : Window
 
         if (!_signedIn)
         {
-            Application.Current.Shutdown();
+            Services.Ventanas.Apagar();
         }
     }
 

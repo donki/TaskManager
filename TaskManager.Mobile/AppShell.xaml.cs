@@ -1,4 +1,5 @@
 using TaskManager.Mobile.Pages;
+using TaskManager.Mobile.Helpers;
 
 namespace TaskManager.Mobile;
 
@@ -18,7 +19,7 @@ public partial class AppShell : Shell
         // Grupos: oculto mientras FeatureOptions.GroupsEnabled sea false.
         GroupsMenuRow.IsVisible = TaskManager.Core.FeatureOptions.GroupsEnabled;
 
-        VersionLabel.Text = $"v{AppInfo.Current.VersionString}";
+        VersionLabel.Text = $"v{Ui.Platform.VersionString}";
     }
 
     private async void OnMyTasksTapped(object? sender, TappedEventArgs e) => await NavigateAsync("//MyTasksPage");
@@ -55,34 +56,21 @@ public partial class AppShell : Shell
             return true;
         }
 
-        var page = CurrentPage;
-        if (Helpers.BackNavigation.CloseDialog(page))
+        switch (Helpers.BackNavigation.Decide(
+                    CurrentPage, Navigation.NavigationStack.Count, CurrentItem?.CurrentItem?.CurrentItem?.Route))
         {
-            return true;
+            case Helpers.BackAction.Pop:
+                return base.OnBackButtonPressed();
+            case Helpers.BackAction.GoHome:
+                Dispatcher.Dispatch(async () => await Ui.Platform.GoToAsync($"//{Helpers.BackNavigation.HomeRoute}"));
+                break;
+            case Helpers.BackAction.Hide:
+                Ui.Platform.HideApp();
+                break;
         }
 
-        if (page is Helpers.IBackHandler handler && handler.HandleBack())
-        {
-            return true;
-        }
-
-        if (Navigation.NavigationStack.Count > 1)
-        {
-            return base.OnBackButtonPressed();
-        }
-
-        var route = CurrentItem?.CurrentItem?.CurrentItem?.Route;
-        if (route is not (HomeRoute or "LoginPage"))
-        {
-            Dispatcher.Dispatch(async () => await GoToAsync($"//{HomeRoute}"));
-            return true;
-        }
-
-        Helpers.BackNavigation.HideApp();
         return true;
     }
-
-    private const string HomeRoute = "MyTasksPage";
 
     /// <summary>
     /// Se navega ANTES de cerrar el menu: al reves, la animacion de cierre se come la navegacion y
@@ -90,7 +78,7 @@ public partial class AppShell : Shell
     /// </summary>
     private async Task NavigateAsync(string route)
     {
-        await GoToAsync(route);
+        await Ui.Platform.GoToAsync(route);
         FlyoutIsPresented = false;
     }
 }

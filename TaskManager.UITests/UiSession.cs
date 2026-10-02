@@ -72,7 +72,8 @@ public sealed class UiSession : IDisposable
         options.AddAdditionalAppiumOption("disableWindowAnimation", true);
         if (Environment.GetEnvironmentVariable("TM_APK") is { Length: > 0 } apk)
         {
-            options.AddAdditionalAppiumOption("app", apk);
+            // La opcion «app» tiene propiedad propia: pasarla como opcion adicional lanza.
+            options.App = apk;
         }
 
         Driver = new AndroidDriver(url, options, TimeSpan.FromMinutes(3));

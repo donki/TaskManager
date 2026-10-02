@@ -45,13 +45,7 @@ public class MainActivity : MauiAppCompatActivity
         Anotar(intent);
     }
 
-    private static void Anotar(Intent? intent)
-    {
-        if (intent?.Data?.ToString() is { Length: > 0 } data && Uri.TryCreate(data, UriKind.Absolute, out var link))
-        {
-            Services.GroupInviteLinks.Anotar(link);
-        }
-    }
+    private static void Anotar(Intent? intent) => Services.GroupInviteLinks.Anotar(intent?.Data?.ToString());
 
     /// <summary>
     /// Desde Android 15 el sistema dibuja de borde a borde: se separa el contenido del reloj y de

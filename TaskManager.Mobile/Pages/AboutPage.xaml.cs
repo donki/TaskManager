@@ -1,4 +1,6 @@
-﻿namespace TaskManager.Mobile.Pages;
+﻿using TaskManager.Mobile.Helpers;
+
+namespace TaskManager.Mobile.Pages;
 
 /// <summary>
 /// Pantalla Acerca de, homogenea con el resto de apps sOCratic (constitucion Mobile 7): logo,
@@ -11,7 +13,7 @@ public partial class AboutPage : ContentPage
     public AboutPage()
     {
         InitializeComponent();
-        VersionLabel.Text = $"v{AppInfo.Current.VersionString}";
+        VersionLabel.Text = $"v{Ui.Platform.VersionString}";
         ShowLanguage();
     }
 
@@ -55,32 +57,28 @@ public partial class AboutPage : ContentPage
     {
         try
         {
-            await Browser.Default.OpenAsync(WindowsStoreUrl, BrowserLaunchMode.SystemPreferred);
+            await Ui.Platform.OpenBrowserAsync(WindowsStoreUrl);
         }
         catch (Exception)
         {
-            await Clipboard.Default.SetTextAsync(WindowsStoreUrl);
+            await Ui.Platform.SetClipboardTextAsync(WindowsStoreUrl);
         }
     }
 
-    private async void OnWhatsNewClicked(object? sender, EventArgs e) => await Shell.Current.GoToAsync("//WhatsNewPage");
+    private async void OnWhatsNewClicked(object? sender, EventArgs e) => await Ui.Platform.GoToAsync("//WhatsNewPage");
 
     private async void OnContactClicked(object? sender, EventArgs e)
     {
         try
         {
-            await Email.Default.ComposeAsync(new EmailMessage
-            {
-                Subject = "Task Manager",
-                To = [ContactEmail],
-            });
+            await Ui.Platform.ComposeEmailAsync("Task Manager", ContactEmail);
         }
         catch (Exception)
         {
             // Sin cliente de correo configurado se copia la direccion: el usuario puede escribir
             // desde donde quiera, en vez de quedarse sin manera de contactar.
-            await Clipboard.Default.SetTextAsync(ContactEmail);
-            await SocShared.ModernDialog.AlertAsync(this, "Contacto",
+            await Ui.Platform.SetClipboardTextAsync(ContactEmail);
+            await Ui.Platform.AlertAsync(this, "Contacto",
                 $"Dirección copiada: {ContactEmail}", "OK");
         }
     }

@@ -1,4 +1,3 @@
-using System.IO;
 ﻿using System.IO;
 using System.Windows;
 using System.Windows.Media;
@@ -7,6 +6,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using TaskManager.Core.Models;
 using TaskManager.Core.Services;
+using TaskManager.Desktop.Controls;
+using TaskManager.Desktop.Services;
 
 namespace TaskManager.Desktop;
 
@@ -91,15 +92,15 @@ public partial class TaskDetailWindow : Window
         // cuadro de texto y hay texto en el portapapeles, es el pegado normal y no se toca.
         PreviewKeyDown += async (_, e) =>
         {
-            if (e.Key != Key.V || (Keyboard.Modifiers & ModifierKeys.Control) == 0)
+            if (e.Key != Key.V || (Sistema.Actual.Teclas & ModifierKeys.Control) == 0)
             {
                 return;
             }
-            if (Keyboard.FocusedElement is System.Windows.Controls.TextBox && Clipboard.ContainsText())
+            if (Keyboard.FocusedElement is System.Windows.Controls.TextBox && Sistema.Actual.HayTexto())
             {
                 return;
             }
-            if (Clipboard.ContainsImage() || Clipboard.ContainsFileDropList())
+            if (Sistema.Actual.HayImagen() || Sistema.Actual.HayFicheros())
             {
                 e.Handled = true;
                 await PasteAttachmentAsync();
@@ -563,15 +564,14 @@ public partial class TaskDetailWindow : Window
     /// </remarks>
     private async void OnAddFileClick(object sender, RoutedEventArgs e)
     {
-        var dialog = new Microsoft.Win32.OpenFileDialog { Multiselect = false };
-        if (dialog.ShowDialog(this) != true)
+        if (Sistema.Actual.ElegirFichero(this, null) is not { } fichero)
         {
             return;
         }
 
         try
         {
-            var info = new FileInfo(dialog.FileName);
+            var info = new FileInfo(fichero);
             if (info.Length > TaskAttachment.MaxFileBytes)
             {
                 Controls.ModernDialog.Alert(this, T("AddFileTooltip"),
@@ -579,8 +579,8 @@ public partial class TaskDetailWindow : Window
                 return;
             }
 
-            var bytes = await File.ReadAllBytesAsync(dialog.FileName);
-            await _tasks.Repository.AddFileAsync(_task.Id, dialog.FileName, bytes);
+            var bytes = await File.ReadAllBytesAsync(fichero);
+            await _tasks.Repository.AddFileAsync(_task.Id, fichero, bytes);
 
             Changed = true;
             await ReloadAttachmentsAsync();
@@ -603,7 +603,7 @@ public partial class TaskDetailWindow : Window
         try
         {
             var added = 0;
-            if (Clipboard.ContainsImage() && Clipboard.GetImage() is { } image)
+            if (Sistema.Actual.HayImagen() && Sistema.Actual.LeerImagen() is { } image)
             {
                 var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
                 encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(image));
@@ -618,9 +618,9 @@ public partial class TaskDetailWindow : Window
                 await _tasks.Repository.AddFileAsync(_task.Id, $"{T("PastedImageName")} {DateTime.Now:yyyy-MM-dd HH-mm-ss}.png", memory.ToArray());
                 added++;
             }
-            else if (Clipboard.ContainsFileDropList())
+            else if (Sistema.Actual.HayFicheros())
             {
-                foreach (var path in Clipboard.GetFileDropList().Cast<string>())
+                foreach (var path in Sistema.Actual.LeerFicheros())
                 {
                     if (!File.Exists(path))
                     {
@@ -693,10 +693,7 @@ public partial class TaskDetailWindow : Window
     {
         try
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri)
-            {
-                UseShellExecute = true,
-            });
+            Sistema.Actual.Abrir(e.Uri.AbsoluteUri);
         }
         catch (Exception ex)
         {
@@ -708,14 +705,7 @@ public partial class TaskDetailWindow : Window
 
     private async void OnAttachmentDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        var source = e.OriginalSource as DependencyObject;
-
-        while (source is not null and not System.Windows.Controls.ListBoxItem)
-        {
-            source = System.Windows.Media.VisualTreeHelper.GetParent(source);
-        }
-
-        if (source is not System.Windows.Controls.ListBoxItem { Content: AttachmentRow row })
+        if (Arrastre.Contenido<AttachmentRow>(e.OriginalSource as DependencyObject) is not { } row)
         {
             return;
         }
@@ -741,10 +731,7 @@ public partial class TaskDetailWindow : Window
                 await File.WriteAllBytesAsync(target, item.Data ?? []);
             }
 
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(target)
-            {
-                UseShellExecute = true,
-            });
+            Sistema.Actual.Abrir(target);
         }
         catch (Exception ex)
         {
@@ -761,7 +748,7 @@ public partial class TaskDetailWindow : Window
     /// paso o pulsar su papelera se convertiria en un arrastre accidental.
     /// </summary>
     private void OnStepMouseDown(object sender, MouseButtonEventArgs e) =>
-        _dragStart = e.GetPosition(null);
+        _dragStart = Arrastre.Posicion(e);
 
     /// <summary>
     /// Arranca el arrastre cuando el raton se ha movido lo bastante con el boton pulsado. El umbral
@@ -770,21 +757,10 @@ public partial class TaskDetailWindow : Window
     /// </summary>
     private void OnStepMouseMove(object sender, MouseEventArgs e)
     {
-        if (e.LeftButton != MouseButtonState.Pressed)
+        if (Arrastre.Empieza(e, _dragStart) &&
+            Arrastre.Contenido<StepRow>(e.OriginalSource as DependencyObject) is { } row)
         {
-            return;
-        }
-
-        var moved = e.GetPosition(null) - _dragStart;
-        if (Math.Abs(moved.X) < SystemParameters.MinimumHorizontalDragDistance &&
-            Math.Abs(moved.Y) < SystemParameters.MinimumVerticalDragDistance)
-        {
-            return;
-        }
-
-        if (FindRow(e.OriginalSource as DependencyObject) is { Content: StepRow row })
-        {
-            DragDrop.DoDragDrop(StepsBox, row, DragDropEffects.Move);
+            Sistema.Actual.Arrastrar(StepsBox, row);
         }
     }
 
@@ -795,11 +771,8 @@ public partial class TaskDetailWindow : Window
             return;
         }
 
-        var target = FindRow(e.OriginalSource as DependencyObject)?.Content as StepRow;
-        var from = _steps.IndexOf(dragged);
-        var to = target is null ? _steps.Count - 1 : _steps.IndexOf(target);
-
-        if (from < 0 || to < 0 || from == to)
+        if (Arrastre.Destino(_steps, dragged, Arrastre.Contenido<StepRow>(e.OriginalSource as DependencyObject))
+            is not var (from, to))
         {
             return;
         }
@@ -812,16 +785,6 @@ public partial class TaskDetailWindow : Window
         Changed = true;
     }
 
-    /// <summary>La fila sobre la que ha caido el raton, subiendo desde lo que se pulso.</summary>
-    private static ListBoxItem? FindRow(DependencyObject? source)
-    {
-        while (source is not null and not ListBoxItem)
-        {
-            source = VisualTreeHelper.GetParent(source);
-        }
-
-        return source as ListBoxItem;
-    }
 
     private async void OnAddStepClick(object sender, RoutedEventArgs e) => await AddStepAsync();
 
@@ -875,14 +838,7 @@ public partial class TaskDetailWindow : Window
     /// </summary>
     private async void OnStepDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        var source = e.OriginalSource as DependencyObject;
-
-        while (source is not null and not System.Windows.Controls.ListBoxItem)
-        {
-            source = System.Windows.Media.VisualTreeHelper.GetParent(source);
-        }
-
-        if (source is not System.Windows.Controls.ListBoxItem { Content: StepRow row })
+        if (Arrastre.Contenido<StepRow>(e.OriginalSource as DependencyObject) is not { } row)
         {
             return;
         }
@@ -948,7 +904,7 @@ public partial class TaskDetailWindow : Window
         if (string.IsNullOrWhiteSpace(TitleBox.Text))
         {
             StatusLabel.Text = T("TitleRequired");
-            HandyControl.Controls.Growl.WarningGlobal(T("TitleRequired"));
+            Sistema.Actual.Aviso(TipoAviso.Advertencia, T("TitleRequired"));
             return;
         }
 
@@ -960,7 +916,7 @@ public partial class TaskDetailWindow : Window
         if (_task.Recurrence.Repeats && (_task.PlannedFor is null || _task.DueAt is null))
         {
             StatusLabel.Text = T("RecurrenceNeedsDates");
-            HandyControl.Controls.Growl.WarningGlobal(T("RecurrenceNeedsDates"));
+            Sistema.Actual.Aviso(TipoAviso.Advertencia, T("RecurrenceNeedsDates"));
 
             // Se abren las dos filas de fecha: el aviso habla de dos campos que pueden estar
             // plegados y sin abrirlos no se ve de que se esta hablando.
@@ -979,7 +935,8 @@ public partial class TaskDetailWindow : Window
 
             if (series.Created > 1)
             {
-                HandyControl.Controls.Growl.SuccessGlobal(series.Truncated
+                Sistema.Actual.Aviso(TipoAviso.Exito, series.Truncated
+
                     ? Localization.Loc.Format("SeriesTruncated", series.Created, Recurrence.MaxOccurrences)
                     : Localization.Loc.Format("SeriesCreated", series.Created));
             }

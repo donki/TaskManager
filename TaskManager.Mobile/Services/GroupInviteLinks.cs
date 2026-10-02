@@ -31,6 +31,18 @@ public static class GroupInviteLinks
         }
     }
 
+    /// <summary>
+    /// Lo mismo con el texto del <c>Intent</c> tal como llega del sistema: vacio o que no sea una
+    /// direccion, se ignora.
+    /// </summary>
+    public static void Anotar(string? data)
+    {
+        if (!string.IsNullOrEmpty(data) && Uri.TryCreate(data, UriKind.Absolute, out var link))
+        {
+            Anotar(link);
+        }
+    }
+
     /// <summary>Se la lleva quien vaya a usarla, y deja de estar pendiente.</summary>
     public static GroupInvite? Recoger()
     {

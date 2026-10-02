@@ -156,7 +156,7 @@ public partial class SettingsPage : ContentPage
     private async void OnSignOutClicked(object? sender, EventArgs e)
     {
         // Del modo local se sale sin preguntar: no hay sesion que perder, y lo local se queda.
-        var confirmed = _auth.IsLocalAccount || await SocShared.ModernDialog.AlertAsync(
+        var confirmed = _auth.IsLocalAccount || await Ui.Platform.AlertAsync(
             this,
             Localization.Loc.Instance["SignOut"],
             Localization.Loc.Instance["SignOutConfirm"],
@@ -169,7 +169,7 @@ public partial class SettingsPage : ContentPage
             ShowAccount();
 
             // Sin usuario no hay nada que enseñar: se vuelve a la puerta.
-            await Shell.Current.GoToAsync("//LoginPage");
+            await Ui.Platform.GoToAsync("//LoginPage");
         }
     }
 
@@ -202,7 +202,7 @@ public partial class SettingsPage : ContentPage
             NotifyHourRow.IsVisible = false;
             _loading = false;
 
-            await SocShared.ModernDialog.AlertAsync(this, "Sin permiso",
+            await Ui.Platform.AlertAsync(this, "Sin permiso",
                 "Android no permite mostrar avisos hasta que se conceda el permiso de notificaciones.",
                 "OK");
             return;

@@ -44,29 +44,45 @@ public partial class App : Application
     /// <para>El nombre lleva el usuario dentro: con dos sesiones de Windows abiertas, cada una tiene
     /// su aplicacion y su base de datos, y compartir el aviso las mezclaria.</para>
     /// </remarks>
-    private static readonly string NombreUnica = $"Socratic.TaskManager.unica.{Environment.UserName}";
-    private static readonly string NombreAviso = $"Socratic.TaskManager.abrir.{Environment.UserName}";
+    private static string NombreUnica => string.Format(Rutas.Instancia, "unica");
+    private static string NombreAviso => string.Format(Rutas.Instancia, "abrir");
 
     private static Mutex? _unica;
     private static EventWaitHandle? _aviso;
 
+    /// <summary>Con que se habla con el servidor. Las pruebas ponen uno de mentira.</summary>
+    internal static Func<HttpClient> CrearHttp { get; set; } =
+        () => new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+
+    /// <summary>El panel de la bandeja, el icono y la ventana principal, para quien los necesite mirar.</summary>
+    internal FlyoutWindow Panel => _flyout;
+
+    internal TrayIconHost Bandeja => _tray;
+
+    internal MainWindow? Principal => _main;
+
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        await ArrancarAsync(e.Args);
+    }
 
+    /// <summary>Todo el arranque, con los argumentos con los que se abrio el programa.</summary>
+    internal async Task ArrancarAsync(string[] args)
+    {
         InstalarGestorDeErrores();
 
 #if DEBUG
         // Solo en Debug: «--preview-novedades [es|en]» enseña Acerca de y las Novedades con una
         // base temporal, sin cuenta, sin la instancia unica y sin tocar los datos de verdad.
-        if (e.Args.Length > 0 && e.Args[0] == "--preview-novedades")
+        if (args.Length > 0 && args[0] == "--preview-novedades")
         {
             ShutdownMode = ShutdownMode.OnLastWindowClose;
             ThemeManager.Apply();
             var previewDb = Path.Combine(Path.GetTempPath(), $"taskmanager-preview-{Guid.NewGuid():N}.db3");
             _settings = new SettingsService(new LocalDatabase(previewDb));
             await _settings.LoadAsync();
-            await _settings.SetAsync(SettingsService.KeyLanguage, e.Args.Length > 1 ? e.Args[1] : "es");
+            await _settings.SetAsync(SettingsService.KeyLanguage, args.Length > 1 ? args[1] : "es");
             Localization.Loc.Use(new LocalizationService(_settings));
             if (_settings.HasUnseenVersion(WhatsNewWindow.CurrentVersion()))
             {
@@ -79,7 +95,7 @@ public partial class App : Application
         }
 #endif
 
-        if (!TomarLaVez())
+        if (!TomarLaVez(args))
         {
             return;
         }
@@ -90,9 +106,7 @@ public partial class App : Application
         // porque apunta al .exe, y este se entrega copiandolo a mano.
         GroupLinkProtocol.Registrar();
 
-        var folder = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Socratic", "TaskManager");
+        var folder = Rutas.Carpeta;
         Directory.CreateDirectory(folder);
 
         _database = new LocalDatabase(Path.Combine(folder, "taskmanager.db3"));
@@ -116,7 +130,7 @@ public partial class App : Application
         // cada selector de fecha— tambien tiene que salir en el idioma de la aplicacion.
         Localization.WpfCulture.Install();
 
-        _http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        _http = CrearHttp();
         _tasks = new TaskService(repository, _settings);
         await _tasks.InitializeAsync();
 
@@ -148,29 +162,19 @@ public partial class App : Application
 
         _syncing = new SyncCoordinator(_sync, _auth, repository, _settings);
 
-        _flyout = new FlyoutWindow(_tasks, _settings, _syncing) { Icon = TrayIconHost.CreateWindowIcon() };
-        _flyout.PendingChanged += (_, pending) => _tray.SetPending(pending);
-        _flyout.SettingsRequested += (_, _) => OpenSettings();
-        _flyout.AboutRequested += (_, _) => OpenAbout();
-        _flyout.CalendarRequested += (_, _) => OpenCalendar();
-        _flyout.MainRequested += (_, _) => OpenMain();
+        _flyout = CrearPanel();
 
         _tray = new TrayIconHost();
         _tray.Activated += (_, _) => _flyout.ShowFlyout();
         _tray.SettingsRequested += (_, _) => OpenSettings();
         _tray.MainRequested += (_, _) => OpenMain();
         _tray.WhatsNewRequested += (_, _) => OpenWhatsNew();
-        _tray.ExitRequested += (_, _) => Shutdown();
+        _tray.ExitRequested += (_, _) => Ventanas.Apagar();
 
-        // El atajo global necesita un handle: se fuerza sin llegar a mostrar la ventana.
-        var handle = new WindowInteropHelper(_flyout).EnsureHandle();
-        _hotkey = new GlobalHotkey(handle);
-        _hotkey.Pressed += (_, _) => _flyout.ShowFlyout();
-
-        var combination = _settings.Get(SettingsService.KeyHotkey, "Ctrl+Alt+T");
-        if (!_hotkey.Register(combination))
+        if (!MontarAtajo())
         {
-            _tray.Notify("Task Manager", Localization.Loc.Format("HotkeyTaken", combination));
+            _tray.Notify("Task Manager", Localization.Loc.Format("HotkeyTaken",
+                _settings.Get(SettingsService.KeyHotkey, "Ctrl+Alt+T")));
         }
 
         // Una tarea creada en el movil se anuncia aqui en cuanto baja, y el panel se relee solo.
@@ -198,9 +202,9 @@ public partial class App : Application
             _settings.Get(SettingsService.KeyHotkey, "Ctrl+Alt+T")));
 
         // Abierta desde un enlace de invitacion: se enseña la ventana y se entra en el grupo.
-        if (GroupLinkProtocol.EnLosArgumentos(e.Args) is not null || File.Exists(GroupLinkProtocol.BuzonPath))
+        if (GroupLinkProtocol.EnLosArgumentos(args) is not null || File.Exists(GroupLinkProtocol.BuzonPath))
         {
-            if (GroupLinkProtocol.EnLosArgumentos(e.Args) is { } invite)
+            if (GroupLinkProtocol.EnLosArgumentos(args) is { } invite)
             {
                 GroupLinkProtocol.Dejar(invite);
             }
@@ -220,7 +224,7 @@ public partial class App : Application
     /// Se queda con el turno, o le pide a la que ya esta abierta que se enseñe y se apaga.
     /// </summary>
     /// <returns><c>false</c> si ya habia otra: entonces no hay nada mas que hacer aqui.</returns>
-    private bool TomarLaVez()
+    private bool TomarLaVez(string[] args)
     {
         _unica = new Mutex(true, NombreUnica, out var primera);
 
@@ -228,7 +232,7 @@ public partial class App : Application
         {
             // Si venia con una invitacion (taskmanager://join?...), se la deja escrita a la que ya
             // esta corriendo: esta copia se apaga en un segundo y con ella se irian los argumentos.
-            if (GroupLinkProtocol.EnLosArgumentos(Environment.GetCommandLineArgs()) is { } invite)
+            if (GroupLinkProtocol.EnLosArgumentos(args) is { } invite)
             {
                 GroupLinkProtocol.Dejar(invite);
             }
@@ -243,7 +247,7 @@ public partial class App : Application
                 // ventana», que es lo de menos: la aplicacion se esta abriendo igual.
             }
 
-            Shutdown();
+            Ventanas.Apagar();
             return false;
         }
 
@@ -288,7 +292,7 @@ public partial class App : Application
         }
 
         var login = new LoginWindow(_auth) { Icon = TrayIconHost.CreateWindowIcon() };
-        login.ShowDialog();
+        Ventanas.Modal(login);
 
         if (login.User is null)
         {
@@ -317,22 +321,38 @@ public partial class App : Application
         var pending = _tray.Pending;
 
         _flyout.CloseForReal();
-        _flyout = new FlyoutWindow(_tasks, _settings, _syncing) { Icon = TrayIconHost.CreateWindowIcon() };
-        _flyout.PendingChanged += (_, count) => _tray.SetPending(count);
-        _flyout.SettingsRequested += (_, _) => OpenSettings();
-        _flyout.AboutRequested += (_, _) => OpenAbout();
-        _flyout.CalendarRequested += (_, _) => OpenCalendar();
-        _flyout.MainRequested += (_, _) => OpenMain();
+        _flyout = CrearPanel();
 
         // El atajo global cuelga de un handle de ventana: al cambiar de ventana hay que rehacerlo.
+        MontarAtajo();
+
+        _tray.RebuildMenu();
+        _tray.SetPending(pending);
+    }
+
+    /// <summary>El panel rapido, con sus botones enganchados a las ventanas que abren.</summary>
+    private FlyoutWindow CrearPanel()
+    {
+        var flyout = new FlyoutWindow(_tasks, _settings, _syncing) { Icon = TrayIconHost.CreateWindowIcon() };
+        flyout.PendingChanged += (_, pending) => _tray.SetPending(pending);
+        flyout.SettingsRequested += (_, _) => OpenSettings();
+        flyout.AboutRequested += (_, _) => OpenAbout();
+        flyout.CalendarRequested += (_, _) => OpenCalendar();
+        flyout.MainRequested += (_, _) => OpenMain();
+        return flyout;
+    }
+
+    /// <summary>
+    /// Engancha el atajo global al panel. Necesita un handle: se fuerza sin llegar a mostrar la
+    /// ventana. Devuelve si Windows lo ha aceptado.
+    /// </summary>
+    private bool MontarAtajo()
+    {
         var handle = new WindowInteropHelper(_flyout).EnsureHandle();
         _hotkey?.Dispose();
         _hotkey = new GlobalHotkey(handle);
         _hotkey.Pressed += (_, _) => _flyout.ShowFlyout();
-        _hotkey.Register(_settings.Get(SettingsService.KeyHotkey, "Ctrl+Alt+T"));
-
-        _tray.RebuildMenu();
-        _tray.SetPending(pending);
+        return _hotkey.Register(_settings.Get(SettingsService.KeyHotkey, "Ctrl+Alt+T"));
     }
 
     /// <summary>
@@ -381,7 +401,7 @@ public partial class App : Application
         };
 
         _main.Closed += (_, _) => _main = null;
-        _main.Show();
+        Ventanas.Mostrar(_main);
         AlFrente(_main);
     }
 
@@ -418,7 +438,7 @@ public partial class App : Application
 
         _calendar = new CalendarWindow(_tasks) { Icon = TrayIconHost.CreateWindowIcon() };
         _calendar.Closed += (_, _) => _calendar = null;
-        _calendar.Show();
+        Ventanas.Mostrar(_calendar);
     }
 
     private void OpenSettings()
@@ -427,7 +447,7 @@ public partial class App : Application
         {
             Icon = TrayIconHost.CreateWindowIcon(),
         };
-        window.ShowDialog();
+        Ventanas.Modal(window);
     }
 
     /// <summary>«Acerca de»: version, contacto, idioma, privacidad y licencia, como en el movil.</summary>
@@ -437,7 +457,7 @@ public partial class App : Application
         {
             Icon = TrayIconHost.CreateWindowIcon(),
         };
-        window.ShowDialog();
+        Ventanas.Modal(window);
     }
 
     private WhatsNewWindow? _whatsNew;
@@ -453,7 +473,7 @@ public partial class App : Application
 
         _whatsNew = new WhatsNewWindow(_settings) { Icon = TrayIconHost.CreateWindowIcon() };
         _whatsNew.Closed += (_, _) => _whatsNew = null;
-        _whatsNew.Show();
+        Ventanas.Mostrar(_whatsNew);
         _whatsNew.Activate();
     }
 
@@ -461,9 +481,9 @@ public partial class App : Application
     //  Gestor global de excepciones (General 6.12)
     // ==================================================================================
 
-    private static readonly string CrashLog = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Socratic", "TaskManager", "crash.log");
+    private static string CrashLog => Path.Combine(Rutas.Carpeta, "crash.log");
+
+    private static bool _gestorInstalado;
 
     private static DateTime _ultimoAviso = DateTime.MinValue;
 
@@ -475,23 +495,35 @@ public partial class App : Application
     /// </summary>
     private void InstalarGestorDeErrores()
     {
-        DispatcherUnhandledException += (_, ex) =>
+        if (_gestorInstalado)
         {
-            Apuntar("DispatcherUnhandledException", ex.Exception);
-            Avisar();
-            ex.Handled = true;
-        };
-        TaskScheduler.UnobservedTaskException += (_, ex) =>
-        {
-            Apuntar("TaskScheduler.UnobservedTaskException", ex.Exception);
-            ex.SetObserved();
-        };
-        // Este no se puede frenar (el proceso ya se va): solo se apunta.
-        AppDomain.CurrentDomain.UnhandledException += (_, ex) =>
-            Apuntar("AppDomain.UnhandledException", ex.ExceptionObject as Exception);
+            return;
+        }
+
+        _gestorInstalado = true;
+        DispatcherUnhandledException += AlFallarLaInterfaz;
+        TaskScheduler.UnobservedTaskException += AlFallarUnaTarea;
+        AppDomain.CurrentDomain.UnhandledException += AlFallarElProceso;
     }
 
-    private static void Apuntar(string origen, Exception? ex)
+    internal static void AlFallarLaInterfaz(object? sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs ex)
+    {
+        Apuntar("DispatcherUnhandledException", ex.Exception);
+        Avisar();
+        ex.Handled = true;
+    }
+
+    internal static void AlFallarUnaTarea(object? sender, UnobservedTaskExceptionEventArgs ex)
+    {
+        Apuntar("TaskScheduler.UnobservedTaskException", ex.Exception);
+        ex.SetObserved();
+    }
+
+    /// <summary>Este no se puede frenar (el proceso ya se va): solo se apunta.</summary>
+    internal static void AlFallarElProceso(object? sender, UnhandledExceptionEventArgs ex) =>
+        Apuntar("AppDomain.UnhandledException", ex.ExceptionObject as Exception);
+
+    internal static void Apuntar(string origen, Exception? ex)
     {
         try
         {
@@ -514,7 +546,7 @@ public partial class App : Application
     }
 
     /// <summary>El aviso, sin encadenar: si ya salio uno hace menos de 10 s, solo se apunta.</summary>
-    private static void Avisar()
+    internal static void Avisar()
     {
         if (DateTime.Now - _ultimoAviso < TimeSpan.FromSeconds(10))
         {
@@ -524,7 +556,7 @@ public partial class App : Application
         _ultimoAviso = DateTime.Now;
         try
         {
-            HandyControl.Controls.Growl.ErrorGlobal($"{Texto("UnexpectedErrorTitle")}{Environment.NewLine}{Texto("UnexpectedError")}");
+            Sistema.Actual.Aviso(TipoAviso.Error, $"{Texto("UnexpectedErrorTitle")}{Environment.NewLine}{Texto("UnexpectedError")}");
         }
         catch (Exception ex)
         {
@@ -536,7 +568,8 @@ public partial class App : Application
     /// El texto en el idioma de la aplicacion. Un error en el arranque puede llegar antes de que
     /// esten cargados los textos (Loc devuelve entonces la clave): se tira del idioma del sistema.
     /// </summary>
-    private static string Texto(string clave)
+    internal static string Texto(string clave)
+
     {
         var texto = Localization.Loc.Get(clave);
         if (texto != clave)
