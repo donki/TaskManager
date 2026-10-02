@@ -18,7 +18,7 @@ Windows `2026.10.3.0` · Android `2026.10.03.00`
   disposed object» en vez de «entrada cancelada».
 - Pruebas: además del núcleo, ahora se prueban las pantallas del móvil y las ventanas de Windows
   (427 pruebas, `dotnet test TaskManager.Pruebas.slnx`). La cobertura sobre toda la aplicación pasa
-  del 36,8 % al **96,6 %**, contada de una forma nueva (solo sentencias; ver el README). Para poder
+  del 36,8 % al **96,1 %**, contada de una forma nueva (solo sentencias; ver el README). Para poder
   probarlas, la lógica que vivía en las pantallas pasa a clases propias y lo que toca el sistema va
   detrás de interfaces; lo que se ve y lo que hace la aplicación no cambia.
 
@@ -34,7 +34,7 @@ Windows `2026.10.3.0` · Android `2026.10.03.00`
   of "sign-in cancelled".
 - Tests: besides the core, the phone screens and the Windows windows are now tested (427 tests,
   `dotnet test TaskManager.Pruebas.slnx`). Line coverage over the whole app goes from 36.8 % to
-  **96.6 %**, counted in a new way (statements only; see the README). To test them, the logic that
+  **96.1 %**, counted in a new way (statements only; see the README). To test them, the logic that
   lived in the screens moved to its own classes and what touches the system sits behind interfaces;
   what the app shows and does is unchanged.
 

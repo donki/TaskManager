@@ -67,21 +67,22 @@ El banco entero se lanza con un solo `dotnet test TaskManager.Pruebas.slnx` (tre
 
 | Fecha | Pruebas | Cobertura de lo instrumentado | Cobertura sobre toda la app | Tiempo del banco |
 |---|---|---|---|---|
-| 2026-10-02 | 427 (pasan todas: 255 + 97 + 75) | 98,1 % (7878 de 8031 líneas) | **96,6 %** (7878 de 8153 líneas) | ≈2 min 20 s (los tres a la vez; el de Windows marca el tiempo) |
+| 2026-10-03 | 427 (pasan todas: 255 + 97 + 75) | 97,5 % (7878 de 8081 líneas) | **96,1 %** (7878 de 8199 líneas) | ≈2 min 20 s (los tres a la vez; el de Windows marca el tiempo) |
 | 2026-09-30 | 254 (pasan todas) | 97,3 % (3919 de 4026 líneas) | ≈39 % (3919 de ≈10 000 líneas) | ≈11 s |
 
-**Cómo se cuenta «toda la app»** (`tools/cobertura-app.py`, desde el 2026-10-02): todos los `.cs`
+**Cómo se cuenta «toda la app»** (`tools/cobertura-app.py`, desde el 2026-10-03): todos los `.cs`
 de `TaskManager.Core`, `TaskManager.Mobile` y `TaskManager.Desktop` (fuera `obj/`, `bin/`, `*.g.cs`,
 `*.Designer.cs` y los proyectos de pruebas). Solo cuentan las líneas con **sentencias**, que es lo
 que coverlet mide: no cuentan llaves sueltas, `using`, `namespace`, atributos, constantes, campos sin
 valor, firmas de métodos ni el interior de interfaces y enum. De los ficheros que compila el banco se
 toman las líneas que marca coverlet (sin excluir `CompilerGeneratedAttribute`, así que cuentan los
 métodos `async` y las lambdas); los que el banco no compila (`Platforms/Android`) se cuentan con
-esas reglas y entran enteros como **no cubiertos**. En lo instrumentado, las reglas y coverlet
-difieren en un 0,2 %. La cifra del 2026-09-30 contaba también llaves y declaraciones; con la
+esas reglas y entran enteros como **no cubiertos**, igual que lo que va bajo `#if ANDROID` en un
+fichero común (el banco del móvil compila `net10.0`). En lo instrumentado, las reglas y coverlet
+difieren en un 1 %. La cifra del 2026-09-30 contaba también llaves y declaraciones; con la
 cuenta nueva aquel banco daba el 36,8 %.
 
-Lo que queda sin cubrir (275 líneas): el código nativo de Android (`Platforms/Android`, ≈125: avisos,
+Lo que queda sin cubrir (321 líneas): el código nativo de Android (`Platforms/Android`, ≈125: avisos,
 sincronización de fondo, actividad), las llamadas finales a Windows de verdad (registro, navegador,
 portapapeles, captura), el arranque de MAUI en el móvil y ramas defensivas que no se dan.
 

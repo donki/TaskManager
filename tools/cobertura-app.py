@@ -9,13 +9,17 @@ Como se cuenta (las mismas reglas para todos los ficheros .cs de la app):
     --excluir.
   - Solo cuentan las lineas con SENTENCIAS (lo que coverlet llama puntos de secuencia). No cuentan:
     lineas vacias, comentarios, directivas (#if), llaves y parentesis sueltos, using/namespace,
-    atributos [..], constantes, campos sin inicializar, firmas de metodos y propiedades (incluidas sus
+    metodos abstractos y delegados, atributos [..] (tambien delante de un campo en la misma linea), constantes, declaraciones
+    `extern` (P/Invoke), campos sin inicializar, firmas de metodos y propiedades (incluidas sus
     listas de parametros partidas en varias lineas), `else`, `try`, `finally`, `case X:`, y todo lo
     que hay dentro de las interfaces y de los enum.
   - Fichero que compila el banco de pruebas (sale en el informe de coverlet): sus lineas ejecutables
     son las que marca coverlet, quitando las de llaves sueltas, y una linea esta cubierta si coverlet
     la ha visto ejecutarse. coverlet se ejecuta SIN excluir CompilerGeneratedAttribute, asi que los
     metodos async y las lambdas cuentan.
+    Las sentencias que van dentro de un `#if` (codigo de Android o de Windows en un fichero comun) y
+    que coverlet no ve porque el banco compila otra plataforma se cuentan con las reglas, como no
+    cubiertas.
   - Fichero que el banco no compila: se cuentan sus sentencias con las reglas de arriba y todas
     cuentan como NO cubiertas. Lo que no se prueba, baja el porcentaje.
   --calibrar compara, en los ficheros instrumentados, el recuento de estas reglas con lo que marca
@@ -96,18 +100,48 @@ def limpiar(lines):
         yield i, code
 
 
-def ejecutables(path):
-    """Numeros de linea que estas reglas consideran sentencias."""
+def _fin_atributo(code):
+    """Indice del ']' que cierra el atributo con que empieza la linea (-1 si no cierra)."""
+    nivel = 0
+    for i, ch in enumerate(code):
+        if ch == '[':
+            nivel += 1
+        elif ch == ']':
+            nivel -= 1
+            if nivel == 0:
+                return i
+    return -1
+
+
+def ejecutables(path, condicionales=None):
+    """Numeros de linea que estas reglas consideran sentencias. En `condicionales` deja las que
+    estan dentro de un #if (codigo de otra plataforma que el banco quiza no compila)."""
     out = set()
+    if condicionales is None:
+        condicionales = set()
     lines = open(path, encoding='utf-8-sig', errors='replace').read().split('\n')
     stack = []            # por cada '{' abierta: 'iface', 'enum' u 'other'
     pending = None        # tipo de la ultima declaracion de tipo, a la espera de su '{'
     sig_depth = 0         # >0: dentro de los parametros de una firma partida en varias lineas
     cls_name = None
+    pp = []               # pila de #if abiertos
     for i, code in limpiar(lines):
-        if not code or code.startswith('#'):
+        if code.startswith('#'):
+            d = code[1:].strip()
+            if d.startswith('if'):
+                pp.append(True)
+            elif d.startswith('endif') and pp:
+                pp.pop()
+            continue
+        if not code:
             continue
         inside = stack[-1] if stack else 'other'
+        # atributos delante en la misma linea ([MarshalAs(...)] public string x;): fuera
+        while code.startswith('['):
+            cierre = _fin_atributo(code)
+            if cierre < 0 or cierre + 1 >= len(code):
+                break
+            code = code[cierre + 1:].strip()
         m = TYPEDECL.match(code)
         stmt = True
         if sig_depth > 0:
@@ -130,6 +164,13 @@ def ejecutables(path):
             stmt = '(' in code and m.group(1) != 'interface'
         elif CONST.match(code):
             stmt = False
+        elif code.endswith(';') and re.match(r'^' + MODS + r'*(?:abstract\s|delegate\s|(?:\w+\s+)*abstract\s)', code):
+            stmt = False   # metodo abstracto o delegado: sin cuerpo
+        elif re.match(r'^' + MODS + r'*extern\s', code) or re.search(r'extern\s', code.split('(')[0]):
+            # P/Invoke (static extern ...;): sin cuerpo, no genera codigo
+            stmt = False
+            if code.count('(') > code.count(')'):
+                sig_depth = code.count('(') - code.count(')')
         elif KEYWORD.match(code):
             stmt = True
         elif re.match(r'^' + MODS + r'+[^=(]*=(?!>)', code):
@@ -146,6 +187,8 @@ def ejecutables(path):
             stmt = False
         if stmt:
             out.add(i)
+            if pp:
+                condicionales.add(i)
         if m:
             pending = {'interface': 'iface', 'enum': 'enum'}.get(m.group(1), 'other')
         for ch in code:
@@ -178,7 +221,12 @@ for f in sorted(files):
     if h is not None:
         txt = open(f, encoding='utf-8-sig', errors='replace').read().split('\n')
         ejec = {n for n in h if n <= len(txt) and not LONE.match(txt[n - 1].strip())}
-        c = sum(1 for n in ejec if h[n] > 0)
+        # Lo que va bajo #if (p. ej. #if ANDROID / #if WINDOWS) y el banco no ha compilado no sale
+        # en coverlet: se cuenta con las reglas y como no cubierto.
+        cond = set()
+        ejecutables(f, cond)
+        ejec |= {n for n in cond if n not in h}
+        c = sum(1 for n in ejec if h.get(n, 0) > 0)
         tot_i += len(ejec); cub_i += c
         if calibrar:
             cal_est += len(ejecutables(f)); cal_cov += len(ejec)
