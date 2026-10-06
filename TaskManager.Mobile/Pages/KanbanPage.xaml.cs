@@ -225,11 +225,8 @@ public partial class KanbanPage : ContentPage, Helpers.IBackHandler
             return;
         }
 
-        if (_activeTag is not null && _activeTag != TaskRepository.NoTag &&
-            !tags.Contains(_activeTag, StringComparer.CurrentCultureIgnoreCase))
-        {
-            _activeTag = null;
-        }
+        // Con varias marcadas (Ctrl+clic) se quitan solo las que ya no existen.
+        _activeTag = TagFilter.Prune(_activeTag, tags);
 
         TagFilterBox.Add(BuildTagChip(Localization.Loc.Instance["AllTags"], null));
         TagFilterBox.Add(BuildTagChip(Localization.Loc.Instance["NoTagFilter"], TaskRepository.NoTag));
@@ -251,11 +248,12 @@ public partial class KanbanPage : ContentPage, Helpers.IBackHandler
             CornerRadius = 16,
         };
 
-        Paint(button, string.Equals(_activeTag, tag, StringComparison.CurrentCultureIgnoreCase));
+        Paint(button, TagFilter.Has(_activeTag, tag));
 
         button.Clicked += async (_, _) =>
         {
-            _activeTag = tag;
+            // Ctrl+clic suma o quita esta a las que ya habia; sin Ctrl, solo esta.
+            _activeTag = TagFilter.Click(_activeTag, tag, Services.KeyboardModifiers.Ctrl);
             await ReloadAsync();
         };
 

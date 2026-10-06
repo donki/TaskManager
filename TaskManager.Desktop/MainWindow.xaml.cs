@@ -204,12 +204,10 @@ public partial class MainWindow : Window
             _allTasks.Add(new TaskRow(task, _listNames.GetValueOrDefault(task.ListId, string.Empty)));
         }
 
-        FilterLabel.Text = _activeTag switch
-        {
-            null => T(TaskFilters.KeyOf(_filter)),
-            TaskRepository.NoTag => $"{T(TaskFilters.KeyOf(_filter))}  ·  {T("NoTagFilter")}",
-            _ => $"{T(TaskFilters.KeyOf(_filter))}  ·  #{_activeTag}",
-        };
+        // Con varias etiquetas marcadas (Ctrl+clic) salen todas: «Pendientes  ·  #casa · #obra».
+        FilterLabel.Text = _activeTag is null
+            ? T(TaskFilters.KeyOf(_filter))
+            : $"{T(TaskFilters.KeyOf(_filter))}  ·  {TagFilter.Describe(_activeTag, T("NoTagFilter"))}";
         SummaryLabel.Text = tasks.Count == 1 ? T("TaskCountOne") : F("TaskCount", tasks.Count);
 
         // Y lo que queda por hacer en la cuenta, para saber si lo que se ve es todo o es lo que deja
@@ -244,11 +242,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (_activeTag is not null && _activeTag != TaskRepository.NoTag &&
-            !tags.Contains(_activeTag, StringComparer.CurrentCultureIgnoreCase))
-        {
-            _activeTag = null;
-        }
+        // Con varias marcadas (Ctrl+clic) se quitan solo las que ya no existen.
+        _activeTag = TagFilter.Prune(_activeTag, tags);
 
         TagFilterBox.Children.Add(BuildTagChip(T("AllTags"), null));
         TagFilterBox.Children.Add(BuildTagChip(T("NoTagFilter"), TaskRepository.NoTag));
@@ -277,14 +272,16 @@ public partial class MainWindow : Window
         {
             Content = text,
             Style = (Style)FindResource("Chip"),
-            IsChecked = string.Equals(_activeTag, tag, StringComparison.CurrentCultureIgnoreCase),
+            IsChecked = TagFilter.Has(_activeTag, tag),
+            ToolTip = T("TagChipCtrlHint"),
             Tag = tag,
         };
 
         chip.Click += async (_, _) =>
         {
-            _activeTag = tag;
-            await _settings.SetTaskTagAsync(tag);
+            // Ctrl+clic suma o quita esta a las que ya habia; sin Ctrl, solo esta.
+            _activeTag = TagFilter.Click(_activeTag, tag, KeyboardModifiers.Ctrl());
+            await _settings.SetTaskTagAsync(_activeTag);
             await ReloadAllTasksAsync();
         };
 
@@ -315,10 +312,10 @@ public partial class MainWindow : Window
         }
 
         var removed = await _tasks.Repository.DeleteTagAsync(tag);
-        if (string.Equals(_activeTag, tag, StringComparison.CurrentCultureIgnoreCase))
+        if (TagFilter.Has(_activeTag, tag))
         {
-            _activeTag = null;
-            await _settings.SetTaskTagAsync(null);
+            _activeTag = TagFilter.Without(_activeTag, tag);
+            await _settings.SetTaskTagAsync(_activeTag);
         }
         await ReloadAllTasksAsync();
         Controls.ModernDialog.Alert(this, T("DeleteTag"), F("TagDeleted", tag, removed));
@@ -843,11 +840,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (_kanbanTag is not null && _kanbanTag != TaskRepository.NoTag &&
-            !tags.Contains(_kanbanTag, StringComparer.CurrentCultureIgnoreCase))
-        {
-            _kanbanTag = null;
-        }
+        // Con varias marcadas (Ctrl+clic) se quitan solo las que ya no existen.
+        _kanbanTag = TagFilter.Prune(_kanbanTag, tags);
 
         KanbanTagBox.Children.Add(BuildKanbanTagChip(T("AllTags"), null));
         KanbanTagBox.Children.Add(BuildKanbanTagChip(T("NoTagFilter"), TaskRepository.NoTag));
@@ -864,13 +858,15 @@ public partial class MainWindow : Window
         {
             Content = text,
             Style = (Style)FindResource("Chip"),
-            IsChecked = string.Equals(_kanbanTag, tag, StringComparison.CurrentCultureIgnoreCase),
+            IsChecked = TagFilter.Has(_kanbanTag, tag),
+            ToolTip = T("TagChipCtrlHint"),
             Tag = tag,
         };
 
         chip.Click += async (_, _) =>
         {
-            _kanbanTag = tag;
+            // Ctrl+clic suma o quita esta a las que ya habia; sin Ctrl, solo esta.
+            _kanbanTag = TagFilter.Click(_kanbanTag, tag, KeyboardModifiers.Ctrl());
             await ReloadKanbanAsync();
         };
 

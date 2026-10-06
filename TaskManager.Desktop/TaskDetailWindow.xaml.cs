@@ -296,7 +296,7 @@ public partial class TaskDetailWindow : Window
 
     private void PaintKnownTags()
     {
-        KnownTagsScroll.Visibility = _knownTags.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        KnownTagsBox.Visibility = _knownTags.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         KnownTagsBox.Children.Clear();
 
         foreach (var tag in _knownTags)
@@ -306,6 +306,8 @@ public partial class TaskDetailWindow : Window
             {
                 Content = $"#{tag}",
                 Style = (Style)FindResource("Chip"),
+                // Hueco tambien por debajo: al saltar de linea las filas no se pegan.
+                Margin = new Thickness(0, 0, 8, 8),
                 IsChecked = _tags.Any(t => string.Equals(t, captured, StringComparison.CurrentCultureIgnoreCase)),
             };
 

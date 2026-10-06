@@ -5,6 +5,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using TaskManager.Core.Models;
 using TaskManager.Core.Services;
+using TaskManager.Desktop.Services;
 using TaskManager.Desktop.Tests.Banco;
 
 namespace TaskManager.Desktop.Tests;
@@ -170,6 +171,22 @@ public class FlyoutWindowTests
         Assert.Equal(["Pintar"], Titulos(panel));
         await Ui.Hacer(() => Ui.Invocar(panel, "OnClearSearchClick", null, new RoutedEventArgs()));
         Assert.Equal(2, panel.TaskList.Items.Count);
+
+        // Ctrl+clic: las dos a la vez, y se guardan juntas.
+        var antes = KeyboardModifiers.Ctrl;
+        try
+        {
+            KeyboardModifiers.Ctrl = () => true;
+            await Ui.Pulsar(panel.TagFilterBox.Children.OfType<ToggleButton>().ElementAt(2));
+            await Ui.Pulsar(panel.TagFilterBox.Children.OfType<ToggleButton>().ElementAt(1));
+            Assert.Equal(["Comer", "Pintar"], Titulos(panel).Order());
+            Assert.Equal($"obra,{TaskManager.Core.Data.TaskRepository.NoTag}", datos.Settings.FlyoutTag);
+        }
+        finally
+        {
+            KeyboardModifiers.Ctrl = antes;
+        }
+        await Ui.Pulsar(panel.TagFilterBox.Children.OfType<ToggleButton>().ElementAt(0));
 
         // Si la etiqueta guardada ya no tiene nada pendiente, se suelta.
         await datos.Settings.SetFlyoutTagAsync("obra");

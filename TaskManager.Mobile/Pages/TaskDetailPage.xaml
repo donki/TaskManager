@@ -62,7 +62,7 @@
 
                         <Label Text="{loc:T Notes}" Style="{StaticResource HintText}" />
                         <Border Style="{StaticResource Card}" Padding="12,4">
-                            <Editor x:Name="NotesEditor" HeightRequest="80" AutoSize="Disabled" />
+                            <Editor x:Name="NotesEditor" AutomationId="TaskNotes" HeightRequest="80" AutoSize="Disabled" />
                         </Border>
                     </VerticalStackLayout>
                 </Border>
@@ -72,17 +72,17 @@
                     <VerticalStackLayout Padding="16" Spacing="10">
                         <Label Text="{loc:T Tags}" Style="{StaticResource CardTitle}" />
                         <Border Style="{StaticResource Card}" Padding="12,0">
-                            <Entry x:Name="TagsEntry" Placeholder="{loc:T TagsPlaceholder}" />
+                            <Entry x:Name="TagsEntry" AutomationId="TaskTags" Placeholder="{loc:T TagsPlaceholder}" />
                         </Border>
                         <Label Style="{StaticResource HintText}" Text="{loc:T TagsHelp}" />
 
                         <!-- Las etiquetas que ya existen, para no tener que reescribirlas ni
                              acordarse de como se escribieron la vez anterior. Tocar una la pone o
-                             la quita. La fila no aparece si todavia no hay ninguna. -->
-                        <ScrollView x:Name="KnownTagsScroll" Orientation="Horizontal"
-                                    HorizontalScrollBarVisibility="Never" IsVisible="False">
-                            <HorizontalStackLayout x:Name="KnownTagsBox" Spacing="8" />
-                        </ScrollView>
+                             la quita. No aparecen si todavia no hay ninguna. Van en filas que
+                             saltan de linea, sin desplazar: se ven todas de un vistazo. -->
+                        <FlexLayout x:Name="KnownTagsBox" Wrap="Wrap" Direction="Row"
+                                    JustifyContent="Start" AlignItems="Start" AlignContent="Start"
+                                    Margin="0,0,0,-8" IsVisible="False" />
 
                         <BoxView Style="{StaticResource Separator}" />
 

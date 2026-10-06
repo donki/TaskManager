@@ -236,6 +236,138 @@ public sealed class MobileUiTests
         return result;
     }
 
+    /// <summary>
+    /// En el detalle, las etiquetas que ya existen salen todas, en varias filas y sin desplazar de
+    /// lado: ninguna pastilla se sale de la pantalla por la derecha.
+    /// </summary>
+    [Fact]
+    public void T07_Etiquetas_del_detalle_en_filas_sin_desplazar()
+    {
+        GoHome();
+        var tags = Enumerable.Range(1, 14).Select(i => $"e2e{i:00}").ToList();
+        var con = AddTask("Etiquetas");
+        SetTags(con, tags);
+        var otra = AddTask("Sin etiquetas");
+
+        _s.Require(UiSession.Text(otra), "la segunda tarea").Click();
+        _s.Require(UiSession.ScrollTo("TaskTags"), "el cuadro de etiquetas", 10);
+
+        // La ultima puede quedar por debajo: se baja (en vertical) hasta verla.
+        _s.Require(MobileBy.AndroidUIAutomator(
+            "new UiScrollable(new UiSelector().scrollable(true).instance(0))" +
+            $".scrollIntoView(new UiSelector().text(\"#{tags[^1]}\"))"), "la ultima etiqueta", 10);
+        _s.Shot("07-etiquetas-en-filas");
+
+        var width = _s.Driver.Manage().Window.Size.Width;
+        var rows = new HashSet<int>();
+        foreach (var tag in tags.TakeLast(6))
+        {
+            var chip = _s.Require(UiSession.Text($"#{tag}"), $"la pastilla #{tag}", 3);
+            var r = chip.Rect;
+            Assert.True(r.X >= 0 && r.Right <= width, $"#{tag} se sale de la pantalla ({r})");
+            rows.Add(r.Y);
+        }
+
+        Assert.True(rows.Count > 1, "las etiquetas tendrian que ir en mas de una fila");
+
+        _s.Back();
+        _s.Require(UiSession.Id("QuickAdd"), "Mis tareas tras el detalle", 10);
+        DeleteTask(con);
+        DeleteTask(otra);
+    }
+
+    /// <summary>
+    /// Ctrl+clic en el filtro de etiquetas suma una a la que ya habia; un clic normal deja solo
+    /// esa. Ctrl se pulsa como un teclado fisico (acciones W3C: tecla abajo, toque, tecla arriba).
+    /// </summary>
+    [Fact]
+    public void T08_Ctrl_clic_en_el_filtro_marca_varias_etiquetas()
+    {
+        GoHome();
+        var a = AddTask("Filtro A");
+        var b = AddTask("Filtro B");
+        var c = AddTask("Filtro C");
+        SetTags(a, ["e2ea"]);
+        SetTags(b, ["e2eb"]);
+
+        _s.Require(UiSession.Text("#e2ea"), "la pastilla #e2ea", 10).Click();
+        _s.Require(UiSession.Text(a), "A con su etiqueta", 5);
+        Assert.Null(_s.WaitFor(UiSession.Text(b), 1));
+
+        var chip = _s.Require(UiSession.Text("#e2eb"), "la pastilla #e2eb");
+        new Actions(_s.Driver).KeyDown(Keys.Control).Click(chip).KeyUp(Keys.Control).Perform();
+        _s.Require(UiSession.Text(b), "B tras Ctrl+clic", 5);
+        Assert.NotNull(_s.WaitFor(UiSession.Text(a), 2));
+        Assert.Null(_s.WaitFor(UiSession.Text(c), 1));
+        _s.Shot("08-ctrl-clic-dos-etiquetas");
+
+        // Un clic normal deja solo esa; «Todas» lo suelta.
+        _s.Require(UiSession.Text("#e2eb"), "la pastilla #e2eb").Click();
+        Assert.Null(_s.WaitFor(UiSession.Text(a), 2));
+        var all = _s.WaitFor(UiSession.Text(UiSession.T("AllTags", "es")), 2)
+            ?? _s.Require(UiSession.Text(UiSession.T("AllTags", "en")), "la pastilla de todas");
+        all.Click();
+        _s.Require(UiSession.Text(c), "C sin filtro", 5);
+
+        DeleteTask(a);
+        DeleteTask(b);
+        DeleteTask(c);
+    }
+
+    /// <summary>
+    /// Las notas del detalle anuncian al teclado que admiten imagenes (image/*), que es lo que
+    /// hace que «Pegar» con una imagen y las imagenes de Gboard lleguen a la aplicacion.
+    /// </summary>
+    /// <remarks>
+    /// Appium no sabe poner una imagen en el portapapeles de Android (solo texto), asi que el pegado
+    /// en si lo prueban las pruebas de la pagina; aqui se comprueba, en el dispositivo, que el
+    /// cuadro de texto real lo anuncia (lo que publica el sistema en <c>dumpsys input_method</c>).
+    /// </remarks>
+    [Fact]
+    public void T09_Las_notas_admiten_imagenes_pegadas()
+    {
+        GoHome();
+        var title = AddTask("Pegar");
+        _s.Require(UiSession.Text(title), "la tarea").Click();
+        _s.Require(UiSession.ScrollTo("TaskNotes"), "las notas", 10).Click();
+        Thread.Sleep(800);
+
+        var dump = _s.Adb("shell dumpsys input_method");
+        Assert.Contains("image/*", dump);
+        _s.Shot("09-notas-con-imagenes");
+
+        if (_s.Driver.IsKeyboardShown())
+        {
+            _s.Driver.HideKeyboard();
+        }
+
+        _s.Back();
+        _s.Require(UiSession.Id("QuickAdd"), "Mis tareas tras el detalle", 10);
+        DeleteTask(title);
+    }
+
+    /// <summary>Abre la tarea, le escribe las etiquetas, guarda y vuelve a «Mis tareas».</summary>
+    private void SetTags(string title, IEnumerable<string> tags)
+    {
+        _s.Require(UiSession.Text(title), $"la tarea «{title}»").Click();
+        var box = _s.Require(UiSession.ScrollTo("TaskTags"), "el cuadro de etiquetas", 10);
+        box.Click();
+        box.Clear();
+        box.SendKeys(string.Join(", ", tags));
+        if (_s.Driver.IsKeyboardShown())
+        {
+            _s.Driver.HideKeyboard();
+        }
+
+        _s.Require(UiSession.Id("TaskSave"), "guardar").Click();
+        if (_s.WaitFor(UiSession.Id("QuickAdd"), 5) is null)
+        {
+            _s.Back();
+        }
+
+        _s.Require(UiSession.Id("QuickAdd"), "Mis tareas tras guardar", 10);
+    }
+
     /// <summary>La cabecera de la pagina: el titulo en el idioma que este puesto.</summary>
     private static By TitleOf(string key, string? language = null)
     {

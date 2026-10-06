@@ -197,13 +197,11 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
         TasksView.ItemsSource = _rows;
         UpdateSelectionBar();
 
-        FilterLabel.Text = _activeTag switch
-        {
-            null => Localization.Loc.Instance[TaskFilters.KeyOf(_filter)],
-            TaskManager.Core.Data.TaskRepository.NoTag =>
-                $"{Localization.Loc.Instance[TaskFilters.KeyOf(_filter)]}  ·  {Localization.Loc.Instance["NoTagFilter"]}",
-            _ => $"{Localization.Loc.Instance[TaskFilters.KeyOf(_filter)]}  ·  #{_activeTag}",
-        };
+        // Con varias etiquetas marcadas (Ctrl+clic) salen todas: «Pendientes  ·  #casa · #obra».
+        FilterLabel.Text = _activeTag is null
+            ? Localization.Loc.Instance[TaskFilters.KeyOf(_filter)]
+            : $"{Localization.Loc.Instance[TaskFilters.KeyOf(_filter)]}  ·  " +
+              TagFilter.Describe(_activeTag, Localization.Loc.Instance["NoTagFilter"]);
         SummaryLabel.Text = tasks.Count == 1
             ? Localization.Loc.Instance["TaskCountOne"]
             : Localization.Loc.Instance.Format("TaskCount", tasks.Count);
@@ -305,11 +303,8 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
         }
 
         // La etiqueta activa pudo desaparecer al borrar la ultima tarea que la llevaba.
-        if (_activeTag is not null && _activeTag != TaskManager.Core.Data.TaskRepository.NoTag &&
-            !tags.Contains(_activeTag, StringComparer.CurrentCultureIgnoreCase))
-        {
-            _activeTag = null;
-        }
+        // Con varias marcadas (Ctrl+clic) se quitan solo las que ya no existen.
+        _activeTag = TagFilter.Prune(_activeTag, tags);
 
         TagFilterBox.Add(BuildTagChip(Localization.Loc.Instance["AllTags"], null));
         TagFilterBox.Add(BuildTagChip(
@@ -342,12 +337,13 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
             CornerRadius = 16,
         };
 
-        Paint(button, string.Equals(_activeTag, tag, StringComparison.CurrentCultureIgnoreCase));
+        Paint(button, TagFilter.Has(_activeTag, tag));
 
         button.Clicked += async (_, _) =>
         {
-            _activeTag = tag;
-            await _settings.SetTaskTagAsync(tag);
+            // Ctrl+clic suma o quita esta a las que ya habia; sin Ctrl, solo esta.
+            _activeTag = TagFilter.Click(_activeTag, tag, Services.KeyboardModifiers.Ctrl);
+            await _settings.SetTaskTagAsync(_activeTag);
             await ReloadAsync();
         };
 
@@ -384,10 +380,10 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
         }
 
         var removed = await _tasks.Repository.DeleteTagAsync(tag);
-        if (string.Equals(_activeTag, tag, StringComparison.CurrentCultureIgnoreCase))
+        if (TagFilter.Has(_activeTag, tag))
         {
-            _activeTag = null;
-            await _settings.SetTaskTagAsync(null);
+            _activeTag = TagFilter.Without(_activeTag, tag);
+            await _settings.SetTaskTagAsync(_activeTag);
         }
         await ReloadAsync();
         await Ui.Platform.AlertAsync(this, loc["DeleteTag"], loc.Format("TagDeleted", tag, removed), "OK");

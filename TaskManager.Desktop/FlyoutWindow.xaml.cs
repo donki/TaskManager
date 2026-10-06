@@ -314,11 +314,8 @@ public partial class FlyoutWindow : Window
             return;
         }
 
-        if (_activeTag is not null && _activeTag != TaskManager.Core.Data.TaskRepository.NoTag &&
-            !tags.Contains(_activeTag, StringComparer.CurrentCultureIgnoreCase))
-        {
-            _activeTag = null;
-        }
+        // Con varias marcadas (Ctrl+clic) se quitan solo las que ya no existen.
+        _activeTag = TagFilter.Prune(_activeTag, tags);
 
         TagFilterBox.Children.Add(BuildTagChip(Localization.Loc.Get("AllTags"), null));
         TagFilterBox.Children.Add(BuildTagChip(
@@ -335,13 +332,15 @@ public partial class FlyoutWindow : Window
         {
             Content = text,
             Style = (System.Windows.Style)FindResource("Chip"),
-            IsChecked = string.Equals(_activeTag, tag, StringComparison.CurrentCultureIgnoreCase),
+            IsChecked = TagFilter.Has(_activeTag, tag),
+            ToolTip = Localization.Loc.Get("TagChipCtrlHint"),
         };
 
         chip.Click += async (_, _) =>
         {
-            _activeTag = tag;
-            await _settings.SetFlyoutTagAsync(tag);
+            // Ctrl+clic suma o quita esta a las que ya habia; sin Ctrl, solo esta.
+            _activeTag = TagFilter.Click(_activeTag, tag, KeyboardModifiers.Ctrl());
+            await _settings.SetFlyoutTagAsync(_activeTag);
             await ReloadAsync();
         };
 

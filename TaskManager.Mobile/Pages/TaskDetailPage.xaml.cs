@@ -49,6 +49,11 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
         _settings = settings;
         _notifications = notifications;
 
+        // Pegar una imagen (o mandarla desde el teclado) en el titulo o en las notas la guarda como
+        // adjunto: un cuadro de texto de Android, por si solo, la ignoraba.
+        Services.ImagePasteTarget.Enable(TitleEntry, AddPastedImageAsync);
+        Services.ImagePasteTarget.Enable(NotesEditor, AddPastedImageAsync);
+
         RecurrencePicker.ItemsSource = new List<string>
         {
             Localization.Loc.Instance["RepeatNever"], Localization.Loc.Instance["RepeatDaily"], Localization.Loc.Instance["RepeatWeekly"],
@@ -257,7 +262,7 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
     {
         var tags = await _tasks.Repository.GetTagsAsync();
 
-        KnownTagsScroll.IsVisible = tags.Count > 0;
+        KnownTagsBox.IsVisible = tags.Count > 0;
         KnownTagsBox.Clear();
 
         foreach (var tag in tags)
@@ -279,6 +284,8 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
             Padding = new Thickness(14, 6),
             MinimumHeightRequest = 0,
             CornerRadius = 16,
+            // El hueco va en cada pastilla porque el FlexLayout no tiene Spacing.
+            Margin = new Thickness(0, 0, 8, 8),
             BackgroundColor = active
                 ? Color.FromArgb("#3525CD")
                 : Color.FromArgb(dark ? "#2A2833" : "#EDEEEF"),
@@ -717,7 +724,28 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
                 return;
             }
 
-            var (bytes, extension) = image.Value;
+            await AddPastedImageAsync(image.Value.Bytes, image.Value.Extension);
+        }
+        catch (Exception ex)
+        {
+            await Ui.Platform.AlertAsync(this,
+                Localization.Loc.Instance["PasteAttachmentTooltip"], ex.Message, "OK");
+        }
+    }
+
+    /// <summary>
+    /// Guarda una imagen pegada como adjunto: la del boton de pegar y la que llega pegandola (o
+    /// desde el teclado) en el titulo o las notas.
+    /// </summary>
+    private async Task AddPastedImageAsync(byte[] bytes, string extension)
+    {
+        if (_task is null)
+        {
+            return;
+        }
+
+        try
+        {
             if (bytes.Length > TaskAttachment.MaxFileBytes)
             {
                 await Ui.Platform.AlertAsync(this,

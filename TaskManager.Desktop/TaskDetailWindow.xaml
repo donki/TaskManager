@@ -181,12 +181,10 @@
                         <TextBlock Text="{loc:T TagsHelp}" Style="{StaticResource HintText}" Margin="0,4,0,6" />
 
                         <!-- Las que ya existen en otras tareas: pulsar una la pone o la quita. Sin
-                             esto habria que reescribirlas y acordarse de como estaban escritas. -->
-                        <ScrollViewer x:Name="KnownTagsScroll" HorizontalScrollBarVisibility="Auto"
-                                      VerticalScrollBarVisibility="Disabled" Margin="0,0,0,12"
-                                      Visibility="Collapsed">
-                            <StackPanel x:Name="KnownTagsBox" Orientation="Horizontal" />
-                        </ScrollViewer>
+                             esto habria que reescribirlas y acordarse de como estaban escritas.
+                             Van en filas que saltan de linea, sin desplazar: se ven todas a la vez. -->
+                        <WrapPanel x:Name="KnownTagsBox" Orientation="Horizontal" Margin="0,0,0,4"
+                                   Visibility="Collapsed" />
                     </StackPanel>
                 </Border>
 

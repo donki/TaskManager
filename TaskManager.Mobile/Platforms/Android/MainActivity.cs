@@ -48,6 +48,49 @@ public class MainActivity : MauiAppCompatActivity
     private static void Anotar(Intent? intent) => Services.GroupInviteLinks.Anotar(intent?.Data?.ToString());
 
     /// <summary>
+    /// Apunta si Ctrl va pulsada, para que Ctrl+clic en el filtro de etiquetas marque varias. Con
+    /// teclado fisico cada tecla pasa por aqui, Ctrl incluida: al bajarla el evento ya trae el
+    /// estado encendido y al soltarla apagado.
+    /// </summary>
+    public override bool DispatchKeyEvent(global::Android.Views.KeyEvent? e)
+    {
+        if (e is not null)
+        {
+            Services.KeyboardModifiers.Ctrl = e.IsCtrlPressed;
+        }
+
+        return base.DispatchKeyEvent(e);
+    }
+
+    /// <summary>
+    /// El clic de un raton tambien trae las teclas pulsadas en su estado. Solo se usa para
+    /// encender: un toque con el dedo llega sin ellas aunque Ctrl este abajo en el teclado.
+    /// </summary>
+    public override bool DispatchTouchEvent(global::Android.Views.MotionEvent? e)
+    {
+        if (e is not null && (e.MetaState & global::Android.Views.MetaKeyStates.CtrlOn) != 0)
+        {
+            Services.KeyboardModifiers.Ctrl = true;
+        }
+
+        return base.DispatchTouchEvent(e);
+    }
+
+    /// <summary>
+    /// Si se cambia de aplicacion con Ctrl abajo, el soltarla no llega aqui: se apaga al perder
+    /// el foco para que el siguiente clic no sume etiquetas sin querer.
+    /// </summary>
+    public override void OnWindowFocusChanged(bool hasFocus)
+    {
+        base.OnWindowFocusChanged(hasFocus);
+
+        if (!hasFocus)
+        {
+            Services.KeyboardModifiers.Ctrl = false;
+        }
+    }
+
+    /// <summary>
     /// Desde Android 15 el sistema dibuja de borde a borde: se separa el contenido del reloj y de
     /// la barra inferior, y se pinta el hueco con el indigo de marca (constitucion E.3).
     /// </summary>

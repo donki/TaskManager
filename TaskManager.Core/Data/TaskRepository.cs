@@ -437,6 +437,10 @@ public sealed class TaskRepository
     /// </remarks>
     public const string NoTag = "\u0000sin-etiqueta";
 
+    /// <remarks>
+    /// <paramref name="tag"/> puede llevar varias etiquetas (Ctrl+clic en las pastillas): entra la
+    /// tarea que tenga cualquiera de ellas. Ver <see cref="TagFilter"/>.
+    /// </remarks>
     private static List<TaskItem> FilterByTag(List<TaskItem> tasks, string? tag)
     {
         if (string.IsNullOrEmpty(tag))
@@ -446,12 +450,7 @@ public sealed class TaskRepository
 
         // «Sin etiqueta» es lo que hace falta para encontrar lo que se quedo sin clasificar, que es
         // justo lo que se pierde de vista cuando todo lo demas si tiene etiqueta.
-        if (tag == NoTag)
-        {
-            return [.. tasks.Where(t => t.TagList.Count == 0)];
-        }
-
-        return [.. tasks.Where(t => t.TagList.Contains(tag, StringComparer.CurrentCultureIgnoreCase))];
+        return [.. tasks.Where(t => TagFilter.Matches(tag, t.TagList))];
     }
 
     /// <summary>

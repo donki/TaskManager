@@ -1,61 +1,53 @@
-﻿namespace TaskManager.Mobile.Services;
+namespace TaskManager.Mobile.Services;
 
 /// <summary>
 /// La imagen que haya en el portapapeles, si hay alguna. MAUI (<c>Clipboard.Default</c>) solo sabe
 /// de texto; en Android las imagenes copiadas van como un <c>content://</c> en el ClipData, y se
 /// leen con el ContentResolver.
 /// </summary>
+/// <remarks>
+/// El ClipData se pide en el hilo principal: desde Android 10 solo puede leer el portapapeles la
+/// aplicacion que tiene el foco, y antes se pedia desde otro hilo. Los bytes, en cambio, se leen
+/// aparte para no trabar la pantalla. Si el proveedor no dice el tipo, decide
+/// <see cref="PastedImage"/> mirando los bytes.
+/// </remarks>
 public static class ClipboardImage
 {
     /// <summary>Bytes y extension (.png, .jpg…) de la imagen, o null si no hay imagen.</summary>
-    public static Task<(byte[] Bytes, string Extension)?> ReadAsync()
+    public static async Task<(byte[] Bytes, string Extension)?> ReadAsync()
     {
 #if ANDROID
-        return Task.Run(() =>
+        var context = Android.App.Application.Context;
+        var clip = await MainThread.InvokeOnMainThreadAsync(() =>
+            context.GetSystemService(Android.Content.Context.ClipboardService) is Android.Content.ClipboardManager clipboard
+                ? clipboard.PrimaryClip
+                : null);
+        if (clip is null || clip.ItemCount == 0)
         {
-            var context = Android.App.Application.Context;
-            if (context.GetSystemService(Android.Content.Context.ClipboardService) is not Android.Content.ClipboardManager clipboard)
+            return null;
+        }
+
+        var hint = PastedImage.ImageMime(clip.Description);
+        var uris = Enumerable.Range(0, clip.ItemCount)
+            .Select(i => clip.GetItemAt(i)?.Uri)
+            .OfType<Android.Net.Uri>()
+            .ToList();
+
+        return await Task.Run(() =>
+        {
+            foreach (var uri in uris)
             {
-                return ((byte[], string)?)null;
-            }
-            var clip = clipboard.PrimaryClip;
-            if (clip is null || clip.ItemCount == 0)
-            {
-                return null;
+                if (PastedImage.Read(context, uri, hint) is { } image)
+                {
+                    return image;
+                }
             }
 
-            for (var i = 0; i < clip.ItemCount; i++)
-            {
-                var uri = clip.GetItemAt(i)?.Uri;
-                if (uri is null)
-                {
-                    continue;
-                }
-                var mime = context.ContentResolver?.GetType(uri) ?? string.Empty;
-                if (!mime.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-                using var stream = context.ContentResolver?.OpenInputStream(uri);
-                if (stream is null)
-                {
-                    continue;
-                }
-                using var memory = new MemoryStream();
-                stream.CopyTo(memory);
-                var extension = mime.ToLowerInvariant() switch
-                {
-                    "image/jpeg" => ".jpg",
-                    "image/gif" => ".gif",
-                    "image/webp" => ".webp",
-                    _ => ".png",
-                };
-                return (memory.ToArray(), extension);
-            }
-            return null;
+            return ((byte[], string)?)null;
         });
 #else
-        return Task.FromResult<(byte[], string)?>(null);
+        await Task.CompletedTask;
+        return null;
 #endif
     }
 }

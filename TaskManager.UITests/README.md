@@ -4,7 +4,7 @@ Tanda corta que maneja la app Android de verdad, como un dedo: Appium (Apache-2.
 UiAutomator2, desde xUnit con `Appium.WebDriver` (Apache-2.0). No se ejecuta con la compilación
 normal: necesita el servidor de Appium y un dispositivo o emulador.
 
-## Qué prueba (6 pruebas, van en orden sobre la misma sesión)
+## Qué prueba (9 pruebas, van en orden sobre la misma sesión)
 
 | Prueba | Qué comprueba |
 |---|---|
@@ -14,6 +14,9 @@ normal: necesita el servidor de Appium y un dispositivo o emulador.
 | T04 | Idioma en → es desde Acerca de: el título y todas las entradas del menú cambian (los textos esperados se leen del propio `LocalizationService`). |
 | T05 | Crear una tarea con la captura rápida y borrarla desde su detalle (papelera + confirmar). |
 | T06 | Letra al 145 % (`font_scale 1.45`): ningún texto de Mis tareas ni del menú se sale de la pantalla ni se ve recortado por su contenedor. Deja la letra a 1.0 al acabar, pase lo que pase. |
+| T07 | Detalle: con 14 etiquetas creadas, las pastillas de las que ya existen saltan de línea (más de una fila) y ninguna se sale por la derecha: sin desplazar de lado. |
+| T08 | Filtro de «Mis tareas»: clic normal en una etiqueta deja solo esa; **Ctrl+clic** (tecla Ctrl abajo por acciones W3C, como un teclado físico) suma otra y salen las tareas de las dos; «Todas» lo suelta. |
+| T09 | Las notas del detalle anuncian `image/*` al teclado (`dumpsys input_method`): es lo que deja pegar imágenes y recibir las de Gboard. El pegado en sí no se puede preparar desde Appium (solo pone texto en el portapapeles); lo cubren las pruebas de la página. |
 
 Capturas de cada paso en `artifacts/<fecha-hora>/` (ignorada en git), más `06-letra145.txt` con
 las medidas de cada texto a 1.0 y a 1.45, los fallos y los **avisos**.

@@ -1,5 +1,19 @@
 [
   {
+    "version": "2026.10.06.00",
+    "date": "2026-10-06",
+    "es": [
+      "En el detalle de una tarea, las etiquetas que ya existen salen todas a la vista, en varias filas, sin tener que desplazarlas de lado.",
+      "Filtro por etiquetas: con Ctrl+clic (en Windows, o en el móvil con teclado) se marcan varias a la vez y salen las tareas que llevan cualquiera de ellas. Un clic normal sigue dejando solo una.",
+      "En Android ya se pueden pegar imágenes: pegándolas en el título o en las notas de una tarea (o mandándolas desde el teclado) se guardan como adjunto."
+    ],
+    "en": [
+      "In a task's detail, the existing tags are all in view, wrapped over several rows, with no sideways scrolling.",
+      "Tag filter: Ctrl+click (on Windows, or on the phone with a keyboard) selects several at once and shows the tasks that have any of them. A plain click still leaves just one.",
+      "On Android you can now paste images: pasting them in a task's title or notes (or sending them from the keyboard) saves them as an attachment."
+    ]
+  },
+  {
     "version": "2026.10.03.00",
     "date": "2026-10-03",
     "es": [

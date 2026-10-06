@@ -237,6 +237,36 @@ public class TaskDetailWindowTests
     });
 
     [Fact]
+    public Task Las_etiquetas_conocidas_saltan_de_linea_sin_desplazar() => Ui.Run(async () =>
+    {
+        var (datos, lista, tarea) = await TareaAsync();
+        var otra = await datos.Repo.AddTaskAsync(lista.Id, "Otra");
+        otra.Tags = TaskTags.Join(Enumerable.Range(1, 20).Select(i => $"etiqueta{i:00}"));
+        await datos.Repo.UpdateTaskAsync(otra);
+
+        await Ficha(datos, tarea, async f =>
+        {
+            await Ui.Hasta(() => f.KnownTagsBox.Children.Count == 20, que: "las etiquetas conocidas");
+            await Ui.Calma();
+
+            // Sin barra de desplazamiento por medio: un panel que salta de linea.
+            Assert.IsType<WrapPanel>(f.KnownTagsBox);
+            Assert.IsNotType<ScrollViewer>(f.KnownTagsBox.Parent);
+
+            // Todas caben a lo ancho y ocupan mas de una fila.
+            var filas = new HashSet<double>();
+            foreach (var chip in f.KnownTagsBox.Children.OfType<FrameworkElement>())
+            {
+                var p = chip.TranslatePoint(new Point(0, 0), f.KnownTagsBox);
+                Assert.True(p.X + chip.ActualWidth <= f.KnownTagsBox.ActualWidth + 0.5, $"{chip} se sale por la derecha");
+                filas.Add(Math.Round(p.Y));
+            }
+
+            Assert.True(filas.Count > 1, "las etiquetas tendrian que ir en varias filas");
+        });
+    });
+
+    [Fact]
     public Task Etiquetas_se_escriben_se_reutilizan_y_se_quitan() => Ui.Run(async () =>
     {
         var (datos, lista, tarea) = await TareaAsync();

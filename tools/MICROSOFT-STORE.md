@@ -2,7 +2,7 @@
 
 Estado: **publicada en la Store** (https://apps.microsoft.com/detail/9PHJK2391727; «En Microsoft
 Store», 240 mercados, gratis, confirmado por Josep el 2026-09-29). En la Store está la `2026.9.71.0`
-(catálogo público, 2026-09-29) y el paquete de la siguiente, la `2026.10.30.0` (2026.10.03.00), está construido.
+(catálogo público, 2026-09-29) y el paquete de la siguiente, la `2026.10.60.0` (2026.10.06.00), está construido.
 Cada envío se hace **a mano desde Partner Center**: no por lo que decía este documento —que el
 primero no se puede crear por API— sino por lo que hay debajo, que sigue valiendo para todos los
 demás (ver «Por qué sigue siendo a mano»).
@@ -17,7 +17,7 @@ demás (ver «Por qué sigue siendo a mano»).
     `-DisplayName "<el que sea>"`.
 - **Id. de Store**: `9PHJK2391727` · **PFN**: `sOCratic.sOCTaskManager_6c84vmrh3mfca`
 - **Paquete**: el último construido está en `C:\ID\OneDrive\TaskManager\`, con la versión en el
-  nombre (`sOCTaskManager-2026.10.30.0.msix`, 76 MB), **sin firmar**, que es como lo quiere la Store:
+  nombre (`sOCTaskManager-2026.10.60.0.msix`, 76 MB), **sin firmar**, que es como lo quiere la Store:
   la firma la pone ella. Se construye con `tools\empaquetar-msix.ps1`, que saca la versión del
   csproj: MSIX exige cuatro números y reserva el cuarto para la Store, así que `2026.9.7.1` se
   convierte en `2026.9.71.0`. **Cada envío tiene que llevar una versión mayor que la publicada.**

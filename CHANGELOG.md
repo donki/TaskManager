@@ -2,6 +2,43 @@
 
 Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del día a dos cifras, el mismo que cierra el versionCode.
 
+## 2026.10.06.00 — Etiquetas a la vista, varias a la vez, e imágenes pegadas en Android
+
+Windows `2026.10.6.0` · Android `2026.10.06.00`
+
+**Castellano**
+
+- Detalle de la tarea: las etiquetas que ya existen salen en filas que saltan de línea, todas a la
+  vista, en vez de en una tira que había que desplazar de lado (en el móvil y en Windows).
+- Filtro por etiquetas: Ctrl+clic en una pastilla la suma o la quita de las marcadas, y la lista
+  enseña las tareas que llevan **cualquiera** de ellas (con «Sin etiqueta» marcada, también las que
+  no llevan ninguna). Un clic normal sigue dejando solo esa, y «Todas» lo borra. Vale en «Mis
+  tareas», el tablero y el panel rápido de Windows, y en «Mis tareas» y el tablero del móvil con
+  teclado. La selección se guarda como antes la etiqueta suelta (el mismo ajuste, separadas por
+  comas), y el rótulo de la lista las nombra todas.
+- Corregido (Android): no se podían pegar imágenes. Ahora «Pegar» con una imagen copiada en el título
+  o en las notas del detalle, y las imágenes que manda el teclado (Gboard…), se guardan como adjunto
+  de la tarea. El botón de pegar adjunto lee el portapapeles desde el hilo de la pantalla (como exige
+  Android 10+) y reconoce la imagen por sus bytes cuando quien la copió no dice el tipo.
+- Pruebas: lógica del filtro de varias etiquetas, del reconocimiento de imágenes pegadas y de las
+  pantallas, y tres pruebas de interfaz nuevas con Appium (T07–T09, ver `TaskManager.UITests`).
+
+**English**
+
+- Task detail: the existing tags wrap over several rows, all in view, instead of a strip you had to
+  scroll sideways (on the phone and on Windows).
+- Tag filter: Ctrl+click on a chip adds it to or removes it from the selected ones, and the list shows
+  the tasks that have **any** of them (with "No tag" selected, also those with none). A plain click
+  still leaves just that one, and "All tags" clears it. It works in "My tasks", the board and the
+  Windows quick panel, and in "My tasks" and the board on the phone with a keyboard. The selection is
+  saved where the single tag was (same setting, comma-separated), and the list caption names them all.
+- Fixed (Android): images could not be pasted. Now "Paste" with a copied image in the title or the
+  notes of the detail, and images sent by the keyboard (Gboard…), are saved as attachments of the
+  task. The paste-attachment button reads the clipboard on the UI thread (as Android 10+ requires)
+  and recognises the image by its bytes when whoever copied it does not say the type.
+- Tests: logic of the multi-tag filter, of recognising pasted images and of the screens, plus three
+  new Appium UI tests (T07–T09, see `TaskManager.UITests`).
+
 ## 2026.10.03.00 — Las pantallas, también probadas
 
 Windows `2026.10.3.0` · Android `2026.10.03.00`

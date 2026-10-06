@@ -166,6 +166,57 @@ public class MyTasksPageTests
     });
 
     [Fact]
+    public void Ctrl_clic_en_las_etiquetas_marca_varias() => UiThread.Run(async () =>
+    {
+        await using var app = await TestApp.StartAsync();
+        var (_, tasks) = await app.SeedAsync("Casa", "Pan", "Clavos", "Coche", "Suelta");
+        await app.Repository.AddTagAsync([tasks[0].Id], "compra");
+        await app.Repository.AddTagAsync([tasks[1].Id], "obra");
+        await app.Repository.AddTagAsync([tasks[2].Id], "taller");
+        var page = await OpenAsync(app);
+
+        Button Chip(MyTasksPage p, string text) =>
+            p.Named<HorizontalStackLayout>("TagFilterBox").OfType<Button>().Single(b => b.Text == text);
+
+        try
+        {
+            // Un clic normal: solo esa.
+            await Chip(page, "#compra").Click();
+            Assert.Equal(["Pan"], Rows(page).Select(r => r.Task.Title));
+
+            // Ctrl+clic: se suma, y salen las que llevan cualquiera de las dos.
+            Mobile.Services.KeyboardModifiers.Ctrl = true;
+            await Chip(page, "#obra").Click();
+            Assert.Equal(["Clavos", "Pan"], Rows(page).Select(r => r.Task.Title).Order());
+            Assert.Equal("compra,obra", app.Settings.TaskTag);
+            Assert.EndsWith("#compra · #obra", page.Named<Label>("FilterLabel").Text);
+            Assert.Equal(Colors.White, Chip(page, "#compra").TextColor);
+            Assert.Equal(Colors.White, Chip(page, "#obra").TextColor);
+            Assert.NotEqual(Colors.White, Chip(page, "#taller").TextColor);
+
+            // Ctrl+clic en una marcada la quita; «Sin etiqueta» tambien se puede sumar.
+            await Chip(page, "#compra").Click();
+            await Chip(page, app.Texts["NoTagFilter"]).Click();
+            Assert.Equal(["Clavos", "Suelta"], Rows(page).Select(r => r.Task.Title).Order());
+
+            // Se recuerda en una pagina nueva.
+            var again = await OpenAsync(app);
+            Assert.Equal($"obra,{TaskRepository.NoTag}", again.Field<string?>("_activeTag"));
+            Assert.Equal(["Clavos", "Suelta"], Rows(again).Select(r => r.Task.Title).Order());
+
+            // Sin Ctrl vuelve a quedar solo una.
+            Mobile.Services.KeyboardModifiers.Ctrl = false;
+            await Chip(page, "#taller").Click();
+            Assert.Equal(["Coche"], Rows(page).Select(r => r.Task.Title));
+            Assert.Equal("taller", app.Settings.TaskTag);
+        }
+        finally
+        {
+            Mobile.Services.KeyboardModifiers.Ctrl = false;
+        }
+    });
+
+    [Fact]
     public void Una_etiqueta_activa_que_desaparece_se_suelta() => UiThread.Run(async () =>
     {
         await using var app = await TestApp.StartAsync();

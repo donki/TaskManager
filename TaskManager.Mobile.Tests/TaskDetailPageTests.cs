@@ -62,8 +62,8 @@ public class TaskDetailPageTests
         // Las listas, con la de la tarea marcada; las etiquetas que existen, como chips.
         var lists = (List<string>)page.Named<Picker>("ListPicker").ItemsSource;
         Assert.Equal(lists.IndexOf("Casa"), page.Named<Picker>("ListPicker").SelectedIndex);
-        Assert.True(page.Named<ScrollView>("KnownTagsScroll").IsVisible);
-        var chips = page.Named<HorizontalStackLayout>("KnownTagsBox").OfType<Button>().Select(b => b.Text).ToList();
+        Assert.True(page.Named<FlexLayout>("KnownTagsBox").IsVisible);
+        var chips = page.Named<FlexLayout>("KnownTagsBox").OfType<Button>().Select(b => b.Text).ToList();
         Assert.Equal(["#casa", "#compra", "#oficina"], chips.Order());
 
         Assert.Equal(2, ((System.Collections.ICollection)page.Named<CollectionView>("StepsView").ItemsSource).Count);
@@ -432,7 +432,7 @@ public class TaskDetailPageTests
         Assert.Equal("compra", page.Named<Entry>("TagsEntry").Text);
         Assert.NotEqual(Colors.White, Chip("#casa").TextColor);
 
-        Button Chip(string text) => page.Named<HorizontalStackLayout>("KnownTagsBox").OfType<Button>().Single(b => b.Text == text);
+        Button Chip(string text) => page.Named<FlexLayout>("KnownTagsBox").OfType<Button>().Single(b => b.Text == text);
     });
 
     [Fact]
@@ -519,6 +519,45 @@ public class TaskDetailPageTests
         await page.Handler("OnPasteAttachmentClicked");
         Assert.Equal("portapapeles ocupado", app.Ui.Dialogs.Last().Message);
     });
+
+    [Fact]
+    public void Una_imagen_pegada_en_las_notas_se_guarda_como_adjunto() => UiThread.Run(async () =>
+    {
+        await using var app = await TestApp.StartAsync();
+        var (_, tasks) = await app.SeedAsync("Casa", "Captura");
+        var task = tasks[0];
+        var page = await OpenAsync(app, task);
+
+        // Es lo que llama el cuadro de texto de Android al pegar una imagen o recibirla del teclado.
+        await page.Call("AddPastedImageAsync", new byte[] { 0x89, (byte)'P', (byte)'N', (byte)'G' }, ".png");
+        var pasted = (await app.Repository.GetAttachmentsAsync(task.Id)).Single();
+        Assert.StartsWith(app.Texts["PastedImageName"], pasted.Name);
+        Assert.EndsWith(".png", pasted.Name);
+        Assert.Single(page.Named<VerticalStackLayout>("AttachmentsBox"));
+
+        // Demasiado grande: se avisa y no se guarda.
+        await page.Call("AddPastedImageAsync", new byte[TaskAttachment.MaxFileBytes + 1], ".jpg");
+        Assert.Equal(app.Texts.Format("FileTooBig", 5), app.Ui.Dialogs.Last().Message);
+        Assert.Single(await app.Repository.GetAttachmentsAsync(task.Id));
+    });
+
+    [Theory]
+    [InlineData("image/png", new byte[] { 1 }, ".png")]
+    [InlineData("image/jpeg", new byte[] { 1 }, ".jpg")]
+    [InlineData("IMAGE/GIF", new byte[] { 1 }, ".gif")]
+    [InlineData("image/webp", new byte[] { 1 }, ".webp")]
+    [InlineData("image/heif", new byte[] { 1 }, ".heic")]
+    [InlineData("image/x-raro", new byte[] { 1 }, ".png")]
+    [InlineData(null, new byte[] { 0x89, (byte)'P', (byte)'N', (byte)'G', 13, 10, 26, 10 }, ".png")]
+    [InlineData("application/octet-stream", new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 }, ".jpg")]
+    [InlineData(null, new byte[] { (byte)'G', (byte)'I', (byte)'F', (byte)'8', (byte)'9', (byte)'a' }, ".gif")]
+    [InlineData(null, new byte[] { (byte)'R', (byte)'I', (byte)'F', (byte)'F', 0, 0, 0, 0, (byte)'W', (byte)'E', (byte)'B', (byte)'P' }, ".webp")]
+    [InlineData(null, new byte[] { 0, 0, 0, 24, (byte)'f', (byte)'t', (byte)'y', (byte)'p', (byte)'h', (byte)'e', (byte)'i', (byte)'c' }, ".heic")]
+    [InlineData(null, new byte[] { (byte)'B', (byte)'M', 0, 0 }, ".bmp")]
+    [InlineData("text/plain", new byte[] { (byte)'h', (byte)'o', (byte)'l', (byte)'a' }, null)]
+    [InlineData(null, new byte[0], null)]
+    public void Se_reconoce_la_imagen_pegada_por_su_tipo_o_por_sus_bytes(string? mime, byte[] bytes, string? expected) =>
+        Assert.Equal(expected, Mobile.Services.PastedImage.Extension(mime, bytes));
 
     [Fact]
     public void Borrar_una_tarea_suelta_pregunta_antes() => UiThread.Run(async () =>

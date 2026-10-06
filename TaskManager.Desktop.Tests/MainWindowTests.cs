@@ -105,6 +105,69 @@ public class MainWindowTests
     });
 
     [Fact]
+    public Task Ctrl_clic_en_las_etiquetas_marca_varias() => Ui.Run(async () =>
+    {
+        var (datos, ventana) = await AbrirAsync(async d =>
+        {
+            var lista = await d.Repo.CreateListAsync("Casa");
+            foreach (var (titulo, tags) in new[] { ("Pan", "compra"), ("Clavos", "obra"), ("Coche", "taller"), ("Suelta", "") })
+            {
+                var t = await d.Repo.AddTaskAsync(lista.Id, titulo);
+                t.Tags = tags;
+                await d.Repo.UpdateTaskAsync(t);
+            }
+        });
+
+        ToggleButton Chip(System.Windows.Controls.Panel caja, string texto) =>
+            caja.Children.OfType<ToggleButton>().Single(c => (string)c.Content == texto);
+
+        var antes = KeyboardModifiers.Ctrl;
+        var ctrl = false;
+        KeyboardModifiers.Ctrl = () => ctrl;
+
+        try
+        {
+            // Un clic normal: solo esa.
+            await Ui.Pulsar(Chip(ventana.TagFilterBox, "#compra"));
+            Assert.Equal(["Pan"], Titulos(ventana.AllTasksBox));
+
+            // Ctrl+clic suma: las que llevan cualquiera; las dos pastillas encendidas.
+            ctrl = true;
+            await Ui.Pulsar(Chip(ventana.TagFilterBox, "#obra"));
+            Assert.Equal(["Clavos", "Pan"], Titulos(ventana.AllTasksBox).Order());
+            Assert.Equal("compra,obra", datos.Settings.TaskTag);
+            Assert.EndsWith("#compra · #obra", ventana.FilterLabel.Text);
+            Assert.True(Chip(ventana.TagFilterBox, "#compra").IsChecked);
+            Assert.True(Chip(ventana.TagFilterBox, "#obra").IsChecked);
+            Assert.False(Chip(ventana.TagFilterBox, "#taller").IsChecked);
+            Assert.False(ventana.TagFilterBox.Children.OfType<ToggleButton>().First().IsChecked);
+            Assert.Equal(Localization.Loc.Get("TagChipCtrlHint"), Chip(ventana.TagFilterBox, "#obra").ToolTip);
+
+            // Ctrl+clic en una marcada la quita; «Sin etiqueta» se suma como las demas.
+            await Ui.Pulsar(Chip(ventana.TagFilterBox, "#compra"));
+            await Ui.Pulsar(Chip(ventana.TagFilterBox, Localization.Loc.Get("NoTagFilter")));
+            Assert.Equal(["Clavos", "Suelta"], Titulos(ventana.AllTasksBox).Order());
+
+            // El tablero lleva su propio filtro y tambien admite varias.
+            await Ui.Pulsar(Chip(ventana.KanbanTagBox, "#taller"));
+            await Ui.Pulsar(Chip(ventana.KanbanTagBox, "#compra"));
+            Assert.Equal(["Coche", "Pan"], Titulos(ventana.TodoBox).Order());
+
+            // Sin Ctrl vuelve a quedar solo una; «Todas» lo suelta todo.
+            ctrl = false;
+            await Ui.Pulsar(Chip(ventana.TagFilterBox, "#taller"));
+            Assert.Equal(["Coche"], Titulos(ventana.AllTasksBox));
+            Assert.Equal("taller", datos.Settings.TaskTag);
+            await Ui.Pulsar(ventana.TagFilterBox.Children.OfType<ToggleButton>().First());
+            Assert.Null(datos.Settings.TaskTag);
+        }
+        finally
+        {
+            KeyboardModifiers.Ctrl = antes;
+        }
+    });
+
+    [Fact]
     public Task Las_etiquetas_filtran_y_se_borran_con_el_boton_derecho() => Ui.Run(async () =>
     {
         var (datos, ventana) = await AbrirAsync(async d =>
