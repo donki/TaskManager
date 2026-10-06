@@ -67,6 +67,7 @@ El banco entero se lanza con un solo `dotnet test TaskManager.Pruebas.slnx` (tre
 
 | Fecha | Pruebas | Cobertura de lo instrumentado | Cobertura sobre toda la app | Tiempo del banco |
 |---|---|---|---|---|
+| 2026-10-06 | 452 (pasan todas: 262 + 113 + 77) | 97,0 % (7943 de 8186 líneas) | **95,5 %** (7943 de 8313 líneas) | ≈3 min 40 s con cobertura (los tres a la vez; el de Windows marca el tiempo) |
 | 2026-10-03 | 427 (pasan todas: 255 + 97 + 75) | 97,5 % (7878 de 8081 líneas) | **96,1 %** (7878 de 8199 líneas) | ≈2 min 20 s (los tres a la vez; el de Windows marca el tiempo) |
 | 2026-09-30 | 254 (pasan todas) | 97,3 % (3919 de 4026 líneas) | ≈39 % (3919 de ≈10 000 líneas) | ≈11 s |
 
