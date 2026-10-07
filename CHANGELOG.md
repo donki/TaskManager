@@ -2,6 +2,44 @@
 
 Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del día a dos cifras, el mismo que cierra el versionCode.
 
+## 2026.10.07.00 — Pegar una imagen en Android, y que se note
+
+Windows `2026.10.7.0` · Android `2026.10.07.00`
+
+**Castellano**
+
+- Corregido (Android): «pegar una imagen no funciona». Probado en el Xiaomi con la 2026.10.06.00, la
+  imagen sí se guardaba (copiada en Chrome, Edge, Google Fotos o en otra aplicación, y pegada con el
+  botón, con «Pegar» en las notas o el título, o desde el portapapeles de Gboard), pero como adjunto
+  en «Enlaces y ficheros», más abajo y tapado por el teclado, y sin decir nada: parecía que no hacía
+  nada. Ahora sale arriba del detalle el aviso «Imagen añadida a Enlaces y ficheros» durante tres
+  segundos. No es un Toast de Android: el sistema ya saca el suyo («… pasted from your clipboard») y
+  el nuestro esperaba en cola detrás, unos cuatro segundos tarde.
+- También se pueden pegar imágenes en las etiquetas y en el paso nuevo, y se reconocen las que vienen
+  dentro de un texto copiado con formato (`data:image/…;base64` en el HTML de un correo, unas notas o
+  un chat). Las que van por dirección (`https://…`) no se bajan.
+- Pruebas: lógica de las imágenes dentro de HTML y del aviso (sale, se va solo, se reinicia con otra
+  imagen y no sale si la imagen es demasiado grande), y la prueba de interfaz T10 con un ayudante
+  nuevo, `TaskManager.UITests.Portapapeles`, que deja una imagen de verdad en el portapapeles como
+  lo hace otra aplicación (Appium solo sabe poner texto).
+
+**English**
+
+- Fixed (Android): "pasting an image doesn't work". Tested on the Xiaomi with 2026.10.06.00: the
+  image was in fact saved (copied in Chrome, Edge, Google Photos or another app, and pasted with the
+  button, with "Paste" in the notes or the title, or from Gboard's clipboard), but as an attachment
+  in "Links and files", further down and hidden by the keyboard, with no word about it, so it looked
+  like nothing happened. Now the detail shows "Image added to Links and files" at the top for three
+  seconds. It is not an Android Toast: the system already shows its own ("… pasted from your
+  clipboard") and ours was queued behind it, about four seconds late.
+- Images can also be pasted in the tags and in the new step, and images inside copied formatted text
+  (`data:image/…;base64` in the HTML of a mail, notes or a chat) are recognised. Images given by
+  address (`https://…`) are not downloaded.
+- Tests: logic of images inside HTML and of the notice (it shows, goes away by itself, restarts with
+  another image and does not show if the image is too big), and UI test T10 with a new helper,
+  `TaskManager.UITests.Portapapeles`, that puts a real image on the clipboard as another app does
+  (Appium can only set text).
+
 ## 2026.10.06.00 — Etiquetas a la vista, varias a la vez, e imágenes pegadas en Android
 
 Windows `2026.10.6.0` · Android `2026.10.06.00`

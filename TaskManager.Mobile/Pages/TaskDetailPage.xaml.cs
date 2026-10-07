@@ -49,10 +49,12 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
         _settings = settings;
         _notifications = notifications;
 
-        // Pegar una imagen (o mandarla desde el teclado) en el titulo o en las notas la guarda como
-        // adjunto: un cuadro de texto de Android, por si solo, la ignoraba.
+        // Pegar una imagen (o mandarla desde el teclado) en cualquier cuadro de texto del detalle la
+        // guarda como adjunto: un cuadro de texto de Android, por si solo, la ignoraba.
         Services.ImagePasteTarget.Enable(TitleEntry, AddPastedImageAsync);
         Services.ImagePasteTarget.Enable(NotesEditor, AddPastedImageAsync);
+        Services.ImagePasteTarget.Enable(TagsEntry, AddPastedImageAsync);
+        Services.ImagePasteTarget.Enable(NewStepEntry, AddPastedImageAsync);
 
         RecurrencePicker.ItemsSource = new List<string>
         {
@@ -735,8 +737,13 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
 
     /// <summary>
     /// Guarda una imagen pegada como adjunto: la del boton de pegar y la que llega pegandola (o
-    /// desde el teclado) en el titulo o las notas.
+    /// desde el teclado) en el titulo, las notas, las etiquetas o un paso nuevo.
     /// </summary>
+    /// <remarks>
+    /// Al acabar lo dice con un aviso arriba de la pagina (<see cref="ShowPastedBanner"/>). Pegada en las notas o el titulo, la imagen va a
+    /// «Enlaces y ficheros», que queda mas abajo y fuera de la vista con el teclado abierto: sin el
+    /// aviso no se veia que hubiera pasado nada y parecia que pegar no funcionaba (2026-10-07).
+    /// </remarks>
     private async Task AddPastedImageAsync(byte[] bytes, string extension)
     {
         if (_task is null)
@@ -758,12 +765,53 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
             await _tasks.Repository.AddFileAsync(_task.Id,
                 $"{Localization.Loc.Instance["PastedImageName"]} {DateTime.Now:yyyy-MM-dd HH-mm-ss}{extension}", bytes);
             await LoadAttachmentsAsync();
+            ShowPastedBanner();
         }
         catch (Exception ex)
         {
             await Ui.Platform.AlertAsync(this,
                 Localization.Loc.Instance["PasteAttachmentTooltip"], ex.Message, "OK");
         }
+    }
+
+    private IDispatcherTimer? _pastedBannerTimer;
+
+    /// <summary>
+    /// Enseña «Imagen añadida a Enlaces y ficheros» tres segundos; otra imagen pegada antes de
+    /// que se vaya vuelve a empezar la cuenta.
+    /// </summary>
+    /// <remarks>
+    /// Si la imagen llego por un cuadro de texto, antes se cierra el teclado: con el cuadro abajo
+    /// (etiquetas, paso nuevo) Android sube la pagina entera para dejarlo a la vista y el aviso de
+    /// arriba quedaba fuera de la pantalla. La imagen no va al cuadro, asi que el teclado ya no hace
+    /// falta.
+    /// </remarks>
+    private void ShowPastedBanner()
+    {
+        foreach (var input in new InputView[] { TitleEntry, NotesEditor, TagsEntry, NewStepEntry })
+        {
+            if (input.IsFocused)
+            {
+                _ = input.HideSoftInputAsync(CancellationToken.None);
+                input.Unfocus();
+            }
+        }
+
+        if (_pastedBannerTimer is null)
+        {
+            _pastedBannerTimer = Dispatcher.CreateTimer();
+            _pastedBannerTimer.Interval = TimeSpan.FromSeconds(3);
+            _pastedBannerTimer.IsRepeating = false;
+            _pastedBannerTimer.Tick += (_, _) =>
+            {
+                _pastedBannerTimer.Stop();
+                PastedBanner.IsVisible = false;
+            };
+        }
+
+        PastedBanner.IsVisible = true;
+        _pastedBannerTimer.Stop();
+        _pastedBannerTimer.Start();
     }
 
     private async Task OpenAttachmentAsync(TaskAttachment item)

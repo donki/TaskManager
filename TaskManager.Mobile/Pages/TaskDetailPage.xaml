@@ -49,7 +49,7 @@
                                  texto, asi que un titulo largo se salia por la derecha y no habia
                                  forma de leerlo entero. El Editor crece con lo que se escribe.
                             -->
-                            <Editor x:Name="TitleEntry" Placeholder="{loc:T TaskWhat}"
+                            <Editor x:Name="TitleEntry" AutomationId="TaskWhat" Placeholder="{loc:T TaskWhat}"
                                     AutoSize="TextChanges" MinimumHeightRequest="44" />
                         </Border>
 
@@ -146,6 +146,7 @@
                             <!-- Pegar una imagen copiada (captura, foto, imagen de una web). -->
                             <ImageButton Grid.Column="2" Style="{StaticResource HeaderIconButton}"
                                          Source="ic_paste_w.png" BackgroundColor="{StaticResource Primary}"
+                                         AutomationId="PasteAttachment"
                                          Clicked="OnPasteAttachmentClicked" />
                             <ImageButton Grid.Column="3" Style="{StaticResource HeaderIconButton}"
                                          Source="ic_attach_w.png" BackgroundColor="{StaticResource Primary}"
@@ -172,7 +173,7 @@
                         <!-- Anadir un paso a mano: escribir y Enter, o el boton. -->
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                             <Border Grid.Column="0" Style="{StaticResource Card}" Padding="12,0">
-                                <Entry x:Name="NewStepEntry"
+                                <Entry x:Name="NewStepEntry" AutomationId="NewStep"
                                        Placeholder="{loc:T AddStepTooltip}"
                                        ReturnType="Done"
                                        Completed="OnAddStepClicked" />
@@ -230,6 +231,19 @@
 
             </VerticalStackLayout>
         </ScrollView>
+
+        <!--
+            Aviso de imagen pegada, arriba y encima de todo: pegada en el titulo o las notas, la
+            imagen va a «Enlaces y ficheros», mas abajo y tapada por el teclado, y sin aviso parecia
+            que pegar no hacia nada. No es un Toast: Android ya saca el suyo («… pasted from your
+            clipboard») y el nuestro esperaria en cola detras, unos cuatro segundos tarde.
+        -->
+        <Border x:Name="PastedBanner" AutomationId="PastedBanner" IsVisible="False" InputTransparent="True"
+                VerticalOptions="Start" Margin="16,8" Padding="16,12" StrokeThickness="0"
+                StrokeShape="RoundRectangle 12" BackgroundColor="{StaticResource Primary}">
+            <Label x:Name="PastedBannerLabel" Text="{loc:T PastedImageAdded}" TextColor="White"
+                   LineBreakMode="WordWrap" />
+        </Border>
 
         <controls:CelebrationView x:Name="Celebration" />
     </Grid>

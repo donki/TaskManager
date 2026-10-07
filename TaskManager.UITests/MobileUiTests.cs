@@ -290,23 +290,29 @@ public sealed class MobileUiTests
         SetTags(a, ["e2ea"]);
         SetTags(b, ["e2eb"]);
 
-        _s.Require(UiSession.Text("#e2ea"), "la pastilla #e2ea", 10).Click();
-        _s.Require(UiSession.Text(a), "A con su etiqueta", 5);
-        Assert.Null(_s.WaitFor(UiSession.Text(b), 1));
+        try
+        {
+            Chip("#e2ea").Click();
+            _s.Require(UiSession.Text(a), "A con su etiqueta", 5);
+            Assert.Null(_s.WaitFor(UiSession.Text(b), 1));
 
-        var chip = _s.Require(UiSession.Text("#e2eb"), "la pastilla #e2eb");
-        new Actions(_s.Driver).KeyDown(Keys.Control).Click(chip).KeyUp(Keys.Control).Perform();
-        _s.Require(UiSession.Text(b), "B tras Ctrl+clic", 5);
-        Assert.NotNull(_s.WaitFor(UiSession.Text(a), 2));
-        Assert.Null(_s.WaitFor(UiSession.Text(c), 1));
-        _s.Shot("08-ctrl-clic-dos-etiquetas");
+            var chip = Chip("#e2eb");
+            new Actions(_s.Driver).KeyDown(Keys.Control).Click(chip).KeyUp(Keys.Control).Perform();
+            _s.Require(UiSession.Text(b), "B tras Ctrl+clic", 5);
+            Assert.NotNull(_s.WaitFor(UiSession.Text(a), 2));
+            Assert.Null(_s.WaitFor(UiSession.Text(c), 1));
+            _s.Shot("08-ctrl-clic-dos-etiquetas");
 
-        // Un clic normal deja solo esa; «Todas» lo suelta.
-        _s.Require(UiSession.Text("#e2eb"), "la pastilla #e2eb").Click();
-        Assert.Null(_s.WaitFor(UiSession.Text(a), 2));
-        var all = _s.WaitFor(UiSession.Text(UiSession.T("AllTags", "es")), 2)
-            ?? _s.Require(UiSession.Text(UiSession.T("AllTags", "en")), "la pastilla de todas");
-        all.Click();
+            // Un clic normal deja solo esa; «Todas» lo suelta.
+            Chip("#e2eb").Click();
+            Assert.Null(_s.WaitFor(UiSession.Text(a), 2));
+        }
+        finally
+        {
+            // Pase lo que pase se suelta el filtro: si no, las pruebas siguientes no ven sus tareas.
+            Chip(UiSession.T("AllTags", "es"), UiSession.T("AllTags", "en")).Click();
+        }
+
         _s.Require(UiSession.Text(c), "C sin filtro", 5);
 
         DeleteTask(a);
@@ -319,9 +325,8 @@ public sealed class MobileUiTests
     /// hace que «Pegar» con una imagen y las imagenes de Gboard lleguen a la aplicacion.
     /// </summary>
     /// <remarks>
-    /// Appium no sabe poner una imagen en el portapapeles de Android (solo texto), asi que el pegado
-    /// en si lo prueban las pruebas de la pagina; aqui se comprueba, en el dispositivo, que el
-    /// cuadro de texto real lo anuncia (lo que publica el sistema en <c>dumpsys input_method</c>).
+    /// Aqui se comprueba, en el dispositivo, que el cuadro de texto real lo anuncia (lo que publica
+    /// el sistema en <c>dumpsys input_method</c>); el pegado de una imagen de verdad es T10.
     /// </remarks>
     [Fact]
     public void T09_Las_notas_admiten_imagenes_pegadas()
@@ -344,6 +349,141 @@ public sealed class MobileUiTests
         _s.Back();
         _s.Require(UiSession.Id("QuickAdd"), "Mis tareas tras el detalle", 10);
         DeleteTask(title);
+    }
+
+    /// <summary>
+    /// Pegar una imagen de verdad: otra aplicacion (el ayudante TaskManager.UITests.Portapapeles)
+    /// la deja en el portapapeles como un content:// suyo, igual que Chrome, Edge o Google Fotos, y
+    /// se pega por cada camino del detalle: el boton de pegar adjunto y la tecla de pegar (la misma
+    /// accion que «Pegar» del menu del texto) en el titulo, las notas, las etiquetas y el paso
+    /// nuevo. Cada vez tiene que salir arriba el aviso «Imagen añadida…» y un adjunto mas.
+    /// </summary>
+    /// <remarks>
+    /// El fallo del 2026-10-07: la imagen pegada en las notas si se guardaba, pero en «Enlaces y
+    /// ficheros», fuera de la vista, y sin ningun aviso; parecia que pegar no hacia nada. La imagen
+    /// del teclado (Gboard) no se puede mandar desde Appium: va por el mismo receptor que el pegado.
+    /// </remarks>
+    [Fact]
+    public void T10_Pegar_una_imagen_copiada_en_otra_aplicacion()
+    {
+        _s.InstallClipHelper();
+        GoHome();
+        var title = AddTask("Imagen");
+        _s.Require(UiSession.Text(title), "la tarea").Click();
+        _s.Require(UiSession.Id("TaskDelete"), "el detalle", 10);
+
+        var expected = 0;
+
+        // 1) El boton de pegar adjunto (y con un proveedor que no dice el tipo).
+        foreach (var withoutType in new[] { false, true })
+        {
+            _s.CopyImageToClipboard(withoutType);
+            _s.Require(UiSession.ScrollTo("PasteAttachment"), "el boton de pegar adjunto", 10).Click();
+            expected++;
+            ExpectPastedNotice($"boton{(withoutType ? " sin tipo" : "")}");
+        }
+
+        _s.Shot("10-pegada-con-el-boton");
+
+        // 2) La tecla de pegar en cada cuadro de texto del detalle.
+        foreach (var box in new[] { "TaskWhat", "TaskNotes", "TaskTags", "NewStep" })
+        {
+            _s.CopyImageToClipboard();
+            var field = _s.Require(UiSession.ScrollTo(box), $"el cuadro {box}", 10);
+            field.Click();
+            Thread.Sleep(500);
+            _s.Adb("shell input keyevent 279");   // KEYCODE_PASTE
+            expected++;
+            ExpectPastedNotice(box);
+            if (_s.Driver.IsKeyboardShown())
+            {
+                _s.Driver.HideKeyboard();
+            }
+        }
+
+        _s.Shot("10-pegada-en-los-textos");
+        Assert.Equal(expected, CountPastedAttachments());
+
+        // Lo pegado no dejo texto en los cuadros: el titulo sigue siendo el mismo.
+        Assert.Equal(title, _s.Require(UiSession.ScrollTo("TaskWhat"), "el titulo", 10).Text);
+
+        _s.Back();
+        if (_s.WaitFor(UiSession.Id("QuickAdd"), 3) is null)
+        {
+            // Si pregunta por cambios sin guardar, se descartan.
+            var discard = _s.WaitFor(UiSession.Text(UiSession.T("Discard", "es")), 3)
+                ?? _s.WaitFor(UiSession.Text(UiSession.T("Discard", "en")), 1);
+            discard?.Click();
+        }
+
+        _s.Require(UiSession.Id("QuickAdd"), "Mis tareas tras el detalle", 10);
+        DeleteTask(title);
+        _s.UninstallClipHelper();
+    }
+
+    /// <summary>
+    /// Espera el aviso de imagen añadida (arriba del detalle, en el idioma que este puesto) y a que
+    /// se vaya, para no confundirlo con el del siguiente pegado.
+    /// </summary>
+    private void ExpectPastedNotice(string where)
+    {
+        var es = UiSession.T("PastedImageAdded", "es");
+        var en = UiSession.T("PastedImageAdded", "en");
+        var banner = _s.WaitFor(By.XPath($"//*[@text=\"{es}\" or @text=\"{en}\"]"), 5);
+        if (banner is null)
+        {
+            _s.Shot($"10-sin-aviso-{where}");
+        }
+
+        Assert.True(banner is not null, $"Pegar en {where}: no sale el aviso de imagen añadida.");
+        _s.Shot($"10-aviso-{where}");
+        var until = DateTime.UtcNow.AddSeconds(6);
+        while (DateTime.UtcNow < until && _s.Driver.FindElements(By.XPath($"//*[@text=\"{es}\" or @text=\"{en}\"]")).Count > 0)
+        {
+            Thread.Sleep(300);
+        }
+    }
+
+    /// <summary>Cuenta los adjuntos «Imagen …» bajando por el detalle.</summary>
+    private int CountPastedAttachments()
+    {
+        var es = UiSession.T("PastedImageName", "es") + " 2";
+        var en = UiSession.T("PastedImageName", "en") + " 2";
+        _s.Require(UiSession.ScrollTo("PasteAttachment"), "el boton de pegar adjunto", 10);
+        var names = new HashSet<string>();
+        var size = _s.Driver.Manage().Window.Size;
+        for (var i = 0; i < 6; i++)
+        {
+            foreach (var e in _s.Driver.FindElements(By.XPath($"//*[starts-with(@text,'{es}') or starts-with(@text,'{en}')]")))
+            {
+                names.Add(e.Text);
+            }
+
+            _s.Adb($"shell input swipe {size.Width / 2} {size.Height * 3 / 4} {size.Width / 2} {size.Height / 2} 300");
+            Thread.Sleep(500);
+        }
+
+        return names.Count;
+    }
+
+    /// <summary>
+    /// Una pastilla del filtro de etiquetas: la tira se desplaza de lado y, con muchas etiquetas o
+    /// la pantalla estrecha, la que se busca puede estar fuera; se desplaza hasta verla (la tira
+    /// de etiquetas es la segunda HorizontalScrollView: la primera es la de los estados).
+    /// </summary>
+    private AppiumElement Chip(string text, string? other = null)
+    {
+        foreach (var t in other is null ? [text] : new[] { text, other })
+        {
+            if (_s.WaitFor(UiSession.Text(t), 1) is { } seen)
+            {
+                return seen;
+            }
+        }
+
+        return _s.Require(MobileBy.AndroidUIAutomator(
+            "new UiScrollable(new UiSelector().className(\"android.widget.HorizontalScrollView\").instance(1)).setAsHorizontalList()" +
+            $".scrollIntoView(new UiSelector().text(\"{text}\"))"), $"la pastilla {text}", 10);
     }
 
     /// <summary>Abre la tarea, le escribe las etiquetas, guarda y vuelve a «Mis tareas».</summary>

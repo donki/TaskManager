@@ -535,11 +535,82 @@ public class TaskDetailPageTests
         Assert.EndsWith(".png", pasted.Name);
         Assert.Single(page.Named<VerticalStackLayout>("AttachmentsBox"));
 
-        // Demasiado grande: se avisa y no se guarda.
+        // Y lo dice: el adjunto queda fuera de la vista, mas abajo, y sin aviso parecia que no
+        // hubiera pasado nada (el fallo del 2026-10-07).
+        var banner = page.Named<Border>("PastedBanner");
+        Assert.True(banner.IsVisible);
+        Assert.Equal(app.Texts["PastedImageAdded"], page.Named<Label>("PastedBannerLabel").Text);
+
+        // Se va solo al cumplirse su tiempo.
+        var timer = TestDispatcher.Instance.Timers.Last();
+        Assert.True(timer.IsRunning);
+        timer.Fire();
+        Assert.False(banner.IsVisible);
+        Assert.False(timer.IsRunning);
+
+        // Demasiado grande: se avisa y no se guarda (ni se dice que se ha añadido).
         await page.Call("AddPastedImageAsync", new byte[TaskAttachment.MaxFileBytes + 1], ".jpg");
         Assert.Equal(app.Texts.Format("FileTooBig", 5), app.Ui.Dialogs.Last().Message);
         Assert.Single(await app.Repository.GetAttachmentsAsync(task.Id));
+        Assert.False(banner.IsVisible);
     });
+
+    [Fact]
+    public void El_boton_de_pegar_tambien_avisa_al_guardar_la_imagen() => UiThread.Run(async () =>
+    {
+        await using var app = await TestApp.StartAsync();
+        var (_, tasks) = await app.SeedAsync("Casa", "Captura");
+        var page = await OpenAsync(app, tasks[0]);
+
+        var banner = page.Named<Border>("PastedBanner");
+        await page.Handler("OnPasteAttachmentClicked");
+        Assert.False(banner.IsVisible);                    // no habia imagen: solo el dialogo
+
+        app.Ui.ClipboardImage = ([0xFF, 0xD8, 0xFF], ".jpg");
+        await page.Handler("OnPasteAttachmentClicked");
+        Assert.True(banner.IsVisible);
+
+        // Otra antes de que se vaya: sigue a la vista, con la cuenta vuelta a empezar.
+        await page.Handler("OnPasteAttachmentClicked");
+        Assert.True(banner.IsVisible);
+        Assert.True(TestDispatcher.Instance.Timers.Last().IsRunning);
+    });
+
+    [Fact]
+    public void Una_imagen_dentro_del_html_copiado_se_reconoce()
+    {
+        var png = new byte[] { 0x89, (byte)'P', (byte)'N', (byte)'G', 13, 10, 26, 10, 1, 2 };
+        var b64 = Convert.ToBase64String(png);
+
+        // En un <img> de HTML, como lo copian el correo, las notas o un chat.
+        var html = $"<p>Mira:</p><img alt=\"x\" src=\"data:image/png;base64,{b64}\">";
+        var image = Mobile.Services.PastedImage.FromDataUri(html);
+        Assert.NotNull(image);
+        Assert.Equal(png, image.Value.Bytes);
+        Assert.Equal(".png", image.Value.Extension);
+
+        // El texto entero, con el base64 partido en lineas; el tipo manda aunque los bytes no lo digan.
+        var jpeg = Mobile.Services.PastedImage.FromDataUri("DATA:IMAGE/JPEG;BASE64," + b64[..4] + "\r\n" + b64[4..]);
+        Assert.Equal(".jpg", jpeg?.Extension);
+        Assert.Equal(png, jpeg?.Bytes);
+
+        // Con entidades de salto de linea dentro del atributo.
+        var entities = Mobile.Services.PastedImage.FromDataUri($"<img src=\"data:image/gif;base64,{b64[..4]}&#10;{b64[4..]}\">");
+        Assert.Equal(".gif", entities?.Extension);
+
+        // Si la primera esta rota se mira la siguiente.
+        var second = Mobile.Services.PastedImage.FromDataUri($"<img src=\"data:image/png;base64,@@@\"><img src=\"data:image/png;base64,{b64}\">");
+        Assert.Equal(png, second?.Bytes);
+        var broken = Mobile.Services.PastedImage.FromDataUri("data:image/png;base64,abc");
+        Assert.Null(broken);
+
+        // Sin imagen dentro: nada (ni texto, ni una direccion https, ni un data: que no es imagen).
+        Assert.Null(Mobile.Services.PastedImage.FromDataUri(null));
+        Assert.Null(Mobile.Services.PastedImage.FromDataUri(""));
+        Assert.Null(Mobile.Services.PastedImage.FromDataUri("hola"));
+        Assert.Null(Mobile.Services.PastedImage.FromDataUri("<img src=\"https://example.com/a.png\">"));
+        Assert.Null(Mobile.Services.PastedImage.FromDataUri("data:text/plain;base64," + b64));
+    }
 
     [Theory]
     [InlineData("image/png", new byte[] { 1 }, ".png")]

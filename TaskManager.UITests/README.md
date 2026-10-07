@@ -4,7 +4,7 @@ Tanda corta que maneja la app Android de verdad, como un dedo: Appium (Apache-2.
 UiAutomator2, desde xUnit con `Appium.WebDriver` (Apache-2.0). No se ejecuta con la compilación
 normal: necesita el servidor de Appium y un dispositivo o emulador.
 
-## Qué prueba (9 pruebas, van en orden sobre la misma sesión)
+## Qué prueba (10 pruebas, van en orden sobre la misma sesión)
 
 | Prueba | Qué comprueba |
 |---|---|
@@ -16,7 +16,8 @@ normal: necesita el servidor de Appium y un dispositivo o emulador.
 | T06 | Letra al 145 % (`font_scale 1.45`): ningún texto de Mis tareas ni del menú se sale de la pantalla ni se ve recortado por su contenedor. Deja la letra a 1.0 al acabar, pase lo que pase. |
 | T07 | Detalle: con 14 etiquetas creadas, las pastillas de las que ya existen saltan de línea (más de una fila) y ninguna se sale por la derecha: sin desplazar de lado. |
 | T08 | Filtro de «Mis tareas»: clic normal en una etiqueta deja solo esa; **Ctrl+clic** (tecla Ctrl abajo por acciones W3C, como un teclado físico) suma otra y salen las tareas de las dos; «Todas» lo suelta. |
-| T09 | Las notas del detalle anuncian `image/*` al teclado (`dumpsys input_method`): es lo que deja pegar imágenes y recibir las de Gboard. El pegado en sí no se puede preparar desde Appium (solo pone texto en el portapapeles); lo cubren las pruebas de la página. |
+| T09 | Las notas del detalle anuncian `image/*` al teclado (`dumpsys input_method`): es lo que deja pegar imágenes y recibir las de Gboard. |
+| T10 | Pegar una imagen de verdad: el ayudante `TaskManager.UITests.Portapapeles` la deja en el portapapeles como otra aplicación (un `content://` suyo, con y sin tipo), y se pega con el botón de pegar adjunto y con la tecla de pegar en el título, las notas, las etiquetas y el paso nuevo. Cada vez sale arriba «Imagen añadida a Enlaces y ficheros» y hay un adjunto más; el título no cambia. |
 
 Capturas de cada paso en `artifacts/<fecha-hora>/` (ignorada en git), más `06-letra145.txt` con
 las medidas de cada texto a 1.0 y a 1.45, los fallos y los **avisos**.
@@ -47,7 +48,9 @@ D:\dev\appium\node_modules\.bin\appium.cmd driver install uiautomator2
 2. La app instalada o pásala en `TM_APK`. APK Release firmado con la clave compartida:
    `dotnet publish TaskManager.Mobile -c Release -f net10.0-android36.0 -p:AndroidPackageFormat=apk -p:AndroidSigningKeyStore=... -p:AndroidSigningKeyAlias=... -p:AndroidSigningStorePass=... -p:AndroidSigningKeyPass=...`
    y `adb -s 127.0.0.1:16416 install -r <apk>`.
-3. Ejecuta:
+3. El ayudante del portapapeles (para T10; la prueba lo instala si no está y lo quita al acabar):
+   `dotnet build TaskManager.UITests.Portapapeles -c Release` (o su APK en `TM_CLIP_APK`).
+4. Ejecuta:
 
 ```powershell
 dotnet build TaskManager.UITests -m:1 -nodeReuse:false
@@ -67,7 +70,8 @@ Variables (todas opcionales):
 | `TM_APPIUM` | `D:\dev\appium\node_modules\.bin\appium.cmd` | Appium para arrancarlo si no responde. |
 | `APPIUM_HOME` | `D:\dev\appium-home` | Donde están los drivers. |
 | `ANDROID_HOME` | `D:\dev\android-sdk` | SDK con adb. |
-| `TM_APK` | (ninguna) | APK a instalar antes de empezar. |
+| `TM_APK` | (ninguna) | APK a instalar antes de empezar. Ojo: con el mismo versionCode que el instalado, Appium no lo reinstala; instálalo antes con `adb install -r`. |
+| `TM_CLIP_APK` | el de `TaskManager.UITests.Portapapeles/bin/Release` | APK del ayudante que deja una imagen en el portapapeles (T10). |
 
 ## Identificadores
 
@@ -82,3 +86,11 @@ el idioma).
 6 pruebas, 6 pasan, en 3 tandas seguidas con el mismo resultado: 116, 113 y 114 s por tanda
 (unos 105 s de pruebas más ~10 s de arrancar Appium y la sesión), sin contar compilar ni arrancar
 el emulador.
+
+## Tanda del 2026-10-07 (AVD Phone_API34 sin ventana, Android 14, 1080×2400)
+
+10 pruebas, 9 pasan, en 5 min 14 s. T09 y T10 (pegar una imagen) pasan, también sueltas. T08 falla
+en este emulador al sumar la segunda etiqueta con Ctrl+clic (la tecla Ctrl por acciones W3C no
+llega como en MuMu); ahora suelta el filtro pase lo que pase, para no esconder las tareas de las
+pruebas siguientes, y busca las pastillas desplazando la tira de etiquetas. En MuMu no se ha
+vuelto a lanzar.

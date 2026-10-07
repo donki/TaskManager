@@ -19,13 +19,17 @@ public static class ImagePasteTarget
     public static void Enable(InputView view, Func<byte[], string, Task> onImage)
     {
 #if ANDROID
-        view.HandlerChanged += (_, _) =>
+        void Attach()
         {
             if (view.Handler?.PlatformView is Android.Views.View native)
             {
                 AndroidX.Core.View.ViewCompat.SetOnReceiveContentListener(native, ["image/*"], new Receiver(onImage));
             }
-        };
+        }
+
+        // Si el cuadro ya tiene su vista de Android se engancha ya; si no, cuando la tenga.
+        view.HandlerChanged += (_, _) => Attach();
+        Attach();
 #endif
     }
 
@@ -52,7 +56,7 @@ public static class ImagePasteTarget
             for (var i = 0; i < clip.ItemCount; i++)
             {
                 var item = clip.GetItemAt(i);
-                if (item?.Uri is { } uri && PastedImage.Read(context, uri, hint) is { } image)
+                if (item is not null && PastedImage.Read(context, item, hint) is { } image)
                 {
                     images.Add(image);
                 }

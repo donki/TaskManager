@@ -9,7 +9,8 @@ namespace TaskManager.Mobile.Services;
 /// El ClipData se pide en el hilo principal: desde Android 10 solo puede leer el portapapeles la
 /// aplicacion que tiene el foco, y antes se pedia desde otro hilo. Los bytes, en cambio, se leen
 /// aparte para no trabar la pantalla. Si el proveedor no dice el tipo, decide
-/// <see cref="PastedImage"/> mirando los bytes.
+/// <see cref="PastedImage"/> mirando los bytes; y si lo copiado no trae <c>content://</c> sino HTML
+/// con la imagen dentro (<c>data:image/…</c>), se saca de ahi.
 /// </remarks>
 public static class ClipboardImage
 {
@@ -28,16 +29,16 @@ public static class ClipboardImage
         }
 
         var hint = PastedImage.ImageMime(clip.Description);
-        var uris = Enumerable.Range(0, clip.ItemCount)
-            .Select(i => clip.GetItemAt(i)?.Uri)
-            .OfType<Android.Net.Uri>()
+        var items = Enumerable.Range(0, clip.ItemCount)
+            .Select(clip.GetItemAt)
+            .OfType<Android.Content.ClipData.Item>()
             .ToList();
 
         return await Task.Run(() =>
         {
-            foreach (var uri in uris)
+            foreach (var item in items)
             {
-                if (PastedImage.Read(context, uri, hint) is { } image)
+                if (PastedImage.Read(context, item, hint) is { } image)
                 {
                     return image;
                 }

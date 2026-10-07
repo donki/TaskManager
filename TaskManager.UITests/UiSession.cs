@@ -159,6 +159,65 @@ public sealed class UiSession : IDisposable
         Driver.ActivateApp(Package);
     }
 
+    // ---------------------------------------------------------------- imagenes en el portapapeles
+
+    /// <summary>Paquete del ayudante que deja una imagen en el portapapeles (TaskManager.UITests.Portapapeles).</summary>
+    public const string ClipHelperPackage = "com.socratic.taskmanager.pruebas.portapapeles";
+
+    /// <summary>
+    /// Instala el ayudante si no esta: <c>TM_CLIP_APK</c> o el que deja
+    /// <c>dotnet build TaskManager.UITests.Portapapeles -c Release</c>.
+    /// </summary>
+    public void InstallClipHelper()
+    {
+        if (Adb($"shell pm path {ClipHelperPackage}").Contains("package:"))
+        {
+            return;
+        }
+
+        var apk = Env("TM_CLIP_APK", Path.Combine(ProjectDir(), "..", "TaskManager.UITests.Portapapeles", "bin", "Release",
+            "net10.0-android36.0", $"{ClipHelperPackage}-Signed.apk"));
+        if (!File.Exists(apk))
+        {
+            throw new Xunit.Sdk.XunitException(
+                $"Falta el ayudante del portapapeles ({apk}): dotnet build TaskManager.UITests.Portapapeles -c Release.");
+        }
+
+        var output = Adb($"install -r --no-incremental \"{apk}\"");
+        if (!Adb($"shell pm path {ClipHelperPackage}").Contains("package:"))
+        {
+            throw new Xunit.Sdk.XunitException($"No se instala el ayudante del portapapeles: {output}");
+        }
+    }
+
+    /// <summary>
+    /// Deja un PNG en el portapapeles como lo hace otra aplicacion (un content:// suyo) y vuelve a
+    /// Task Manager. <paramref name="withoutType"/>: el proveedor no dice el tipo.
+    /// </summary>
+    public void CopyImageToClipboard(bool withoutType = false)
+    {
+        // El ayudante apunta en el registro cuando ya la ha dejado: se espera a esa linea (si se
+        // vuelve antes a Task Manager, el ayudante pierde el foco y no puede escribir).
+        Adb("logcat -c");
+        Adb($"shell am start -W -n {ClipHelperPackage}/.CopiarImagenActivity{(withoutType ? " --es tipo no" : "")}");
+        var until = DateTime.UtcNow.AddSeconds(10);
+        while (!Adb("logcat -d -s TMPortapapeles:I").Contains("imagen en el portapapeles"))
+        {
+            if (DateTime.UtcNow > until)
+            {
+                throw new Xunit.Sdk.XunitException("El ayudante no ha dejado la imagen en el portapapeles.");
+            }
+
+            Thread.Sleep(300);
+        }
+
+        Driver.ActivateApp(Package);
+        Thread.Sleep(800);
+    }
+
+    /// <summary>Quita el ayudante del dispositivo.</summary>
+    public void UninstallClipHelper() => Adb($"uninstall {ClipHelperPackage}");
+
     public void SetFontScale(double scale) =>
         Adb($"shell settings put system font_scale {scale.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
 

@@ -11,7 +11,7 @@ namespace TaskManager.Mobile.Services;
 ///
 /// <para>Vive fuera de los <c>#if ANDROID</c> para poder probarlo sin dispositivo.</para>
 /// </remarks>
-public static class PastedImage
+public static partial class PastedImage
 {
     /// <summary>
     /// La extension (<c>.png</c>, <c>.jpg</c>…) si es una imagen; <c>null</c> si no lo es.
@@ -43,6 +43,54 @@ public static class PastedImage
 
         return mime is not null && mime.StartsWith("image/", StringComparison.OrdinalIgnoreCase) ? ".png" : null;
     }
+
+    /// <summary>
+    /// La primera imagen metida en el texto como <c>data:image/...;base64,...</c>: en un
+    /// <c>&lt;img src="..."&gt;</c> de HTML o el texto entero. <c>null</c> si no hay ninguna o no
+    /// se puede descodificar.
+    /// </summary>
+    /// <remarks>
+    /// Hay aplicaciones (correo, notas, chats, paginas copiadas con la imagen dentro) que no dejan
+    /// la imagen como <c>content://</c> sino dentro del HTML que copian, y el portapapeles solo
+    /// trae ese texto. Las imagenes que van por direccion (<c>https://…</c>) no se bajan: eso
+    /// seria tirar de la red al pegar.
+    /// </remarks>
+    public static (byte[] Bytes, string Extension)? FromDataUri(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return null;
+        }
+
+        var match = DataUri().Match(text);
+        while (match.Success)
+        {
+            try
+            {
+                // En HTML el base64 puede venir partido en lineas o con entidades de espacio.
+                var payload = match.Groups["data"].Value.Replace("&#10;", "").Replace("&#13;", "");
+                payload = new string(payload.Where(c => !char.IsWhiteSpace(c)).ToArray());
+                var bytes = Convert.FromBase64String(payload);
+                if (bytes.Length > 0 && Extension(match.Groups["mime"].Value, bytes) is { } extension)
+                {
+                    return (bytes, extension);
+                }
+            }
+            catch (FormatException)
+            {
+                // Base64 roto: se prueba la siguiente, si la hay.
+            }
+
+            match = match.NextMatch();
+        }
+
+        return null;
+    }
+
+    [System.Text.RegularExpressions.GeneratedRegex(
+        @"data:(?<mime>image/[a-z0-9.+-]+);base64,(?<data>(?:[A-Za-z0-9+/=\s]|&#1[03];)+)",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex DataUri();
 
     private static string? Sniff(ReadOnlySpan<byte> b)
     {
@@ -90,6 +138,20 @@ public static class PastedImage
             // Sin permiso para leerla (el proveedor no lo concedio) o ya no existe: como si no hubiera.
             return null;
         }
+    }
+
+    /// <summary>
+    /// La imagen de un elemento del portapapeles o del teclado: la de su <c>content://</c>, o si
+    /// no tiene, la que venga dentro de su HTML o de su texto como <c>data:image/…</c>.
+    /// </summary>
+    public static (byte[] Bytes, string Extension)? Read(Android.Content.Context context, Android.Content.ClipData.Item item, string? hint)
+    {
+        if (item.Uri is { } uri && Read(context, uri, hint) is { } image)
+        {
+            return image;
+        }
+
+        return FromDataUri(item.HtmlText) ?? FromDataUri(item.Text?.ToString());
     }
 
     /// <summary>El primer tipo de imagen que anuncia el ClipData, si anuncia alguno.</summary>

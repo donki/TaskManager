@@ -1,5 +1,17 @@
 [
   {
+    "version": "2026.10.07.00",
+    "date": "2026-10-07",
+    "es": [
+      "En Android, al pegar una imagen en el título o las notas de una tarea (o mandarla desde el teclado) sale arriba el aviso «Imagen añadida a Enlaces y ficheros»: se guardaba, pero más abajo y sin decir nada, y parecía que no funcionaba.",
+      "También se pueden pegar imágenes en las etiquetas y en el paso nuevo, y se reconocen las que vienen dentro de un texto copiado con formato (correo, notas, chats)."
+    ],
+    "en": [
+      "On Android, pasting an image in a task's title or notes (or sending it from the keyboard) now shows \"Image added to Links and files\" at the top: it was saved, but further down and without a word, so it looked like it did not work.",
+      "Images can also be pasted in the tags and in the new step, and images inside copied formatted text (mail, notes, chats) are recognised."
+    ]
+  },
+  {
     "version": "2026.10.06.00",
     "date": "2026-10-06",
     "es": [

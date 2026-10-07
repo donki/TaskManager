@@ -5,7 +5,7 @@ uso: python tools/cobertura-app.py <carpeta-de-resultados | coverage.cobertura.x
 
 Como se cuenta (las mismas reglas para todos los ficheros .cs de la app):
   - Ficheros: todos los .cs bajo la carpeta de la app (por defecto, la actual), fuera de obj/, bin/,
-    *.g.cs, *.Designer.cs, los proyectos de pruebas (*.Tests, *.UITests) y lo que se pase con
+    *.g.cs, *.Designer.cs, los proyectos de pruebas (*.Tests, *.UITests y *.UITests.*) y lo que se pase con
     --excluir.
   - Solo cuentan las lineas con SENTENCIAS (lo que coverlet llama puntos de secuencia). No cuentan:
     lineas vacias, comentarios, directivas (#if), llaves y parentesis sueltos, using/namespace,
@@ -207,7 +207,8 @@ def ejecutables(path, condicionales=None):
 files = []
 for dp, dns, fns in os.walk(app):
     dns[:] = [d for d in dns if d.lower() not in ('obj', 'bin', '.git', '.vs', 'node_modules', 'constitution', 'testresults')
-              and not d.lower().endswith('.tests') and not d.lower().endswith('.uitests')]
+              and not d.lower().endswith('.tests') and not d.lower().endswith('.uitests')
+              and '.uitests.' not in d.lower()]  # y sus ayudantes (TaskManager.UITests.Portapapeles)
     if any(norm(dp) == e or norm(dp).startswith(e + os.sep) for e in excl):
         continue
     for f in fns:
