@@ -1,5 +1,17 @@
 [
   {
+    "version": "2026.10.08.00",
+    "date": "2026-10-08",
+    "es": [
+      "En Windows, «Acerca de» es ahora la última pestaña de la ventana principal, en vez de una ventana aparte. El botón del panel rápido abre la principal directamente en ella.",
+      "Al cambiar el idioma, la ventana principal se rehace en el idioma nuevo y se queda en la pestaña en la que estabas (antes seguía con los textos del idioma anterior)."
+    ],
+    "en": [
+      "On Windows, \"About\" is now the last tab of the main window instead of a separate window. The quick panel's button opens the main window right on it.",
+      "Changing the language now rebuilds the main window in the new language and keeps you on the same tab (it used to keep the old language's texts)."
+    ]
+  },
+  {
     "version": "2026.10.07.00",
     "date": "2026-10-07",
     "es": [

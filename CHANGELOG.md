@@ -2,6 +2,28 @@
 
 Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del día a dos cifras, el mismo que cierra el versionCode.
 
+## 2026.10.08.00 — «Acerca de», pestaña de la ventana principal
+
+Windows `2026.10.8.0` · Android `2026.10.08.00` (sin cambios en Android; sube con la versión común)
+
+**Castellano**
+
+- Windows: «Acerca de» deja de ser una ventana aparte y pasa a ser la última pestaña de la ventana
+  principal, detrás de Grupos (el mismo sitio que en el menú del móvil). Tiene lo mismo: versión,
+  novedades, contacto, idioma, privacidad, licencia y aviso legal, en una columna centrada.
+- El botón de «Acerca de» del panel rápido abre la ventana principal directamente en esa pestaña.
+- Corregido: al cambiar el idioma (desde «Acerca de» o desde Ajustes) la ventana principal seguía
+  con los textos del idioma anterior. Ahora se rehace y se queda en la pestaña en la que estaba.
+
+**English**
+
+- Windows: "About" is no longer a separate window; it is now the last tab of the main window, after
+  Groups (the same place as in the phone's menu), with the same content: version, what's new,
+  contact, language, privacy, licence and legal notice, in a centred column.
+- The quick panel's "About" button opens the main window right on that tab.
+- Fixed: after changing the language (from "About" or from Settings) the main window kept the old
+  language's texts. It is now rebuilt and stays on the same tab.
+
 ## 2026.10.07.00 — Pegar una imagen en Android, y que se note
 
 Windows `2026.10.7.0` · Android `2026.10.07.00`
