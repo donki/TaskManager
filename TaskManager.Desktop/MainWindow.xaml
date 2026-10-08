@@ -11,8 +11,8 @@
     <!--
         Las dos primeras pestañas son las mismas que Android y en el mismo orden: «Mis tareas» (todo,
         con filtro) y «Mis listas». Detras van las dos que solo tiene Windows —el tablero y el
-        calendario del mes—, que necesitan sitio y en una pantalla de movil no caben. El correo esta
-        oculto.
+        calendario del mes—, que necesitan sitio y en una pantalla de movil no caben. Luego los grupos
+        y, la ultima, «Acerca de». El correo esta oculto.
     -->
 
     <Window.Resources>
@@ -521,6 +521,15 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
                 </DockPanel>
+            </TabItem>
+
+            <!-- ============================== Acerca de ============================== -->
+            <!--
+                La ultima, como en el menu del movil. El boton de Acerca de del panel rapido abre
+                la principal directamente aqui.
+            -->
+            <TabItem x:Name="AboutTabItem" Header="{loc:T MenuAbout}">
+                <views:AboutView x:Name="AboutTab" Margin="8,16,8,8" />
             </TabItem>
 
         </TabControl>

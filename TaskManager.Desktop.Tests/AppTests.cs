@@ -121,30 +121,31 @@ public class AppTests
             Ui.Responder(Dialogo.Cerrar);
             await Ui.Pulsar(App.Panel.SettingsButton);
 
-            // Acerca de: la version, el contacto y las novedades.
-            Ui.ResponderAsync(async w =>
-            {
-                var acerca = (AboutWindow)w;
-                Assert.StartsWith("v", acerca.VersionLabel.Text);
-                await Ui.Hacer(() => Ui.Invocar(acerca, "OnContactClick", null,
-                    new System.Windows.Navigation.RequestNavigateEventArgs(new Uri("mailto:hola@socratic.es"), null)));
-                Assert.Equal("mailto:hola@socratic.es", Ui.Sistema.Abiertos.Last());
-
-                // Sin programa de correo se dice.
-                Ui.Sistema.FalloAlAbrir = new InvalidOperationException("sin correo");
-                Ui.Responder(Dialogo.Aceptar);
-                await Ui.Hacer(() => Ui.Invocar(acerca, "OnContactClick", null,
-                    new System.Windows.Navigation.RequestNavigateEventArgs(new Uri("mailto:x@y.es"), null)));
-                Ui.Sistema.FalloAlAbrir = null;
-
-                // Elegir el idioma que ya esta no cambia nada.
-                await Ui.Pulsar(acerca.SpanishButton);
-                Assert.True(acerca.IsVisible);
-
-                await Ui.Llamar(acerca, "OnWhatsNewClick", null, new RoutedEventArgs());
-            });
+            // Acerca de: la principal, abierta en su pestaña, con la version, el contacto y las novedades.
             await Ui.Pulsar(App.Panel.AboutButton);
             Assert.False(App.Panel.IsVisible);
+            Assert.True(App.Principal!.AboutTabItem.IsSelected);
+            var acerca = App.Principal.AboutTab;
+            Assert.StartsWith("v", acerca.VersionLabel.Text);
+            await Ui.Hacer(() => Ui.Invocar(acerca, "OnContactClick", null,
+                new System.Windows.Navigation.RequestNavigateEventArgs(new Uri("mailto:hola@socratic.es"), null)));
+            Assert.Equal("mailto:hola@socratic.es", Ui.Sistema.Abiertos.Last());
+
+            // Sin programa de correo se dice.
+            Ui.Sistema.FalloAlAbrir = new InvalidOperationException("sin correo");
+            Ui.Responder(Dialogo.Aceptar);
+            await Ui.Hacer(() => Ui.Invocar(acerca, "OnContactClick", null,
+                new System.Windows.Navigation.RequestNavigateEventArgs(new Uri("mailto:x@y.es"), null)));
+            Ui.Sistema.FalloAlAbrir = null;
+
+            // Elegir el idioma que ya esta no cambia nada.
+            var principalAntes = App.Principal;
+            await Ui.Pulsar(acerca.SpanishButton);
+            Assert.Same(principalAntes, App.Principal);
+
+            await Ui.Llamar(acerca, "OnWhatsNewClick", null, new RoutedEventArgs());
+            Assert.Contains(Ui.Abiertas, w => w is WhatsNewWindow);
+
 
             // Una tarea que baja del movil se anuncia, y un cambio repinta el panel y la bandeja.
             var sincronizacion = Ui.Campo<SyncCoordinator>(App, "_syncing");
@@ -180,9 +181,15 @@ public class AppTests
 
             // Desde Acerca de, a ingles.
             var panel = App.Panel;
-            Ui.ResponderAsync(w => Ui.Pulsar(((AboutWindow)w).EnglishButton));
             await Ui.Pulsar(App.Panel.AboutButton);
+            var principal = App.Principal!;
+            await Ui.Pulsar(principal.AboutTab.EnglishButton);
             Assert.Equal("en", Loc.Language);
+
+            // La principal se rehace en ingles y sigue en la pestaña de Acerca de.
+            Assert.NotSame(principal, App.Principal);
+            Assert.True(App.Principal!.AboutTabItem.IsSelected);
+            Assert.Equal(Loc.Get("MenuAbout"), App.Principal.AboutTabItem.Header);
             Assert.NotSame(panel, App.Panel);
             Assert.Equal(Loc.Get("TrayExit"), App.Bandeja.Menu!.Items[^1].Text);
             Assert.Equal(2, Ui.Sistema.Atajos.Count);
@@ -265,7 +272,7 @@ public class AppTests
         {
             await App.ArrancarAsync(["--preview-novedades", "en"]);
             Assert.Equal("en", Loc.Language);
-            Assert.Contains(Ui.Abiertas, w => w is AboutWindow);
+            Assert.Contains(Ui.Abiertas, w => w.Content is Views.AboutView);
             Assert.Contains(Ui.Abiertas, w => w is WhatsNewWindow);
         }
         finally

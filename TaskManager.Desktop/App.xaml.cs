@@ -89,7 +89,17 @@ public partial class App : Application
                 OpenWhatsNew();
             }
 
-            OpenAbout();
+            var acerca = new Views.AboutView { Margin = new Thickness(12) };
+            acerca.Attach(_settings);
+            Ventanas.Mostrar(new Window
+            {
+                Title = Localization.Loc.Get("MenuAbout"),
+                Width = 700,
+                Height = 720,
+                Content = acerca,
+                Background = (System.Windows.Media.Brush)FindResource("PageBackground"),
+                Icon = TrayIconHost.CreateWindowIcon(),
+            });
 
             return;
         }
@@ -328,6 +338,19 @@ public partial class App : Application
 
         _tray.RebuildMenu();
         _tray.SetPending(pending);
+
+        // La principal tambien: si estaba abierta se rehace en la pestaña en la que estaba (el
+        // idioma se puede cambiar desde su pestaña «Acerca de»).
+        if (_main is { IsLoaded: true } principal)
+        {
+            var pestana = principal.PestanaActual;
+            principal.Close();
+            OpenMain();
+            if (_main is not null)
+            {
+                _main.PestanaActual = pestana;
+            }
+        }
     }
 
     /// <summary>El panel rapido, con sus botones enganchados a las ventanas que abren.</summary>
@@ -450,14 +473,14 @@ public partial class App : Application
         Ventanas.Modal(window);
     }
 
-    /// <summary>«Acerca de»: version, contacto, idioma, privacidad y licencia, como en el movil.</summary>
+    /// <summary>
+    /// «Acerca de»: version, contacto, idioma, privacidad y licencia, como en el movil. Es una
+    /// pestaña de la ventana principal; se abre la principal en ella.
+    /// </summary>
     private void OpenAbout()
     {
-        var window = new AboutWindow(_settings)
-        {
-            Icon = TrayIconHost.CreateWindowIcon(),
-        };
-        Ventanas.Modal(window);
+        OpenMain();
+        _main?.MostrarAcercaDe();
     }
 
     private WhatsNewWindow? _whatsNew;

@@ -105,8 +105,20 @@ public partial class MainWindow : Window
 
         Services.ThemeManager.StyleTitleBar(this);
 
+        AboutTab.Attach(settings);
+
         BuildFilters();
         BuildKanbanFilters();
+    }
+
+    /// <summary>Pasa a la pestaña «Acerca de»; la pide el boton del panel rapido.</summary>
+    public void MostrarAcercaDe() => AboutTabItem.IsSelected = true;
+
+    /// <summary>La pestaña que se esta viendo, para volver a ella al rehacer la ventana.</summary>
+    public int PestanaActual
+    {
+        get => Tabs.SelectedIndex;
+        set => Tabs.SelectedIndex = value;
     }
 
     private static string T(string key) => Localization.Loc.Get(key);
