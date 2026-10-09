@@ -13,12 +13,12 @@
         de aplicaciones se cambia el idioma desde esta pantalla, y quien viene del movil lo busca
         aqui.
 
-        Es la ultima pestaña de la ventana principal, no una ventana aparte: el boton de Acerca de
-        del panel rapido abre la principal en ella.
+        Va dentro del dialogo AboutWindow, que abre el icono de informacion de la ventana principal
+        y el boton de Acerca de del panel rapido.
     -->
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-        <!-- En una pestaña ancha las tarjetas a todo lo ancho se leen mal: columna centrada. -->
+        <!-- Si el dialogo se ensancha, las tarjetas a todo lo ancho se leen mal: columna centrada. -->
         <StackPanel Margin="0,0,10,0" MaxWidth="640">
 
             <!-- Cabecera -->

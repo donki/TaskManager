@@ -105,14 +105,31 @@ public partial class MainWindow : Window
 
         Services.ThemeManager.StyleTitleBar(this);
 
-        AboutTab.Attach(settings);
-
         BuildFilters();
         BuildKanbanFilters();
     }
 
-    /// <summary>Pasa a la pestaña «Acerca de»; la pide el boton del panel rapido.</summary>
-    public void MostrarAcercaDe() => AboutTabItem.IsSelected = true;
+    /// <summary>El dialogo de «Acerca de», si esta abierto.</summary>
+    public AboutWindow? AcercaDe { get; private set; }
+
+    /// <summary>
+    /// Abre el dialogo de «Acerca de», o lo trae al frente si ya estaba. Lo piden el icono de la
+    /// franja de marca y el boton del panel rapido.
+    /// </summary>
+    public void MostrarAcercaDe()
+    {
+        if (AcercaDe is { IsLoaded: true })
+        {
+            AcercaDe.Activate();
+            return;
+        }
+
+        AcercaDe = new AboutWindow(_settings) { Owner = this, Icon = Icon };
+        AcercaDe.Closed += (_, _) => AcercaDe = null;
+        Services.Ventanas.Mostrar(AcercaDe);
+    }
+
+    private void OnAboutClick(object sender, RoutedEventArgs e) => MostrarAcercaDe();
 
     /// <summary>La pestaña que se esta viendo, para volver a ella al rehacer la ventana.</summary>
     public int PestanaActual

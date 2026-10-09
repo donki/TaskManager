@@ -121,11 +121,17 @@ public class AppTests
             Ui.Responder(Dialogo.Cerrar);
             await Ui.Pulsar(App.Panel.SettingsButton);
 
-            // Acerca de: la principal, abierta en su pestaña, con la version, el contacto y las novedades.
+            // Acerca de: la principal con su dialogo encima, con la version, el contacto y las novedades.
             await Ui.Pulsar(App.Panel.AboutButton);
             Assert.False(App.Panel.IsVisible);
-            Assert.True(App.Principal!.AboutTabItem.IsSelected);
-            var acerca = App.Principal.AboutTab;
+            var dialogo = App.Principal!.AcercaDe!;
+            Assert.Same(App.Principal, dialogo.Owner);
+
+            // Pulsar otra vez el icono de la principal no apila otro dialogo.
+            await Ui.Pulsar(App.Principal.AboutButton);
+            Assert.Same(dialogo, App.Principal.AcercaDe);
+            Assert.Single(Ui.Abiertas.OfType<AboutWindow>());
+            var acerca = dialogo.About;
             Assert.StartsWith("v", acerca.VersionLabel.Text);
             await Ui.Hacer(() => Ui.Invocar(acerca, "OnContactClick", null,
                 new System.Windows.Navigation.RequestNavigateEventArgs(new Uri("mailto:hola@socratic.es"), null)));
@@ -145,6 +151,10 @@ public class AppTests
 
             await Ui.Llamar(acerca, "OnWhatsNewClick", null, new RoutedEventArgs());
             Assert.Contains(Ui.Abiertas, w => w is WhatsNewWindow);
+
+            // El boton de cerrar del dialogo.
+            await Ui.Pulsar(dialogo.CloseButton);
+            Assert.Null(App.Principal.AcercaDe);
 
 
             // Una tarea que baja del movil se anuncia, y un cambio repinta el panel y la bandeja.
@@ -183,13 +193,14 @@ public class AppTests
             var panel = App.Panel;
             await Ui.Pulsar(App.Panel.AboutButton);
             var principal = App.Principal!;
-            await Ui.Pulsar(principal.AboutTab.EnglishButton);
+            await Ui.Pulsar(principal.AcercaDe!.About.EnglishButton);
             Assert.Equal("en", Loc.Language);
 
-            // La principal se rehace en ingles y sigue en la pestaña de Acerca de.
+            // La principal se rehace en ingles y con el dialogo de Acerca de otra vez abierto.
             Assert.NotSame(principal, App.Principal);
-            Assert.True(App.Principal!.AboutTabItem.IsSelected);
-            Assert.Equal(Loc.Get("MenuAbout"), App.Principal.AboutTabItem.Header);
+            Assert.NotNull(App.Principal!.AcercaDe);
+            Assert.Equal(Loc.Get("MenuAbout"), App.Principal.AcercaDe!.Title);
+            Assert.Equal(Loc.Get("MenuAbout"), App.Principal.AboutButton.ToolTip);
             Assert.NotSame(panel, App.Panel);
             Assert.Equal(Loc.Get("TrayExit"), App.Bandeja.Menu!.Items[^1].Text);
             Assert.Equal(2, Ui.Sistema.Atajos.Count);

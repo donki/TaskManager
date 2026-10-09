@@ -11,8 +11,9 @@
     <!--
         Las dos primeras pestañas son las mismas que Android y en el mismo orden: «Mis tareas» (todo,
         con filtro) y «Mis listas». Detras van las dos que solo tiene Windows —el tablero y el
-        calendario del mes—, que necesitan sitio y en una pantalla de movil no caben. Luego los grupos
-        y, la ultima, «Acerca de». El correo esta oculto.
+        calendario del mes—, que necesitan sitio y en una pantalla de movil no caben. Luego los grupos.
+        «Acerca de» no es pestaña: es el icono de informacion a la derecha de la franja de marca y
+        abre un dialogo. El correo esta oculto.
     -->
 
     <Window.Resources>
@@ -37,8 +38,15 @@
     <DockPanel>
 
         <!-- Franja de marca, como la cabecera del movil. -->
-        <Border DockPanel.Dock="Top" Background="{DynamicResource Primary}" Padding="18,12">
-            <TextBlock Text="{loc:T AppName}" FontSize="18" FontWeight="SemiBold" Foreground="White" />
+        <Border DockPanel.Dock="Top" Background="{DynamicResource Primary}" Padding="18,8,10,8">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="{loc:T AppName}" FontSize="18" FontWeight="SemiBold" Foreground="White"
+                           VerticalAlignment="Center" />
+                <!-- «Acerca de», a la derecha: abre el dialogo. -->
+                <Button Grid.Column="1" x:Name="AboutButton" Style="{StaticResource GhostIconButton}"
+                        Foreground="White" Content="&#xE946;" ToolTip="{loc:T MenuAbout}"
+                        AutomationProperties.Name="{loc:T MenuAbout}" Click="OnAboutClick" />
+            </Grid>
         </Border>
 
         <TabControl x:Name="Tabs" Margin="12,8,12,12">
@@ -521,15 +529,6 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
                 </DockPanel>
-            </TabItem>
-
-            <!-- ============================== Acerca de ============================== -->
-            <!--
-                La ultima, como en el menu del movil. El boton de Acerca de del panel rapido abre
-                la principal directamente aqui.
-            -->
-            <TabItem x:Name="AboutTabItem" Header="{loc:T MenuAbout}">
-                <views:AboutView x:Name="AboutTab" Margin="8,16,8,8" />
             </TabItem>
 
         </TabControl>

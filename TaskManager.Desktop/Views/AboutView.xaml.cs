@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Navigation;
 using TaskManager.Core.Services;
@@ -13,8 +13,8 @@ namespace TaskManager.Desktop.Views;
 /// <para>La estructura no se inventa aqui: es la de <c>AboutPage</c> del movil, que a su vez viene de
 /// la constitucion de Mobile (seccion 7, pantalla About homogenea en todas las aplicaciones).</para>
 ///
-/// <para>Es un control y no una ventana: vive como ultima pestaña de la ventana principal. Antes era
-/// una ventana modal aparte, una mas que abrir y cerrar para mirar la version.</para>
+/// <para>Es un control: lo envuelve <see cref="AboutWindow"/>, el dialogo que abre el icono de
+/// informacion de la ventana principal.</para>
 /// </remarks>
 public partial class AboutView : UserControl
 {
@@ -62,7 +62,7 @@ public partial class AboutView : UserControl
     /// <remarks>
     /// Los textos del XAML se fijan al construir cada ventana, asi que no basta con guardar el
     /// ajuste: hay que volver a montarlas. Es lo mismo que hace Ajustes; la ventana principal se
-    /// rehace tambien y vuelve a abrirse en esta pestaña.
+    /// rehace tambien y vuelve a abrir este dialogo.
     /// </remarks>
     private async Task UseAsync(string language)
     {

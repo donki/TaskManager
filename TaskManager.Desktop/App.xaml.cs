@@ -339,16 +339,21 @@ public partial class App : Application
         _tray.RebuildMenu();
         _tray.SetPending(pending);
 
-        // La principal tambien: si estaba abierta se rehace en la pestaña en la que estaba (el
-        // idioma se puede cambiar desde su pestaña «Acerca de»).
+        // La principal tambien: si estaba abierta se rehace en la pestaña en la que estaba, y con
+        // el dialogo de «Acerca de» si lo tenia abierto (el idioma se puede cambiar desde ahi).
         if (_main is { IsLoaded: true } principal)
         {
             var pestana = principal.PestanaActual;
+            var acercaDe = principal.AcercaDe is not null;
             principal.Close();
             OpenMain();
             if (_main is not null)
             {
                 _main.PestanaActual = pestana;
+                if (acercaDe)
+                {
+                    _main.MostrarAcercaDe();
+                }
             }
         }
     }
@@ -474,8 +479,8 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// «Acerca de»: version, contacto, idioma, privacidad y licencia, como en el movil. Es una
-    /// pestaña de la ventana principal; se abre la principal en ella.
+    /// «Acerca de»: version, contacto, idioma, privacidad y licencia, como en el movil. Es un
+    /// dialogo de la ventana principal; se abre la principal y encima el dialogo.
     /// </summary>
     private void OpenAbout()
     {

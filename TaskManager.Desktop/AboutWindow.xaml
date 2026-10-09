@@ -1,0 +1,28 @@
+﻿<Window x:Class="TaskManager.Desktop.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:TaskManager.Desktop.Localization"
+        xmlns:views="clr-namespace:TaskManager.Desktop.Views"
+        Title="{loc:T MenuAbout}"
+        Width="560" Height="720"
+        MinWidth="460" MinHeight="520"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource PageBackground}">
+
+    <!--
+        Dialogo de «Acerca de». Lo abre el icono de informacion de la franja de marca de la ventana
+        principal, a la derecha. El contenido es el mismo AboutView de siempre.
+    -->
+
+    <DockPanel Margin="16">
+
+        <Grid DockPanel.Dock="Bottom" Margin="0,14,0,0">
+            <Button x:Name="CloseButton" Style="{StaticResource IconButton}"
+                    Content="&#xE711;" HorizontalAlignment="Right"
+                    ToolTip="{loc:T Close}" Click="OnCloseClick" />
+        </Grid>
+
+        <views:AboutView x:Name="About" />
+    </DockPanel>
+</Window>
