@@ -1,5 +1,15 @@
 [
   {
+    "version": "2026.10.09.00",
+    "date": "2026-10-09",
+    "es": [
+      "En Windows, «Acerca de» es ahora un icono de información a la derecha de la franja de arriba de la ventana principal y se abre en un diálogo, en vez de ser una pestaña más."
+    ],
+    "en": [
+      "On Windows, \"About\" is now an info icon on the right of the main window's top bar and opens in a dialog, instead of being one more tab."
+    ]
+  },
+  {
     "version": "2026.10.08.00",
     "date": "2026-10-08",
     "es": [

@@ -2,6 +2,26 @@
 
 Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del día a dos cifras, el mismo que cierra el versionCode.
 
+## 2026.10.09.00 — «Acerca de», icono a la derecha y diálogo
+
+Windows `2026.10.9.0` · Android `2026.10.09.00` (sin cambios en Android; sube con la versión común)
+
+**Castellano**
+
+- Windows: «Acerca de» deja de ser una pestaña de la ventana principal. Ahora es un icono de
+  información a la derecha de la franja de arriba y abre un diálogo con lo mismo de antes.
+- El botón de «Acerca de» del panel rápido abre la ventana principal con el diálogo encima.
+- Al cambiar el idioma desde el diálogo, la ventana principal se rehace en el idioma nuevo y el
+  diálogo vuelve a abrirse.
+
+**English**
+
+- Windows: "About" is no longer a tab of the main window. It is now an info icon on the right of
+  the top bar and opens a dialog with the same content as before.
+- The quick panel's "About" button opens the main window with the dialog on top.
+- Changing the language from the dialog rebuilds the main window in the new language and reopens
+  the dialog.
+
 ## 2026.10.08.00 — «Acerca de», pestaña de la ventana principal
 
 Windows `2026.10.8.0` · Android `2026.10.08.00` (sin cambios en Android; sube con la versión común)
