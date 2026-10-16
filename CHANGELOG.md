@@ -2,9 +2,19 @@
 
 Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del día a dos cifras, el mismo que cierra el versionCode.
 
-## Sin publicar
+## 2026.10.16.00 — Menús de Windows con el aspecto común de sOC
 
-- Windows: menús contextuales y de bandeja con el aspecto común de las apps sOC (General 6.14).
+Windows `2026.10.16.0` · Android `2026.10.16.00` (sin cambios en Android; sube con la versión común)
+
+**Castellano**
+
+- Windows: el menú del icono junto al reloj y el de las etiquetas tienen el mismo aspecto que en el
+  resto de aplicaciones sOC, con iconos, en tema claro y oscuro (General 6.14).
+
+**English**
+
+- Windows: the menu of the icon next to the clock and the tags menu look the same as in the rest of
+  the sOC apps, with icons, in light and dark theme (General 6.14).
 
 ## 2026.10.09.00 — «Acerca de», icono a la derecha y diálogo
 

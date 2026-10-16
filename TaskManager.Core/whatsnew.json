@@ -1,5 +1,15 @@
 [
   {
+    "version": "2026.10.16.00",
+    "date": "2026-10-16",
+    "es": [
+      "En Windows, el menú del icono junto al reloj y el de las etiquetas tienen el mismo aspecto que en el resto de aplicaciones sOC, con iconos, en tema claro y oscuro."
+    ],
+    "en": [
+      "On Windows, the menu of the icon next to the clock and the tags menu look the same as in the rest of the sOC apps, with icons, in light and dark theme."
+    ]
+  },
+  {
     "version": "2026.10.09.00",
     "date": "2026-10-09",
     "es": [
