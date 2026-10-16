@@ -2,6 +2,10 @@
 
 Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del día a dos cifras, el mismo que cierra el versionCode.
 
+## Sin publicar
+
+- Windows: menús contextuales y de bandeja con el aspecto común de las apps sOC (General 6.14).
+
 ## 2026.10.09.00 — «Acerca de», icono a la derecha y diálogo
 
 Windows `2026.10.9.0` · Android `2026.10.09.00` (sin cambios en Android; sube con la versión común)

@@ -93,22 +93,22 @@ public class AppTests
             App.Panel.IsVisibleChanged -= visto;
 
             // Menu de la bandeja: principal (ya abierta: al frente), ajustes, novedades (ya abiertas) y salir.
-            var menu = App.Bandeja.Menu!.Items.OfType<WinForms.ToolStripMenuItem>().ToList();
+            var menu = App.Bandeja.Menu.Items.OfType<System.Windows.Controls.MenuItem>().ToList();
             var principal = App.Principal;
             principal!.WindowState = WindowState.Minimized;
-            await Ui.Hacer(() => menu[1].PerformClick());
+            await Ui.Hacer(() => menu[1].RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent)));
             Assert.Same(principal, App.Principal);
             Assert.Equal(WindowState.Normal, principal.WindowState);
 
             Ui.Responder(Dialogo.Cerrar);
-            await Ui.Hacer(() => menu[2].PerformClick());
+            await Ui.Hacer(() => menu[2].RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent)));
             Assert.Contains(Ui.Abiertas, w => w is SettingsWindow);
 
             var novedades = Ui.Abiertas.Count(w => w is WhatsNewWindow);
-            await Ui.Hacer(() => menu[3].PerformClick());
+            await Ui.Hacer(() => menu[3].RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent)));
             Assert.Equal(novedades, Ui.Abiertas.Count(w => w is WhatsNewWindow));
 
-            await Ui.Hacer(() => menu[^1].PerformClick());
+            await Ui.Hacer(() => menu[^1].RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent)));
             Assert.Equal(1, Ui.Apagados);
 
             // Los botones del panel: calendario (dos veces: la segunda lo trae), principal, ajustes y Acerca de.
@@ -202,7 +202,7 @@ public class AppTests
             Assert.Equal(Loc.Get("MenuAbout"), App.Principal.AcercaDe!.Title);
             Assert.Equal(Loc.Get("MenuAbout"), App.Principal.AboutButton.ToolTip);
             Assert.NotSame(panel, App.Panel);
-            Assert.Equal(Loc.Get("TrayExit"), App.Bandeja.Menu!.Items[^1].Text);
+            Assert.Equal(Loc.Get("TrayExit"), App.Bandeja.Menu.Items[^1] is System.Windows.Controls.MenuItem { Header: string h } ? h : null);
             Assert.Equal(2, Ui.Sistema.Atajos.Count);
 
             // Desde Ajustes, de vuelta a castellano.

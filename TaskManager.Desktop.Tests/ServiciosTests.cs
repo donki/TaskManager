@@ -248,12 +248,22 @@ public class ServiciosTests
         bandeja.WhatsNewRequested += (_, _) => pedidos.Add("novedades");
         bandeja.ExitRequested += (_, _) => pedidos.Add("salir");
 
-        foreach (var item in bandeja.Menu!.Items.OfType<WinForms.ToolStripMenuItem>())
+        foreach (var item in bandeja.Menu.Items.OfType<System.Windows.Controls.MenuItem>())
         {
-            item.PerformClick();
+            item.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
         }
 
         Assert.Equal(["abrir", "principal", "ajustes", "novedades", "salir"], pedidos);
+
+        // El menu es el comun de las apps sOC (General 6.14): estilos propios y un icono en cada elemento.
+        Assert.Same(Application.Current.FindResource("TrayMenu"), bandeja.Menu.Style);
+        Assert.All(bandeja.Menu.Items.OfType<System.Windows.Controls.MenuItem>(), i =>
+        {
+            Assert.Same(Application.Current.FindResource("TrayItem"), i.Style);
+            Assert.False(string.IsNullOrEmpty(Assert.IsType<System.Windows.Controls.TextBlock>(i.Icon).Text));
+        });
+        Assert.Same(Application.Current.FindResource("TraySeparator"),
+            bandeja.Menu.Items.OfType<System.Windows.Controls.Separator>().Single().Style);
 
         bandeja.OnMouseClick(WinForms.MouseButtons.Right);
         bandeja.OnMouseClick(WinForms.MouseButtons.Left);
@@ -264,7 +274,7 @@ public class ServiciosTests
         var antes = bandeja.Menu;
         bandeja.RebuildMenu();
         Assert.NotSame(antes, bandeja.Menu);
-        Assert.Equal(Localization.Loc.Get("TrayExit"), bandeja.Menu!.Items[^1].Text);
+        Assert.Equal(Localization.Loc.Get("TrayExit"), bandeja.Menu.Items[^1] is System.Windows.Controls.MenuItem { Header: string h } ? h : null);
     });
 
     [Fact]

@@ -3,6 +3,12 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
+using Application = System.Windows.Application;
+using PresentationSource = System.Windows.PresentationSource;
+using Style = System.Windows.Style;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Interop;
 using WinForms = System.Windows.Forms;
 
 namespace TaskManager.Desktop.Services;
@@ -19,6 +25,7 @@ public sealed class TrayIconHost : IDisposable
 
     private readonly WinForms.NotifyIcon _icon;
     private Icon? _current;
+    private ContextMenu _menu;
 
     public TrayIconHost()
     {
@@ -26,8 +33,8 @@ public sealed class TrayIconHost : IDisposable
         {
             Visible = Sistema.Actual.BandejaVisible,
             Text = "Task Manager",
-            ContextMenuStrip = BuildMenu(),
         };
+        _menu = BuildMenu();
 
         _icon.MouseClick += (_, e) => OnMouseClick(e.Button);
 
@@ -41,10 +48,25 @@ public sealed class TrayIconHost : IDisposable
         {
             Activated?.Invoke(this, EventArgs.Empty);
         }
+        else if (button == WinForms.MouseButtons.Right && _icon.Visible)
+        {
+            // Sin icono a la vista (las pruebas) no hay menu que enseñar: abrirlo robaria el foco.
+            ShowMenu();
+        }
     }
 
     /// <summary>El menu del boton derecho, tal como esta montado ahora.</summary>
-    internal WinForms.ContextMenuStrip? Menu => _icon.ContextMenuStrip;
+    internal ContextMenu Menu => _menu;
+
+    /// <summary>
+    /// El menu WPF junto al puntero, como sOC ScreenShare (General 6.14). Al abrirse pasa a primer
+    /// plano: si no, Windows no lo cierra al pulsar fuera.
+    /// </summary>
+    private void ShowMenu()
+    {
+        _menu.Placement = PlacementMode.MousePoint;
+        _menu.IsOpen = true;
+    }
 
     /// <summary>El ultimo globo que se ha pedido enseñar: titulo y texto.</summary>
     public (string Title, string Message)? LastNotification { get; private set; }
@@ -69,9 +91,8 @@ public sealed class TrayIconHost : IDisposable
     /// <summary>Vuelve a montar el menu, que es lo que hace falta al cambiar de idioma.</summary>
     public void RebuildMenu()
     {
-        var old = _icon.ContextMenuStrip;
-        _icon.ContextMenuStrip = BuildMenu();
-        old?.Dispose();
+        _menu.IsOpen = false;
+        _menu = BuildMenu();
     }
 
     public void SetPending(int pending)
@@ -150,33 +171,55 @@ public sealed class TrayIconHost : IDisposable
         return image;
     }
 
-    private WinForms.ContextMenuStrip BuildMenu()
+    private ContextMenu BuildMenu()
     {
-        var menu = new WinForms.ContextMenuStrip();
+        var menu = NewMenu();
+        menu.Opened += (_, _) =>
+        {
+            if (PresentationSource.FromVisual(menu) is HwndSource popup)
+            {
+                SetForegroundWindow(popup.Handle);
+            }
+        };
 
-        var open = new WinForms.ToolStripMenuItem(TaskManager.Desktop.Localization.Loc.Get("TrayOpen"));
-        open.Click += (_, _) => Activated?.Invoke(this, EventArgs.Empty);
-
-        var main = new WinForms.ToolStripMenuItem(TaskManager.Desktop.Localization.Loc.Get("OpenMainWindow"));
-        main.Click += (_, _) => MainRequested?.Invoke(this, EventArgs.Empty);
-
-        var settings = new WinForms.ToolStripMenuItem(TaskManager.Desktop.Localization.Loc.Get("MenuSettings"));
-        settings.Click += (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty);
-
-        var news = new WinForms.ToolStripMenuItem(TaskManager.Desktop.Localization.Loc.Get("MenuWhatsNew"));
-        news.Click += (_, _) => WhatsNewRequested?.Invoke(this, EventArgs.Empty);
-
-        var exit = new WinForms.ToolStripMenuItem(TaskManager.Desktop.Localization.Loc.Get("TrayExit"));
-        exit.Click += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
-
-        menu.Items.Add(open);
-        menu.Items.Add(main);
-        menu.Items.Add(settings);
-        menu.Items.Add(news);
-        menu.Items.Add(new WinForms.ToolStripSeparator());
-        menu.Items.Add(exit);
+        menu.Items.Add(Item(TaskManager.Desktop.Localization.Loc.Get("TrayOpen"), "\uE8A7", () => Activated?.Invoke(this, EventArgs.Empty)));
+        menu.Items.Add(Item(TaskManager.Desktop.Localization.Loc.Get("OpenMainWindow"), "\uE737", () => MainRequested?.Invoke(this, EventArgs.Empty)));
+        menu.Items.Add(Item(TaskManager.Desktop.Localization.Loc.Get("MenuSettings"), "\uE713", () => SettingsRequested?.Invoke(this, EventArgs.Empty)));
+        menu.Items.Add(Item(TaskManager.Desktop.Localization.Loc.Get("MenuWhatsNew"), "\uE789", () => WhatsNewRequested?.Invoke(this, EventArgs.Empty)));
+        menu.Items.Add(Separator());
+        menu.Items.Add(Item(TaskManager.Desktop.Localization.Loc.Get("TrayExit"), "\uE7E8", () => ExitRequested?.Invoke(this, EventArgs.Empty)));
         return menu;
     }
+
+    /// <summary>Un menu contextual con el aspecto comun de las apps sOC (estilo TrayMenu de App.xaml).</summary>
+    public static ContextMenu NewMenu() => new() { Style = (Style)Application.Current.FindResource("TrayMenu") };
+
+    /// <summary>
+    /// Un elemento de menu con su icono plano (glifo de Segoe Fluent Icons): en el color de acento,
+    /// o en rojo si la accion es destructiva.
+    /// </summary>
+    public static MenuItem Item(string text, string glyph, Action action, bool enabled = true, bool danger = false)
+    {
+        var item = new MenuItem
+        {
+            Header = text,
+            Style = (Style)Application.Current.FindResource("TrayItem"),
+            IsEnabled = enabled,
+            Icon = new TextBlock
+            {
+                Text = glyph,
+                FontFamily = (System.Windows.Media.FontFamily)Application.Current.FindResource("IconFont"),
+                FontSize = 14,
+            },
+        };
+        // Por referencia dinamica, para que siga al tema si cambia con el menu ya montado.
+        ((TextBlock)item.Icon).SetResourceReference(TextBlock.ForegroundProperty, danger ? "Danger" : "PrimaryText");
+        item.Click += (_, _) => action();
+        return item;
+    }
+
+    /// <summary>La linea que separa grupos de un menu (estilo TraySeparator).</summary>
+    public static Separator Separator() => new() { Style = (Style)Application.Current.FindResource("TraySeparator") };
 
     /// <summary>
     /// Cuadrado indigo redondeado con un tick blanco y, si hay pendientes, un globo rojo con el
@@ -243,8 +286,13 @@ public sealed class TrayIconHost : IDisposable
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DestroyIcon(IntPtr handle);
 
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetForegroundWindow(IntPtr handle);
+
     public void Dispose()
     {
+        _menu.IsOpen = false;
         _icon.Visible = false;
         _icon.Dispose();
         _current?.Dispose();

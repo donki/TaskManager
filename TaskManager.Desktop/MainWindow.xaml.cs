@@ -317,9 +317,11 @@ public partial class MainWindow : Window
         // Boton derecho sobre una etiqueta de verdad (no «Todas» ni «Sin etiqueta»): borrarla.
         if (tag is not null && tag != TaskRepository.NoTag)
         {
-            var delete = new MenuItem { Header = T("DeleteTag"), Icon = new TextBlock { Text = "\uE74D", FontFamily = new System.Windows.Media.FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets") } };
-            delete.Click += async (_, _) => await DeleteTagAsync(tag);
-            chip.ContextMenu = new ContextMenu { Items = { delete } };
+            // Con el aspecto comun de los menus sOC (General 6.14); borrar es destructivo: en rojo.
+            var delete = TrayIconHost.Item(T("DeleteTag"), "\uE74D", async () => await DeleteTagAsync(tag), danger: true);
+            var menu = TrayIconHost.NewMenu();
+            menu.Items.Add(delete);
+            chip.ContextMenu = menu;
         }
 
         return chip;

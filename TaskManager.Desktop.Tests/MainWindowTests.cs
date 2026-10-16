@@ -202,6 +202,11 @@ public class MainWindowTests
         await Ui.Pulsar(ventana.TagFilterBox.Children.OfType<ToggleButton>().ElementAt(2));
         var menu = ventana.TagFilterBox.Children.OfType<ToggleButton>().ElementAt(2).ContextMenu!;
         var borrar = (MenuItem)menu.Items[0]!;
+
+        // Con el aspecto comun de los menus sOC (General 6.14), y borrar en rojo por destructivo.
+        Assert.Same(Application.Current.FindResource("TrayMenu"), menu.Style);
+        Assert.Same(Application.Current.FindResource("TrayItem"), borrar.Style);
+        Assert.Same(Application.Current.FindResource("Danger"), Assert.IsType<TextBlock>(borrar.Icon).Foreground);
         Ui.Responder(Dialogo.Primero);
         await Ui.Hacer(() => borrar.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)));
         Assert.Equal("casa", (await datos.Repo.GetAllTasksAsync(TaskFilter.All)).Single(t => t.Title == "Con etiqueta").Tags);
