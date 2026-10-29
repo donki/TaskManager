@@ -1,5 +1,19 @@
 [
   {
+    "version": "2026.10.29.00",
+    "date": "2026-10-29",
+    "es": [
+      "Ya se puede cambiar el nombre de una etiqueta: cambia en todas las tareas que la llevan, también en las hechas, y si estabas filtrando por ella el filtro la sigue.",
+      "En Windows, desde el botón derecho sobre la etiqueta o con el lápiz de la ventana de etiquetas. En Android, con una pulsación larga sobre la etiqueta o con el lápiz de la página de etiquetas.",
+      "Si el nombre nuevo ya es de otra etiqueta, se avisa antes de juntarlas en una sola."
+    ],
+    "en": [
+      "Tags can now be renamed: the new name is applied to every task that carries the tag, finished ones included, and the tag filter follows it.",
+      "On Windows, right-click the tag or use the pencil in the tags window. On Android, long-press the tag or use the pencil on the tags page.",
+      "If the new name already belongs to another tag, you are asked before both become one."
+    ]
+  },
+  {
     "version": "2026.10.16.00",
     "date": "2026-10-16",
     "es": [

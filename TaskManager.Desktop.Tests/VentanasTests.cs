@@ -430,7 +430,55 @@ public class VentanasTests
             // El boton de cerrar.
             await Ui.Pulsar(Ui.Botones(w).Last(b => (string?)b.ToolTip == Localization.Loc.Get("Close")));
         });
-        await Ui.Hacer(() => Ventanas.Modal(new TagsWindow(duena, datos.Tasks)));
+        await Ui.Hacer(() => Ventanas.Modal(new TagsWindow(duena, datos.Tasks, datos.Settings)));
+        Assert.True(etiquetas!.Changed);
+    });
+
+    [Fact]
+    public Task La_ventana_de_etiquetas_cambia_el_nombre_y_avisa_si_se_juntan() => Ui.Run(async () =>
+    {
+        var datos = await Ui.Datos();
+        var lista = await datos.Repo.CreateListAsync("Casa");
+        var a = await datos.Repo.AddTaskAsync(lista.Id, "A");
+        var b = await datos.Repo.AddTaskAsync(lista.Id, "B");
+        await datos.Repo.AddTagAsync([a.Id], "casa");
+        await datos.Repo.AddTagAsync([b.Id], "obra");
+        await datos.Settings.SetTaskTagAsync("casa");
+        var duena = await Ui.Mostrar(new Window());
+
+        TagsWindow? etiquetas = null;
+        Ui.ResponderAsync(async w =>
+        {
+            etiquetas = (TagsWindow)w;
+            await Ui.Hasta(() => Ui.Textos(w).Contains("#casa"));
+            Button Lapiz() => Ui.Botones(w).First(b => (string?)b.ToolTip == Localization.Loc.Get("RenameTag"));
+
+            // El mismo nombre no cambia nada.
+            Ui.Responder(Dialogo.Escribir("casa"));
+            await Ui.Hacer(() => Lapiz().RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)));
+            Assert.False(etiquetas.Changed);
+
+            Ui.Responder(Dialogo.Escribir("#hogar"));
+            await Ui.Hacer(() => Lapiz().RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)));
+            await Ui.Hasta(() => Ui.Textos(w).Contains("#hogar"));
+            Assert.Equal(["hogar", "obra"], await datos.Repo.GetTagsAsync());
+            Assert.Equal("hogar", datos.Settings.TaskTag);
+
+            // A una que ya existe: se pregunta; cancelar la deja como estaba.
+            Ui.Responder(Dialogo.Escribir("OBRA"), Dialogo.Primero);
+            await Ui.Hacer(() => Lapiz().RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)));
+            Assert.Contains(Dialogo.Leidos.Last(), x => x == Localization.Loc.Format("RenameTagMerge", "hogar", "obra"));
+            Assert.Equal(["hogar", "obra"], await datos.Repo.GetTagsAsync());
+
+            Ui.Responder(Dialogo.Escribir("OBRA"), Dialogo.Aceptar);
+            await Ui.Hacer(() => Lapiz().RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)));
+            await Ui.Hasta(() => !Ui.Textos(w).Contains("#hogar"));
+            Assert.Equal(["obra"], await datos.Repo.GetTagsAsync());
+            Assert.Equal("obra", datos.Settings.TaskTag);
+
+            await Ui.Pulsar(Ui.Botones(w).Last(b => (string?)b.ToolTip == Localization.Loc.Get("Close")));
+        });
+        await Ui.Hacer(() => Ventanas.Modal(new TagsWindow(duena, datos.Tasks, datos.Settings)));
         Assert.True(etiquetas!.Changed);
     });
 

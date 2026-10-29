@@ -85,6 +85,13 @@ public static class TagFilter
         Build(Parse(filter).Where(t => !string.Equals(t, tag, StringComparison.CurrentCultureIgnoreCase)));
 
     /// <summary>
+    /// El filtro tras cambiar el nombre de <paramref name="tag"/>: sigue filtrando por ella, con
+    /// el nombre nuevo.
+    /// </summary>
+    public static string? Rename(string? filter, string tag, string newName) =>
+        Build(Parse(filter).Select(t => string.Equals(t, tag, StringComparison.CurrentCultureIgnoreCase) ? newName : t));
+
+    /// <summary>
     /// Quita del filtro las etiquetas que ya no existen. «Sin etiqueta» se queda siempre.
     /// </summary>
     public static string? Prune(string? filter, IEnumerable<string> existing)

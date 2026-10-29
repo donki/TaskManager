@@ -317,12 +317,20 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
 
     /// <summary>
     /// La pagina de etiquetas: verlas todas (tambien las de tareas hechas), cuantas tareas tiene
-    /// cada una y borrarlas. Es lo mismo que la pulsacion larga sobre un chip, pero a la vista.
+    /// cada una, cambiarles el nombre y borrarlas. Es lo mismo que la pulsacion larga sobre un chip,
+    /// pero a la vista.
     /// </summary>
     private async void OnTagsClicked(object? sender, EventArgs e)
     {
-        var page = new TagsPage(_tasks);
-        page.Disappearing += async (_, _) => { if (page.Changed) await ReloadAsync(); };
+        var page = new TagsPage(_tasks, _settings);
+        page.Disappearing += async (_, _) =>
+        {
+            if (!page.Changed)
+                return;
+            // Si se renombro la del filtro, el filtro guardado ya lleva el nombre nuevo.
+            _activeTag = _settings.TaskTag;
+            await ReloadAsync();
+        };
         await Ui.Platform.PushAsync(this, page);
     }
 
@@ -347,7 +355,8 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
             await ReloadAsync();
         };
 
-        // Pulsacion larga sobre una etiqueta de verdad: borrarla de todas las tareas.
+        // Pulsacion larga sobre una etiqueta de verdad: cambiarle el nombre o borrarla de todas
+        // las tareas.
         if (tag is not null && tag != TaskManager.Core.Data.TaskRepository.NoTag)
         {
             button.HandlerChanged += (_, _) =>
@@ -356,13 +365,40 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
                 if (button.Handler?.PlatformView is Android.Views.View native)
                 {
                     native.LongClickable = true;
-                    native.LongClick += (_, _) => Ui.Platform.BeginInvokeOnMainThread(async () => await DeleteTagAsync(tag));
+                    native.LongClick += (_, _) => Ui.Platform.BeginInvokeOnMainThread(async () => await TagActionsAsync(tag));
                 }
 #endif
             };
         }
 
         return button;
+    }
+
+    /// <summary>Lo que se puede hacer con una etiqueta: cambiarle el nombre o borrarla.</summary>
+    private async Task TagActionsAsync(string tag)
+    {
+        var loc = Localization.Loc.Instance;
+        var choice = await Ui.Platform.ActionSheetAsync(this, "#" + tag, loc["Cancel"], loc["RenameTag"], loc["DeleteTag"]);
+        if (choice == loc["RenameTag"])
+        {
+            await RenameTagAsync(tag);
+        }
+        else if (choice == loc["DeleteTag"])
+        {
+            await DeleteTagAsync(tag);
+        }
+    }
+
+    /// <summary>Cambia el nombre de una etiqueta en todas sus tareas; el filtro la sigue.</summary>
+    private async Task RenameTagAsync(string tag)
+    {
+        if (await TagsPage.RenameAsync(this, _tasks, _settings, tag) is null)
+        {
+            return;
+        }
+
+        _activeTag = _settings.TaskTag;
+        await ReloadAsync();
     }
 
     /// <summary>

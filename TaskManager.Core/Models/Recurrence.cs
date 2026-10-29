@@ -422,6 +422,13 @@ public static class TaskTags
     /// <summary>Como se le enseña al usuario para editarlo.</summary>
     public static string ToInput(string? stored) => string.Join(", ", Split(stored));
 
+    /// <summary>
+    /// Un nombre de etiqueta tal como se escribe al renombrarla: sin espacios a los lados, sin la
+    /// almohadilla que se ve delante y sin comas ni puntos y coma, que son los separadores.
+    /// </summary>
+    public static string Clean(string? name) =>
+        (name ?? string.Empty).Replace(',', ' ').Replace(';', ' ').Trim().TrimStart('#').Trim();
+
     public static bool Has(string? stored, string tag) =>
         Split(stored).Any(t => string.Equals(t, tag, StringComparison.CurrentCultureIgnoreCase));
 }

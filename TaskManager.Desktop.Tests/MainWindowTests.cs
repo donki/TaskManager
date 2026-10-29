@@ -201,7 +201,7 @@ public class MainWindowTests
         // Volver a #casa y borrarla desde su menu: se pregunta (tiene pendientes) y se cancela.
         await Ui.Pulsar(ventana.TagFilterBox.Children.OfType<ToggleButton>().ElementAt(2));
         var menu = ventana.TagFilterBox.Children.OfType<ToggleButton>().ElementAt(2).ContextMenu!;
-        var borrar = (MenuItem)menu.Items[0]!;
+        var borrar = (MenuItem)menu.Items[1]!;
 
         // Con el aspecto comun de los menus sOC (General 6.14), y borrar en rojo por destructivo.
         Assert.Same(Application.Current.FindResource("TrayMenu"), menu.Style);
@@ -240,6 +240,35 @@ public class MainWindowTests
     });
 
     [Fact]
+    public Task Cambiar_el_nombre_de_una_etiqueta_desde_su_menu_y_el_filtro_la_sigue() => Ui.Run(async () =>
+    {
+        var (datos, ventana) = await AbrirAsync(async d =>
+        {
+            var lista = await d.Repo.CreateListAsync("Casa");
+            var a = await d.Repo.AddTaskAsync(lista.Id, "Con etiqueta");
+            a.Tags = "casa";
+            await d.Repo.UpdateTaskAsync(a);
+            await d.Repo.AddTaskAsync(lista.Id, "Sin etiqueta");
+        });
+
+        await Ui.Pulsar(ventana.TagFilterBox.Children.OfType<ToggleButton>().ElementAt(2));
+        var menu = ventana.TagFilterBox.Children.OfType<ToggleButton>().ElementAt(2).ContextMenu!;
+        var renombrar = (MenuItem)menu.Items[0]!;
+        Assert.Equal(Localization.Loc.Get("RenameTag"), renombrar.Header);
+        Assert.Same(Application.Current.FindResource("TrayItem"), renombrar.Style);
+
+        Ui.Responder(Dialogo.Escribir("hogar"));
+        await Ui.Hacer(() => renombrar.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)));
+
+        Assert.Equal(["hogar"], await datos.Repo.GetTagsAsync());
+        Assert.Equal("hogar", datos.Settings.TaskTag);
+        Assert.Equal(["#hogar"], ventana.TagFilterBox.Children.OfType<ToggleButton>().Skip(2).Select(c => (string)c.Content));
+        Assert.True(ventana.TagFilterBox.Children.OfType<ToggleButton>().ElementAt(2).IsChecked);
+        Assert.Equal(["Con etiqueta"], Titulos(ventana.AllTasksBox));
+        Assert.EndsWith("#hogar", ventana.FilterLabel.Text);
+    });
+
+    [Fact]
     public Task Borrar_una_etiqueta_que_solo_llevan_tareas_hechas_se_confirma_sin_contar_pendientes() => Ui.Run(async () =>
     {
         var (datos, ventana) = await AbrirAsync(async d =>
@@ -255,7 +284,7 @@ public class MainWindowTests
 
         // La pastilla sigue pintada de antes: su menu pregunta con el mensaje de «solo hechas».
         Ui.Responder(Dialogo.Aceptar, Dialogo.Aceptar);
-        await Ui.Hacer(() => ((MenuItem)chip.ContextMenu!.Items[0]!).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)));
+        await Ui.Hacer(() => ((MenuItem)chip.ContextMenu!.Items[1]!).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)));
         Assert.Contains(Dialogo.Leidos[^2], t => t == Localization.Loc.Format("DeleteTagDone", "x", 1));
         Assert.Empty(await datos.Repo.GetTagsAsync());
 

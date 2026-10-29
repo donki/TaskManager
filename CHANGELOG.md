@@ -2,6 +2,32 @@
 
 Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del día a dos cifras, el mismo que cierra el versionCode.
 
+## 2026.10.29.00 — Cambiar el nombre de las etiquetas
+
+Windows `2026.10.29.0` · Android `2026.10.29.00`
+
+**Castellano**
+
+- Ya se puede cambiar el nombre de una etiqueta. El nombre nuevo se aplica en todas las tareas que
+  la llevan, también en las hechas, y los filtros guardados (el de «Mis tareas» y el del panel
+  rápido) la siguen.
+- Windows: «Cambiar el nombre» en el menú del botón derecho sobre la etiqueta y un lápiz en cada
+  fila de la ventana de etiquetas.
+- Android: la pulsación larga sobre una etiqueta ya no va directa a borrarla; deja elegir entre
+  cambiarle el nombre o borrarla. La página de etiquetas tiene también un lápiz en cada fila.
+- Si el nombre nuevo ya es de otra etiqueta, se avisa antes de juntarlas en una sola. Con solo
+  cambiar las mayúsculas no se juntan.
+
+**English**
+
+- Tags can now be renamed. The new name is applied to every task that carries the tag, finished
+  ones included, and the saved filters (My tasks and the quick panel) follow it.
+- Windows: «Rename tag» in the tag's right-click menu and a pencil on each row of the tags window.
+- Android: long-pressing a tag no longer goes straight to deleting it; it lets you rename or delete
+  it. The tags page also has a pencil on each row.
+- If the new name already belongs to another tag, you are asked before both become one. Changing
+  only the capitalisation does not merge anything.
+
 ## 2026.10.16.00 — Menús de Windows con el aspecto común de sOC
 
 Windows `2026.10.16.0` · Android `2026.10.16.00` (sin cambios en Android; sube con la versión común)

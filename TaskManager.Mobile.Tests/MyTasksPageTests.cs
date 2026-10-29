@@ -166,6 +166,77 @@ public class MyTasksPageTests
     });
 
     [Fact]
+    public void La_pulsacion_larga_en_una_etiqueta_cambia_el_nombre_o_la_borra() => UiThread.Run(async () =>
+    {
+        await using var app = await TestApp.StartAsync();
+        var (_, tasks) = await app.SeedAsync("Casa", "Pan", "Leche");
+        await app.Repository.AddTagAsync([tasks[0].Id], "compra");
+        await app.Repository.AddTagAsync([tasks[1].Id], "super");
+        var page = await OpenAsync(app);
+        await page.Named<HorizontalStackLayout>("TagFilterBox").OfType<Button>().ElementAt(2).Click();
+        Assert.Equal("compra", app.Settings.TaskTag);
+
+        // Las dos opciones, con la etiqueta de titulo; cancelar no hace nada.
+        await page.Call("TagActionsAsync", "compra");
+        var sheet = app.Ui.Dialogs.Last();
+        Assert.Equal("#compra", sheet.Title);
+        Assert.Equal([app.Texts["RenameTag"], app.Texts["DeleteTag"]], sheet.Options);
+
+        // Cambiar el nombre: se propone el de ahora y el filtro la sigue.
+        app.Ui.Answer(app.Texts["RenameTag"], "mercado");
+        await page.Call("TagActionsAsync", "compra");
+        var prompt = app.Ui.Dialogs.Last();
+        Assert.Equal("prompt", prompt.Kind);
+        Assert.Equal("compra", prompt.Options[0]);
+        Assert.Equal(app.Texts.Format("RenameTagHint", "compra"), prompt.Message);
+        Assert.Equal(["mercado", "super"], await app.Repository.GetTagsAsync());
+        Assert.Equal("mercado", app.Settings.TaskTag);
+        Assert.EndsWith("#mercado", page.Named<Label>("FilterLabel").Text);
+        Assert.Equal(["Pan"], Rows(page).Select(r => r.Task.Title));
+
+        // A una que ya existe: se avisa de que se juntan.
+        app.Ui.Answer(app.Texts["RenameTag"], "Super", true);
+        await page.Call("TagActionsAsync", "mercado");
+        Assert.Equal(app.Texts.Format("RenameTagMerge", "mercado", "super"), app.Ui.Dialogs.Last().Message);
+        Assert.Equal(["super"], await app.Repository.GetTagsAsync());
+        Assert.Equal("super", app.Settings.TaskTag);
+
+        // Y borrar pasa por la pregunta de siempre.
+        app.Ui.Answer(app.Texts["DeleteTag"], true);
+        await page.Call("TagActionsAsync", "super");
+        Assert.Empty(await app.Repository.GetTagsAsync());
+    });
+
+    [Fact]
+    public void La_pagina_de_etiquetas_cambia_el_nombre() => UiThread.Run(async () =>
+    {
+        await using var app = await TestApp.StartAsync();
+        var (_, tasks) = await app.SeedAsync("Casa", "Pan");
+        await app.Repository.AddTagAsync([tasks[0].Id], "compra");
+        var page = await OpenAsync(app);
+
+        await page.Handler("OnTagsClicked");
+        var tags = Assert.IsType<TagsPage>(app.Ui.Pushed.Single());
+        await tags.Call("ReloadAsync");
+        var row = tags.Field<VerticalStackLayout>("_rows").OfType<Grid>().Single();
+
+        // Cancelar no cambia nada.
+        await ((ImageButton)row.Children[1]).Click();
+        Assert.False(tags.Changed);
+
+        app.Ui.Answer("mercado");
+        await ((ImageButton)row.Children[1]).Click();
+        Assert.True(tags.Changed);
+        var labels = tags.Field<VerticalStackLayout>("_rows").OfType<Grid>()
+            .Select(r => ((Label)((VerticalStackLayout)r.Children[0]).Children[0]).Text).ToList();
+        Assert.Equal(["#mercado"], labels);
+        Assert.Equal(["mercado"], await app.Repository.GetTagsAsync());
+
+        await tags.Raise("Disappearing");
+        Assert.Equal(["#mercado"], page.Named<HorizontalStackLayout>("TagFilterBox").OfType<Button>().Skip(2).Select(b => b.Text));
+    });
+
+    [Fact]
     public void Ctrl_clic_en_las_etiquetas_marca_varias() => UiThread.Run(async () =>
     {
         await using var app = await TestApp.StartAsync();
@@ -461,11 +532,11 @@ public class MyTasksPageTests
         Assert.Equal(["#compra", "#vieja"], labels);
 
         // Cancelar no borra; confirmar si, y la pagina lo dice al irse.
-        await ((ImageButton)rows[1].Children[1]).Click();
+        await ((ImageButton)rows[1].Children[2]).Click();
         Assert.False(tags.Changed);
         Assert.Equal(app.Texts.Format("DeleteTagDone", "vieja", 1), app.Ui.Dialogs.Last().Message);
         app.Ui.Answer(true);
-        await ((ImageButton)rows[0].Children[1]).Click();
+        await ((ImageButton)rows[0].Children[2]).Click();
         Assert.Equal(app.Texts.Format("DeleteTagPending", "compra", 1, 1), app.Ui.Dialogs.Last().Message);
         Assert.True(tags.Changed);
         Assert.Single(tags.Field<VerticalStackLayout>("_rows").OfType<Grid>());
@@ -475,7 +546,7 @@ public class MyTasksPageTests
 
         // Sin etiquetas: el aviso de vacio.
         app.Ui.Answer(true);
-        await ((ImageButton)tags.Field<VerticalStackLayout>("_rows").OfType<Grid>().Single().Children[1]).Click();
+        await ((ImageButton)tags.Field<VerticalStackLayout>("_rows").OfType<Grid>().Single().Children[2]).Click();
         Assert.True(tags.Field<Label>("_empty").IsVisible);
     });
 

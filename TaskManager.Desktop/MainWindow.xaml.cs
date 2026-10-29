@@ -289,10 +289,14 @@ public partial class MainWindow : Window
     /// </summary>
     private async void OnTagsClick(object sender, RoutedEventArgs e)
     {
-        var window = new TagsWindow(this, _tasks);
+        var window = new TagsWindow(this, _tasks, _settings);
         Ventanas.Modal(window);
         if (window.Changed)
+        {
+            // Si se renombro la del filtro, el filtro guardado ya lleva el nombre nuevo.
+            _activeTag = _settings.TaskTag;
             await ReloadAllTasksAsync();
+        }
     }
 
     private ToggleButton BuildTagChip(string text, string? tag)
@@ -314,17 +318,32 @@ public partial class MainWindow : Window
             await ReloadAllTasksAsync();
         };
 
-        // Boton derecho sobre una etiqueta de verdad (no «Todas» ni «Sin etiqueta»): borrarla.
+        // Boton derecho sobre una etiqueta de verdad (no «Todas» ni «Sin etiqueta»): cambiarle
+        // el nombre o borrarla.
         if (tag is not null && tag != TaskRepository.NoTag)
         {
             // Con el aspecto comun de los menus sOC (General 6.14); borrar es destructivo: en rojo.
             var delete = TrayIconHost.Item(T("DeleteTag"), "\uE74D", async () => await DeleteTagAsync(tag), danger: true);
+            var rename = TrayIconHost.Item(T("RenameTag"), "\uE8AC", async () => await RenameTagAsync(tag));
             var menu = TrayIconHost.NewMenu();
+            menu.Items.Add(rename);
             menu.Items.Add(delete);
             chip.ContextMenu = menu;
         }
 
         return chip;
+    }
+
+    /// <summary>Cambia el nombre de una etiqueta en todas sus tareas; el filtro la sigue.</summary>
+    private async Task RenameTagAsync(string tag)
+    {
+        if (await TagsWindow.RenameAsync(this, _tasks, _settings, tag) is null)
+        {
+            return;
+        }
+
+        _activeTag = _settings.TaskTag;
+        await ReloadAllTasksAsync();
     }
 
     /// <summary>

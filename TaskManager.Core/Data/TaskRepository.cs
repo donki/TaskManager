@@ -243,6 +243,35 @@ public sealed class TaskRepository
         return await RemoveTagAsync(ids, tag).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Cambia el nombre de una etiqueta en todas las tareas que la llevan, hechas o no. Si alguna
+    /// ya llevaba la del nombre nuevo, se quedan en una sola: las dos etiquetas se juntan.
+    /// </summary>
+    /// <returns>Cuantas tareas han cambiado; 0 si el nombre nuevo no vale o es el mismo.</returns>
+    public async Task<int> RenameTagAsync(string tag, string newName)
+    {
+        var clean = TaskTags.Clean(newName);
+        if (clean.Length == 0 || string.Equals(clean, tag, StringComparison.Ordinal))
+        {
+            return 0;
+        }
+
+        var tasks = (await Db.Table<TaskItem>()
+            .Where(t => !t.Deleted && t.AccountId == AccountId && t.Tags != string.Empty)
+            .ToListAsync().ConfigureAwait(false))
+            .Where(t => TaskTags.Has(t.Tags, tag))
+            .ToList();
+
+        foreach (var task in tasks)
+        {
+            task.Tags = TaskTags.Join(task.TagList.Select(t =>
+                string.Equals(t, tag, StringComparison.CurrentCultureIgnoreCase) ? clean : t));
+            await UpdateTaskAsync(task).ConfigureAwait(false);
+        }
+
+        return tasks.Count;
+    }
+
     public async Task<int> SetPinnedAsync(IEnumerable<Guid> ids, bool pinned)
     {
         var touched = 0;

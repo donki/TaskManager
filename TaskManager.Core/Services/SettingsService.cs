@@ -200,6 +200,13 @@ public sealed class SettingsService
 
     public Task SetFlyoutTagAsync(string? tag) => SetAsync(KeyFlyoutTag, tag ?? string.Empty);
 
+    /// <summary>Tras cambiar el nombre de una etiqueta, los dos filtros guardados la siguen.</summary>
+    public async Task RenameTagAsync(string tag, string newName)
+    {
+        await SetTaskTagAsync(Models.TagFilter.Rename(TaskTag, tag, newName)).ConfigureAwait(false);
+        await SetFlyoutTagAsync(Models.TagFilter.Rename(FlyoutTag, tag, newName)).ConfigureAwait(false);
+    }
+
     /// <summary>
     /// Una etiqueta guardada. Vacio significa «sin filtro», que es distinto de la etiqueta
     /// <see cref="Data.TaskRepository.NoTag"/> —«las que no llevan ninguna»—, y por eso se guarda

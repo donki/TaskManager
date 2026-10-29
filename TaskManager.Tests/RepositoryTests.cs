@@ -133,6 +133,60 @@ public class RepositoryTests
     }
 
     [Fact]
+    public async Task Tags_Rename_EnTodasLasTareas_YJuntaSiYaExiste()
+    {
+        await using var s = await TestStore.CreateAsync();
+        var repo = s.Repository;
+        var list = await repo.CreateListAsync("L");
+        var a = await repo.AddTaskAsync(list.Id, "a");
+        var b = await repo.AddTaskAsync(list.Id, "b");
+        var c = await repo.AddTaskAsync(list.Id, "c");
+        await repo.AddTagAsync([a.Id, b.Id], "casa");
+        await repo.AddTagAsync([b.Id, c.Id], "obra");
+        await repo.AddTagAsync([a.Id], "zeta");
+        b = (await repo.GetTaskAsync(b.Id))!;
+        b.IsDone = true;
+        await repo.UpdateTaskAsync(b);
+
+        // Vacio, solo separadores o el mismo nombre: nada.
+        Assert.Equal(0, await repo.RenameTagAsync("casa", " , #"));
+        Assert.Equal(0, await repo.RenameTagAsync("casa", " casa "));
+
+        // Tambien en las hechas; la almohadilla y los separadores no entran en el nombre.
+        Assert.Equal(2, await repo.RenameTagAsync("CASA", " #hogar, "));
+        Assert.Equal(",hogar,zeta,", (await repo.GetTaskAsync(a.Id))!.Tags);
+        Assert.Equal(["hogar", "obra", "zeta"], await repo.GetTagsAsync());
+
+        // Solo cambiar las mayusculas.
+        Assert.Equal(2, await repo.RenameTagAsync("hogar", "Hogar"));
+        Assert.Equal(",Hogar,zeta,", (await repo.GetTaskAsync(a.Id))!.Tags);
+
+        // A una que ya existe: se juntan, sin repetirse en la tarea que llevaba las dos.
+        Assert.Equal(2, await repo.RenameTagAsync("Hogar", "obra"));
+        Assert.Equal(",obra,", (await repo.GetTaskAsync(b.Id))!.Tags);
+        Assert.Equal(["obra", "zeta"], await repo.GetTagsAsync());
+        Assert.Equal((2, 3), await repo.CountTagAsync("obra"));
+    }
+
+    [Fact]
+    public async Task Tags_Rename_LosFiltrosGuardadosLaSiguen()
+    {
+        await using var s = await TestStore.CreateAsync();
+        await s.Settings.SetTaskTagAsync("casa,obra");
+        await s.Settings.SetFlyoutTagAsync("casa");
+
+        await s.Settings.RenameTagAsync("CASA", "hogar");
+
+        Assert.Equal("hogar,obra", s.Settings.TaskTag);
+        Assert.Equal("hogar", s.Settings.FlyoutTag);
+
+        await s.Settings.SetFlyoutTagAsync(null);
+        await s.Settings.RenameTagAsync("obra", "hogar");
+        Assert.Equal("hogar", s.Settings.TaskTag);
+        Assert.Null(s.Settings.FlyoutTag);
+    }
+
+    [Fact]
     public async Task Tags_AddRemoveCountDelete_AndNoTagFilter()
     {
         await using var s = await TestStore.CreateAsync();
