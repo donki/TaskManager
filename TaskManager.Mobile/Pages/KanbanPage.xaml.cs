@@ -164,7 +164,7 @@ public partial class KanbanPage : ContentPage, Helpers.IBackHandler
     {
         if (e.Parameter is Guid id && id != Guid.Empty)
         {
-            await Ui.Platform.GoToAsync($"{nameof(TaskDetailPage)}?taskId={id}");
+            await Ui.Platform.GoToAsync(TaskSummaryPage.Route(id));
         }
     }
 
@@ -278,7 +278,7 @@ public partial class KanbanPage : ContentPage, Helpers.IBackHandler
     }
 
     /// <summary>
-    /// Crear desde el tablero: a la primera lista, en «por hacer», y se abre el detalle, igual que
+    /// Crear desde el tablero: a la primera lista, en «por hacer», y se queda en el tablero, igual que
     /// la captura rapida de «Mis tareas».
     /// </summary>
     private async void OnAddClicked(object? sender, EventArgs e)
@@ -292,11 +292,10 @@ public partial class KanbanPage : ContentPage, Helpers.IBackHandler
         var list = await _tasks.Repository
             .GetOrCreateDefaultListAsync(Localization.Loc.Instance["DefaultListName"]);
 
-        var task = await _tasks.Repository.AddTaskAsync(list.Id, title);
+        await _tasks.Repository.AddTaskAsync(list.Id, title);
         QuickAdd.Text = string.Empty;
         await ReloadAsync();
 
-        await Ui.Platform.GoToAsync($"{nameof(TaskDetailPage)}?taskId={task.Id}");
     }
 
     private async void OnRefreshClicked(object? sender, EventArgs e)

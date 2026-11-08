@@ -259,28 +259,22 @@ public partial class CalendarView : UserControl
         }
 
         var list = await _tasks.Repository.GetOrCreateDefaultListAsync(Localization.Loc.Get("DefaultListName"));
-        var task = await _tasks.Repository.AddTaskAsync(list.Id, title, plannedFor: _selected);
+        await _tasks.Repository.AddTaskAsync(list.Id, title, plannedFor: _selected);
         DayAddBox.Text = string.Empty;
 
         await LoadListNamesAsync();
         await ReloadAsync();
-
-        await OpenAsync(task);
     }
 
-    /// <summary>Abre el detalle de la tarea y, si se guardo algo, vuelve a leer el mes.</summary>
-    private async Task OpenAsync(TaskItem task)
+    /// <summary>El detalle de la tarea. Devuelve si se guardo algo.</summary>
+    private Task<bool> EditAsync(TaskItem task)
     {
         var window = new TaskDetailWindow(_tasks!, task)
         {
             Owner = Window.GetWindow(this),
         };
 
-        if (Services.Ventanas.Modal(window) == true && window.Changed)
-        {
-            await LoadListNamesAsync();
-            await ReloadAsync();
-        }
+        return Task.FromResult(Services.Ventanas.Modal(window) == true && window.Changed);
     }
 
     private async void OnNextMonthClick(object sender, RoutedEventArgs e) => await MoveMonthAsync(1);
@@ -292,7 +286,7 @@ public partial class CalendarView : UserControl
         await ReloadAsync();
     }
 
-    /// <summary>Doble clic en una tarea del dia: se abre para tocarla, sin salir del mes.</summary>
+    /// <summary>Doble clic en una tarea del dia: su resumen, sin salir del mes; el lapiz la edita.</summary>
     private async void OnDayTaskDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (_tasks is null || DayTasks.SelectedItem is not DayTaskRow row)
@@ -300,9 +294,10 @@ public partial class CalendarView : UserControl
             return;
         }
 
-        if (await _tasks.Repository.GetTaskAsync(row.Id) is { } task)
+        if (await TaskSummaryWindow.ShowAsync(Window.GetWindow(this), _tasks, row.Id, EditAsync))
         {
-            await OpenAsync(task);
+            await LoadListNamesAsync();
+            await ReloadAsync();
         }
     }
 

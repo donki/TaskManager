@@ -76,6 +76,12 @@ public sealed class SettingsService
     /// </summary>
     public const string KeyWhatsNewSeen = "app.whatsnew_seen";
 
+    /// <summary>
+    /// Tema elegido en este dispositivo: vacio = seguir al sistema (lo de siempre), <c>light</c> o
+    /// <c>dark</c>. Como el filtro, es de cada aparato y no viaja al servidor.
+    /// </summary>
+    public const string KeyTheme = "app.theme";
+
     private readonly LocalDatabase _db;
     private readonly Dictionary<string, string> _cache = new(StringComparer.Ordinal);
     private bool _loaded;
@@ -138,6 +144,21 @@ public sealed class SettingsService
     public string DisplayName => Get(KeyDisplayName, "Yo");
 
 
+
+    /// <summary>Tema de la aplicacion en este dispositivo. Por defecto, el del sistema.</summary>
+    public ThemeChoice Theme => Get(KeyTheme) switch
+    {
+        "light" => ThemeChoice.Light,
+        "dark" => ThemeChoice.Dark,
+        _ => ThemeChoice.System,
+    };
+
+    public Task SetThemeAsync(ThemeChoice theme) => SetAsync(KeyTheme, theme switch
+    {
+        ThemeChoice.Light => "light",
+        ThemeChoice.Dark => "dark",
+        _ => string.Empty,
+    });
 
     public bool SoundEnabled => GetBool(KeySound, true);
 
@@ -236,4 +257,12 @@ public sealed class SettingsTokenStore : ITokenStore
     }
 
     public Task SetAsync(string key, string? value) => _settings.SetAsync(key, value ?? string.Empty);
+}
+
+/// <summary>Tema de la aplicacion: el del sistema (por defecto), claro u oscuro.</summary>
+public enum ThemeChoice
+{
+    System,
+    Light,
+    Dark,
 }

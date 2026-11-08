@@ -224,7 +224,7 @@ public partial class CalendarPage : ContentPage
     {
         if ((sender as BindableObject)?.BindingContext is TaskRow row)
         {
-            await Ui.Platform.GoToAsync($"{nameof(TaskDetailPage)}?taskId={row.Id}");
+            await Ui.Platform.GoToAsync(TaskSummaryPage.Route(row.Id));
         }
     }
 
@@ -232,7 +232,7 @@ public partial class CalendarPage : ContentPage
 
     /// <summary>
     /// Crear desde el calendario: la tarea nace planificada para el dia elegido, en la primera
-    /// lista, y se abre el detalle para rematarla.
+    /// lista, y se queda en el calendario, sin pasar por el formulario.
     /// </summary>
     private async void OnAddClicked(object? sender, EventArgs e)
     {
@@ -245,11 +245,10 @@ public partial class CalendarPage : ContentPage
         var list = await _tasks.Repository
             .GetOrCreateDefaultListAsync(Localization.Loc.Instance["DefaultListName"]);
 
-        var task = await _tasks.Repository.AddTaskAsync(list.Id, title, plannedFor: _selected);
+        await _tasks.Repository.AddTaskAsync(list.Id, title, plannedFor: _selected);
         QuickAdd.Text = string.Empty;
         await ReloadAsync();
 
-        await Ui.Platform.GoToAsync($"{nameof(TaskDetailPage)}?taskId={task.Id}");
     }
 
     private async void OnPreviousMonthClicked(object? sender, EventArgs e) => await MoveMonthAsync(-1);

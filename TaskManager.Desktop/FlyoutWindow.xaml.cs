@@ -257,12 +257,10 @@ public partial class FlyoutWindow : Window
 
     private async void OnAddClick(object sender, RoutedEventArgs e) => await AddTaskAsync();
 
-    /// <summary>Da de alta la tarea y abre su detalle.</summary>
+    /// <summary>Da de alta la tarea y se queda en la lista, donde ya se ve.</summary>
     /// <remarks>
-    /// La caja de arriba solo puede recoger el titulo, y una tarea recien escrita casi siempre
-    /// necesita algo mas: de que lista cuelga y con que etiqueta. Antes eso obligaba a escribirla,
-    /// buscarla en la lista y abrirla. Se abre sola: escribir sigue costando lo mismo y quien no
-    /// quiera tocar nada mas, cierra.
+    /// Antes se abria el detalle cada vez. Un probador pidio (2026-11-08) no tener que pasar por el
+    /// formulario para apuntar algo: quien quiera fecha o etiqueta usa el lapiz de la fila.
     /// </remarks>
     private async Task<TaskItem?> AddTaskAsync()
     {
@@ -275,10 +273,6 @@ public partial class FlyoutWindow : Window
         var task = await _tasks.Repository.AddTaskAsync(listId, title);
         QuickAdd.Text = string.Empty;
         await ReloadAsync();
-
-        // OpenTaskAsync esconde el panel antes de abrir el detalle, que es lo que hace falta: el
-        // panel se cierra al perder el foco y si no desapareceria por debajo del detalle.
-        await OpenTaskAsync(task.Id);
         return task;
     }
 
@@ -355,7 +349,7 @@ public partial class FlyoutWindow : Window
     /// no habia forma de <b>abrir</b> nada desde el: para cambiar una fecha o mirar los pasos
     /// tocaba ir a la ventana principal.</para>
     ///
-    /// <para>Se abre por el lapiz y por doble clic. El lapiz no sobra: esta lista se reordena
+    /// <para>El lapiz edita; el doble clic enseña el resumen (2026-11-08). El lapiz no sobra: esta lista se reordena
     /// arrastrando, y el arrastre y el doble clic se pisan con facilidad.</para>
     /// </remarks>
     private async void OnOpenTaskClick(object sender, RoutedEventArgs e)
@@ -366,11 +360,17 @@ public partial class FlyoutWindow : Window
         }
     }
 
+    /// <summary>Doble clic: el resumen de solo lectura; el lapiz del resumen abre el detalle.</summary>
     private async void OnTaskDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (Arrastre.Contenido<TaskRow>(e.OriginalSource as DependencyObject) is { } row)
         {
-            await OpenTaskAsync(row.Id);
+            // Como con el detalle: el panel se esconde antes, o desapareceria por debajo.
+            HideFlyout();
+            if (await TaskSummaryWindow.ShowAsync(null, _tasks, row.Id, EditAsync))
+            {
+                await ReloadAsync();
+            }
         }
     }
 
@@ -386,17 +386,22 @@ public partial class FlyoutWindow : Window
         // desaparezca por debajo justo cuando se abre el detalle.
         HideFlyout();
 
+        if (await EditAsync(task))
+        {
+            await ReloadAsync();
+        }
+    }
+
+    /// <summary>El detalle de una tarea. Devuelve si se cambio algo.</summary>
+    private Task<bool> EditAsync(TaskItem task)
+    {
         var window = new TaskDetailWindow(_tasks, task)
         {
             Icon = Services.TrayIconHost.CreateWindowIcon(),
         };
 
         Ventanas.Modal(window);
-
-        if (window.Changed)
-        {
-            await ReloadAsync();
-        }
+        return Task.FromResult(window.Changed);
     }
 
     private async void OnTaskChecked(object sender, RoutedEventArgs e)

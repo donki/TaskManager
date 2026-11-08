@@ -445,12 +445,10 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Da de alta la tarea y abre su detalle.</summary>
+    /// <summary>Da de alta la tarea y se queda en la lista, donde ya se ve.</summary>
     /// <remarks>
-    /// La caja de arriba solo puede recoger el titulo, y una tarea recien escrita casi siempre
-    /// necesita algo mas: de que lista cuelga y con que etiqueta. Antes eso obligaba a escribirla,
-    /// buscarla en la lista y abrirla. Se abre sola: escribir sigue costando lo mismo y quien no
-    /// quiera tocar nada mas, cierra.
+    /// Antes se abria el detalle cada vez. Un probador pidio (2026-11-08) no tener que pasar por el
+    /// formulario para apuntar algo: quien quiera fecha o etiqueta usa el lapiz de la fila.
     /// </remarks>
     private async Task QuickAddAsync()
     {
@@ -465,13 +463,11 @@ public partial class MainWindow : Window
         var listId = _lists.FirstOrDefault()?.Id
             ?? (await _tasks.Repository.GetOrCreateDefaultListAsync(T("DefaultListName"))).Id;
 
-        var task = await _tasks.Repository.AddTaskAsync(listId, title);
+        await _tasks.Repository.AddTaskAsync(listId, title);
         QuickAddBox.Text = string.Empty;
 
         await ReloadListsAsync();
         await ReloadAllTasksAsync();
-
-        await OpenTaskAsync(task.Id);
     }
 
     // =======================================================================
@@ -717,14 +713,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        var task = await _tasks.Repository.AddTaskAsync(_selectedList, title);
+        await _tasks.Repository.AddTaskAsync(_selectedList, title);
         NewTaskBox.Text = string.Empty;
 
         await ReloadListTasksAsync();
         await ReloadListsAsync();
         await ReloadAllTasksAsync();
-
-        await OpenTaskAsync(task.Id);
     }
 
     // =======================================================================
@@ -958,11 +952,10 @@ public partial class MainWindow : Window
         var listId = _lists.FirstOrDefault()?.Id
             ?? (await _tasks.Repository.GetOrCreateDefaultListAsync(T("DefaultListName"))).Id;
 
-        var task = await _tasks.Repository.AddTaskAsync(listId, title, inProgress: inProgress);
+        await _tasks.Repository.AddTaskAsync(listId, title, inProgress: inProgress);
         KanbanAddBox.Text = string.Empty;
 
         await ReloadAsync();
-        await OpenTaskAsync(task.Id);
     }
 
     // -----------------------------------------------------------------------
@@ -1279,8 +1272,8 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Doble clic en una fila: lo mismo que el lapiz. Es el gesto que espera cualquiera en una lista
-    /// de escritorio, y tener que apuntar a un icono de 30 pixeles para editar sobraba.
+    /// Doble clic en una fila: el resumen de la tarea, de solo lectura (2026-11-08). Editar es el
+    /// lapiz, de la fila o del propio resumen.
     /// </summary>
     /// <remarks>
     /// <para>Se escucha en la <b>lista</b> y no en cada fila. Se intento con
@@ -1295,7 +1288,16 @@ public partial class MainWindow : Window
     {
         if (Arrastre.Contenido<TaskRow>(e.OriginalSource as DependencyObject) is { } row)
         {
-            await OpenTaskAsync(row.Id);
+            await ShowSummaryAsync(row.Id);
+        }
+    }
+
+    /// <summary>El resumen; si desde el se pulsa el lapiz, el detalle, y se relee lo que cambie.</summary>
+    private async Task ShowSummaryAsync(Guid id)
+    {
+        if (await TaskSummaryWindow.ShowAsync(this, _tasks, id, EditAsync))
+        {
+            await ReloadAsync();
         }
     }
 
@@ -1316,6 +1318,15 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (await EditAsync(task))
+        {
+            await ReloadAsync();
+        }
+    }
+
+    /// <summary>El detalle de una tarea. Devuelve si se cambio algo.</summary>
+    private Task<bool> EditAsync(TaskItem task)
+    {
         var window = new TaskDetailWindow(_tasks, task)
         {
             Owner = this,
@@ -1323,11 +1334,7 @@ public partial class MainWindow : Window
         };
 
         Ventanas.Modal(window);
-
-        if (window.Changed)
-        {
-            await ReloadAsync();
-        }
+        return Task.FromResult(window.Changed);
     }
 
     // =======================================================================

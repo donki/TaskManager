@@ -27,6 +27,7 @@ public partial class SettingsWindow : Window
         Services.ThemeManager.StyleTitleBar(this);
 
         FillLanguages();
+        FillThemes();
         NotifyBox.IsChecked = settings.NotificationsEnabled;
         FillSnooze();
 
@@ -219,6 +220,16 @@ public partial class SettingsWindow : Window
 
         await _settings.SetAsync(SettingsService.KeyHotkey, combination);
 
+        // El tema se aplica al momento: los pinceles van por DynamicResource y las ventanas
+        // abiertas se repintan solas; las barras de titulo se piden otra vez a Windows.
+        var theme = (ThemeChoice)Math.Clamp(ThemeBox.SelectedIndex, 0, 2);
+        if (theme != _settings.Theme)
+        {
+            await _settings.SetThemeAsync(theme);
+            Services.ThemeManager.Apply(theme);
+            Services.ThemeManager.RestyleOpenWindows();
+        }
+
         // El idioma se guarda el ultimo: si cambia, la aplicacion recrea sus ventanas, y hacerlo
         // antes de guardar el resto se llevaria por delante lo que aun no se hubiera escrito.
         var language = LanguageBox.SelectedIndex switch { 1 => "es", 2 => "en", _ => string.Empty };
@@ -254,6 +265,15 @@ public partial class SettingsWindow : Window
             "en" => 2,
             _ => 0,
         };
+    }
+
+    /// <summary>Opciones de tema, en el orden de <see cref="ThemeChoice"/>: Windows, claro, oscuro.</summary>
+    private void FillThemes()
+    {
+        ThemeBox.Items.Add(Localization.Loc.Get("ThemeSystem"));
+        ThemeBox.Items.Add(Localization.Loc.Get("ThemeLight"));
+        ThemeBox.Items.Add(Localization.Loc.Get("ThemeDark"));
+        ThemeBox.SelectedIndex = (int)_settings.Theme;
     }
 
     private void OnCancelClick(object sender, RoutedEventArgs e) => Close();

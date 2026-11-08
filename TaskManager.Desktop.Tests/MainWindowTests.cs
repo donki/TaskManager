@@ -40,7 +40,7 @@ public class MainWindowTests
     // ---------------------------------------------------------------------------------
 
     [Fact]
-    public Task Captura_rapida_crea_la_tarea_en_una_lista_nueva_y_abre_su_detalle() => Ui.Run(async () =>
+    public Task Captura_rapida_crea_la_tarea_en_una_lista_nueva_sin_abrir_el_detalle() => Ui.Run(async () =>
     {
         var (datos, ventana) = await AbrirAsync();
 
@@ -49,19 +49,17 @@ public class MainWindowTests
         await Ui.Tecla(ventana.QuickAddBox, Key.A);
         Assert.Empty(await datos.Repo.GetAllTasksAsync(TaskFilter.All));
 
-        // El detalle se abre solo: se cierra sin tocar nada.
-        Ui.Responder(Dialogo.Cerrar);
+        // Se queda en la lista: no se abre el detalle (2026-11-08).
         ventana.QuickAddBox.Text = "  Comprar pan ";
         await Ui.Tecla(ventana.QuickAddBox, Key.Enter);
 
         var tarea = Assert.Single(await datos.Repo.GetAllTasksAsync(TaskFilter.All));
         Assert.Equal("Comprar pan", tarea.Title);
         Assert.Equal(string.Empty, ventana.QuickAddBox.Text);
-        Assert.Contains(Ui.Abiertas, w => w is TaskDetailWindow);
+        Assert.DoesNotContain(Ui.Abiertas, w => w is TaskDetailWindow);
         Assert.Equal(["Comprar pan"], Titulos(ventana.AllTasksBox));
 
         // Sin ninguna lista se creo la de siempre, y la segunda va a la misma.
-        Ui.Responder(Dialogo.Cerrar);
         ventana.QuickAddBox.Text = "Leche";
         await Ui.Llamar(ventana, "OnQuickAddClick", null, new RoutedEventArgs());
         var listas = await datos.Repo.GetPrivateListsAsync();
@@ -364,11 +362,19 @@ public class MainWindowTests
         await Ui.Llamar(ventana, "OnOpenTaskClick", ConTag(tarea.Id), new RoutedEventArgs());
         Assert.Equal(["Cambiada"], Titulos(ventana.AllTasksBox));
 
-        // Por doble clic sobre la fila.
-        Ui.Responder(Dialogo.Cerrar);
+        // Doble clic sobre la fila: el resumen, de solo lectura. Cerrarlo no abre nada mas.
+        TaskSummaryWindow? resumen = null;
+        Ui.Responder(w => { resumen = (TaskSummaryWindow)w; w.Close(); });
         var fila = await Ui.Fila(ventana.AllTasksBox, ventana.AllTasksBox.Items[0]!);
         await Ui.Llamar(ventana, "OnRowDoubleClick", ventana.AllTasksBox, Ui.Raton(Ui.DentroDe(fila)));
+        Assert.Equal("Cambiada", resumen!.TitleText.Text);
+        Assert.Equal(1, Ui.Abiertas.Count(w => w is TaskDetailWindow));
+
+        // Desde el resumen, el lapiz abre el detalle.
+        Ui.Responder(w => ((TaskSummaryWindow)w).Edit(), Dialogo.Cerrar);
+        await Ui.Llamar(ventana, "OnRowDoubleClick", ventana.AllTasksBox, Ui.Raton(Ui.DentroDe(fila)));
         Assert.Equal(2, Ui.Abiertas.Count(w => w is TaskDetailWindow));
+        Assert.Equal(2, Ui.Abiertas.Count(w => w is TaskSummaryWindow));
 
         // Fuera de una fila, o con una tarea que ya no esta, no se abre nada.
         await Ui.Llamar(ventana, "OnRowDoubleClick", ventana.AllTasksBox, Ui.Raton(ventana.AllTasksBox));
@@ -426,15 +432,13 @@ public class MainWindowTests
         Assert.Equal("Trabajo", lista.Name);
         Assert.Same(ventana.ListsBox.SelectedItem, ventana.ListsBox.Items[0]);
 
-        // Añadir con Enter: se crea en la lista elegida y se abre el detalle.
-        Ui.Responder(Dialogo.Cerrar);
+        // Añadir con Enter: se crea en la lista elegida, sin abrir el detalle.
         ventana.NewTaskBox.Text = "Informe";
         await Ui.Tecla(ventana.NewTaskBox, Key.Enter);
         Assert.Equal(["Informe"], Titulos(ventana.ListTasksBox));
         Assert.Equal(Localization.Loc.Get("OnePending"), P<string>(ventana.ListsBox.Items[0]!, "Caption"));
 
         // Con el boton, otra; sin texto, nada.
-        Ui.Responder(Dialogo.Cerrar);
         ventana.NewTaskBox.Text = "Correo";
         await Ui.Llamar(ventana, "OnAddTaskClick", null, new RoutedEventArgs());
         await Ui.Tecla(ventana.NewTaskBox, Key.Enter);
@@ -796,7 +800,6 @@ public class MainWindowTests
         await Ui.Escribir(ventana.KanbanSearchBox, string.Empty);
 
         // Crear: con Enter va a «por hacer»; con el otro boton nace en curso; sin texto, nada.
-        Ui.Responder(Dialogo.Cerrar, Dialogo.Cerrar, Dialogo.Cerrar);
         ventana.KanbanAddBox.Text = "Nueva";
         await Ui.Tecla(ventana.KanbanAddBox, Key.Enter);
         ventana.KanbanAddBox.Text = "Empezada";

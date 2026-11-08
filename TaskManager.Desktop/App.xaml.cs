@@ -126,6 +126,10 @@ public partial class App : Application
         _settings = new SettingsService(_database);
         await _settings.LoadAsync();
 
+        // Con los ajustes ya leidos, el tema elegido (por defecto, el de Windows, que es el que
+        // se puso arriba). Va antes de crear ninguna ventana.
+        ThemeManager.Apply(_settings.Theme);
+
         var repository = new TaskRepository(_database, _settings);
 
         // El idioma se resuelve antes de crear ninguna ventana: los textos del XAML se fijan al

@@ -1,12 +1,14 @@
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using TaskManager.Core.Services;
 
 namespace TaskManager.Desktop.Services;
 
 /// <summary>
-/// Modo claro / oscuro siguiendo a Windows (especificacion 3). Se sustituyen los mismos nombres de
-/// recurso que define App.xaml, asi que la interfaz no tiene que saber en que tema esta.
+/// Modo claro / oscuro (especificacion 3). Por defecto sigue a Windows; desde el 2026-11-08 se
+/// puede fijar claro u oscuro en Ajustes. Se sustituyen los mismos nombres de recurso que define
+/// App.xaml, asi que la interfaz no tiene que saber en que tema esta.
 /// </summary>
 public static class ThemeManager
 {
@@ -14,9 +16,23 @@ public static class ThemeManager
 
     public static bool IsDark { get; private set; }
 
-    public static void Apply()
+    /// <summary>
+    /// Pone el tema. Con <see cref="ThemeChoice.System"/> (lo de siempre) se lee el modo de las
+    /// aplicaciones de Windows; con claro u oscuro manda la eleccion.
+    /// </summary>
+    /// <remarks>
+    /// Todos los pinceles de la interfaz van por DynamicResource, asi que las ventanas abiertas se
+    /// repintan solas. La barra de titulo no: esa la pinta Windows y hay que volver a pedirla
+    /// (<see cref="RestyleOpenWindows"/>).
+    /// </remarks>
+    public static void Apply(ThemeChoice choice = ThemeChoice.System)
     {
-        IsDark = ReadSystemPrefersDark();
+        IsDark = choice switch
+        {
+            ThemeChoice.Dark => true,
+            ThemeChoice.Light => false,
+            _ => ReadSystemPrefersDark(),
+        };
 
         var resources = Application.Current.Resources;
         if (IsDark)
@@ -93,6 +109,15 @@ public static class ThemeManager
         else
         {
             window.SourceInitialized += (_, _) => Paint();
+        }
+    }
+
+    /// <summary>Vuelve a pintar la barra de titulo de todas las ventanas abiertas con el tema actual.</summary>
+    public static void RestyleOpenWindows()
+    {
+        foreach (Window window in Application.Current.Windows)
+        {
+            StyleTitleBar(window);
         }
     }
 

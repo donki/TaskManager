@@ -66,6 +66,10 @@
         <TextBlock Text="{loc:T LanguageTitle}" />
         <hc:ComboBox x:Name="LanguageBox" />
 
+        <!-- Tema: el de Windows por defecto, o claro u oscuro a mano. Es de este equipo. -->
+        <TextBlock Text="{loc:T ThemeTitle}" />
+        <hc:ComboBox x:Name="ThemeBox" AutomationProperties.AutomationId="ThemeBox" />
+
         <!-- Aviso de tareas pendientes: encenderlo y cada cuanto insistir. -->
         <CheckBox Style="{StaticResource CheckBoxBaseStyle}" x:Name="NotifyBox" Content="{loc:T RemindPendingTasks}" Click="OnNotifyToggled" />
 

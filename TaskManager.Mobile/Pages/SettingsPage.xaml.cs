@@ -50,6 +50,7 @@ public partial class SettingsPage : ContentPage
         SoundSwitch.IsToggled = _settings.SoundEnabled;
         NotifySwitch.IsToggled = _settings.NotificationsEnabled;
         FillSnooze();
+        FillThemes();
         NotifyTimePicker.Time = TimeSpan.FromHours(_settings.NotifyHour);
         NotifyHourRow.IsVisible = _settings.NotificationsEnabled;
         _loading = false;
@@ -82,6 +83,31 @@ public partial class SettingsPage : ContentPage
         SnoozePicker.ItemsSource = SnoozeChoices.Select(Describe).ToList();
         SnoozePicker.SelectedIndex = Math.Max(0, Array.IndexOf(SnoozeChoices, _settings.SnoozeMinutes));
         SnoozeRow.IsVisible = _settings.NotificationsEnabled;
+    }
+
+    // -----------------------------------------------------------------------
+    // Tema
+    // -----------------------------------------------------------------------
+
+    /// <summary>En el mismo orden que <see cref="ThemeChoice"/>: sistema, claro, oscuro.</summary>
+    private void FillThemes()
+    {
+        var loc = Localization.Loc.Instance;
+        ThemePicker.ItemsSource = new List<string> { loc["ThemeSystem"], loc["ThemeLight"], loc["ThemeDark"] };
+        ThemePicker.SelectedIndex = (int)_settings.Theme;
+    }
+
+    /// <summary>Se aplica al momento, sin reiniciar: los colores van por AppThemeBinding.</summary>
+    private async void OnThemeChanged(object? sender, EventArgs e)
+    {
+        if (_loading || ThemePicker.SelectedIndex < 0)
+        {
+            return;
+        }
+
+        var theme = (ThemeChoice)Math.Clamp(ThemePicker.SelectedIndex, 0, 2);
+        await _settings.SetThemeAsync(theme);
+        App.ApplyTheme(theme);
     }
 
     private static string Describe(int minutes) => minutes switch

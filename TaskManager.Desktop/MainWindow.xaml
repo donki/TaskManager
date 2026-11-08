@@ -173,7 +173,7 @@
                                         </StackPanel>
 
                                         <Button Grid.Column="2" Style="{StaticResource RowIconButton}"
-                                                Content="&#xE70F;" ToolTip="{loc:T OpenTaskTooltip}"
+                                                Content="&#xE70F;" ToolTip="{loc:T EditTaskTooltip}"
                                                 Tag="{Binding Id}" Click="OnOpenTaskClick" />
                                     </Grid>
                                 </Border>
@@ -300,7 +300,7 @@
                                             </StackPanel>
 
                                             <Button Grid.Column="2" Style="{StaticResource RowIconButton}"
-                                                    Content="&#xE70F;" ToolTip="{loc:T OpenTaskTooltip}"
+                                                    Content="&#xE70F;" ToolTip="{loc:T EditTaskTooltip}"
                                                     Tag="{Binding Id}" Click="OnOpenTaskClick" />
                                         </Grid>
                                     </Border>

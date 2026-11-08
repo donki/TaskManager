@@ -66,6 +66,82 @@ public class VentanasTests
     });
 
     [Fact]
+    public Task Ajustes_eligen_el_tema_y_se_aplica_al_guardar() => Ui.Run(async () =>
+    {
+        var datos = await Ui.Datos();
+        var auth = SinNadie(datos);
+        Ui.Sistema.Registro[@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize\AppsUseLightTheme"] = 1;
+
+        var ajustes = await Ui.Mostrar(new SettingsWindow(datos.Settings, null, auth, datos.Tasks));
+        Assert.Equal(
+            [Localization.Loc.Get("ThemeSystem"), Localization.Loc.Get("ThemeLight"), Localization.Loc.Get("ThemeDark")],
+            ajustes.ThemeBox.Items.Cast<string>());
+        Assert.Equal(0, ajustes.ThemeBox.SelectedIndex);
+        ajustes.Close();
+
+        // Oscuro: se guarda y la aplicacion se repinta al momento.
+        Ui.ResponderAsync(async w =>
+        {
+            var a = (SettingsWindow)w;
+            a.ThemeBox.SelectedIndex = 2;
+            await Ui.Pulsar(a.SaveButton);
+        });
+        await Ui.Hacer(() => Ventanas.Modal(new SettingsWindow(datos.Settings, null, auth, datos.Tasks)));
+        Assert.Equal(ThemeChoice.Dark, datos.Settings.Theme);
+        Assert.True(ThemeManager.IsDark);
+
+        // Al volver a abrir sale lo guardado; volver a «sistema» sigue a Windows (claro aqui).
+        Ui.ResponderAsync(async w =>
+        {
+            var a = (SettingsWindow)w;
+            Assert.Equal(2, a.ThemeBox.SelectedIndex);
+            a.ThemeBox.SelectedIndex = 0;
+            await Ui.Pulsar(a.SaveButton);
+        });
+        await Ui.Hacer(() => Ventanas.Modal(new SettingsWindow(datos.Settings, null, auth, datos.Tasks)));
+        Assert.Equal(ThemeChoice.System, datos.Settings.Theme);
+        ThemeManager.Apply(datos.Settings.Theme);
+        Assert.False(ThemeManager.IsDark);
+    });
+
+    [Fact]
+    public Task El_resumen_enseña_la_tarea_y_el_lapiz_pide_editar() => Ui.Run(async () =>
+    {
+        var datos = await Ui.Datos();
+        var lista = await datos.Repo.CreateListAsync("Casa");
+        var tarea = await datos.Repo.AddTaskAsync(lista.Id, "Mudanza");
+
+        // Recien escrita: estado y lista, y la pista de que no hay nada mas.
+        var vacia = await Ui.Mostrar(new TaskSummaryWindow(TaskSummary.Build(tarea, "Casa", [], datos.Store.Texts)));
+        Assert.Equal("Mudanza", vacia.TitleText.Text);
+        Assert.Equal(2, vacia.LinesPanel.Children.Count);
+        Assert.Equal(Visibility.Visible, vacia.BareHint.Visibility);
+        vacia.Close();
+
+        tarea.Notes = "Llamar antes";
+        await datos.Repo.UpdateTaskAsync(tarea);
+        var pasos = await datos.Repo.AddStepsAsync(tarea.Id, ["Cajas", "Furgoneta"]);
+        var completa = await Ui.Mostrar(new TaskSummaryWindow(TaskSummary.Build(tarea, "Casa", pasos, datos.Store.Texts)));
+        Assert.Equal(Visibility.Collapsed, completa.BareHint.Visibility);
+        Assert.Equal(2, completa.StepsPanel.Children.Count);
+        Assert.Equal("Llamar antes", completa.NotesText.Text);
+
+        completa.Edit();
+        Assert.True(completa.EditRequested);
+        Assert.False(completa.IsVisible);
+
+        // Con una tarea que no existe, no se abre nada y no se edita.
+        var editada = false;
+        Assert.False(await TaskSummaryWindow.ShowAsync(null, datos.Tasks, Guid.NewGuid(), _ => { editada = true; return Task.FromResult(true); }));
+        Assert.False(editada);
+
+        // Abierto y cerrado sin el lapiz: tampoco se edita.
+        Ui.Responder(Dialogo.Cerrar);
+        Assert.False(await TaskSummaryWindow.ShowAsync(null, datos.Tasks, tarea.Id, _ => { editada = true; return Task.FromResult(true); }));
+        Assert.False(editada);
+    });
+
+    [Fact]
     public Task Ajustes_sin_cuenta_y_en_local() => Ui.Run(async () =>
     {
         var datos = await Ui.Datos();
@@ -331,12 +407,7 @@ public class VentanasTests
         var simple = Ui.Raton(Celda(vista, otroDia), UIElement.MouseLeftButtonDownEvent);
         await Ui.Hacer(() => Celda(vista, otroDia).RaiseEvent(simple));
 
-        // Crear una tarea ese dia: nace planificada y se abre; guardarla relee el mes.
-        Ui.ResponderAsync(async w =>
-        {
-            await Ui.Calma();
-            await Ui.Pulsar(((TaskDetailWindow)w).SaveButton);
-        });
+        // Crear una tarea ese dia: nace planificada y se ve en el dia, sin abrir el detalle.
         vista.DayAddBox.Text = "Del dia";
         await Ui.Tecla(vista.DayAddBox, Key.Enter);
         var creada = (await datos.Repo.GetAllTasksAsync(TaskFilter.All)).Single(x => x.Title == "Del dia");
@@ -346,12 +417,12 @@ public class VentanasTests
         // Sin texto, o con otra tecla, nada; con el boton tambien se crea.
         await Ui.Tecla(vista.DayAddBox, Key.Enter);
         await Ui.Tecla(vista.DayAddBox, Key.Q);
-        Ui.Responder(Dialogo.Cerrar);
         vista.DayAddBox.Text = "Otra";
         await Ui.Llamar(vista, "OnDayAddClick", null, new RoutedEventArgs());
         Assert.Equal(2, vista.DayTasks.Items.Count);
 
-        // Doble clic en una tarea del dia la abre.
+        // Doble clic en una tarea del dia: el resumen; su lapiz abre el detalle, y guardar relee el mes.
+        Ui.Responder(w => ((TaskSummaryWindow)w).Edit());
         Ui.ResponderAsync(async w =>
         {
             await Ui.Calma();
@@ -368,8 +439,9 @@ public class VentanasTests
         vista.DayTasks.SelectedIndex = 0;
         var elegida = (Views.CalendarView.DayTaskRow)vista.DayTasks.SelectedItem;
         await datos.Repo.DeleteTaskAsync((await datos.Repo.GetTaskAsync(elegida.Id))!);
-        Ui.Responder(Dialogo.Cerrar);
+        var resumenes = Ui.Abiertas.Count(w => w is TaskSummaryWindow);
         await Ui.Llamar(vista, "OnDayTaskDoubleClick", null, Ui.Raton(vista.DayTasks));
+        Assert.Equal(resumenes, Ui.Abiertas.Count(w => w is TaskSummaryWindow));
 
         // Meses: siguiente, anterior y hoy.
         var mes = vista.MonthLabel.Text;

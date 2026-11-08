@@ -181,7 +181,7 @@
                                              doble clic compite con el arrastre para reordenar, y
                                              hace falta una forma de abrir que no dependa de el. -->
                                         <Button Style="{StaticResource RowIconButton}" Content="&#xE70F;"
-                                                Margin="6,0,0,0" ToolTip="{loc:T OpenTaskTooltip}"
+                                                Margin="6,0,0,0" ToolTip="{loc:T EditTaskTooltip}"
                                                 Tag="{Binding Id}" Click="OnOpenTaskClick" />
                                     </StackPanel>
                                 </Grid>

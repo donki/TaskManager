@@ -1,4 +1,4 @@
-using TaskManager.Mobile.Helpers;
+﻿using TaskManager.Mobile.Helpers;
 
 namespace TaskManager.Mobile;
 
@@ -22,8 +22,12 @@ public partial class App : Application
         // un idioma y corregir despues— se ve.
         try
         {
-            Helpers.ServiceHelper.GetRequiredService<Core.Services.SettingsService>()
-                   .LoadAsync().GetAwaiter().GetResult();
+            var settings = Helpers.ServiceHelper.GetRequiredService<Core.Services.SettingsService>();
+            settings.LoadAsync().GetAwaiter().GetResult();
+
+            // El tema, tambien antes de la primera pagina: si no, se veria un instante el del
+            // sistema y luego saltaria al elegido.
+            ApplyTheme(settings.Theme);
         }
         catch (Exception ex)
         {
@@ -74,6 +78,26 @@ public partial class App : Application
         SocShared.AuthorNotes.Attach(window);   // notas de autor: SOLO Debug (anexo E.2)
 #endif
         return window;
+    }
+
+    /// <summary>
+    /// Pone el tema elegido en Ajustes. «Sistema» es <see cref="AppTheme.Unspecified"/>: MAUI sigue
+    /// entonces el modo claro u oscuro del dispositivo, y lo cambia en caliente si el usuario lo
+    /// cambia en Android. Todos los colores van por AppThemeBinding, asi que se repinta solo.
+    /// </summary>
+    public static void ApplyTheme(Core.Services.ThemeChoice theme)
+    {
+        if (Current is null)
+        {
+            return;
+        }
+
+        Current.UserAppTheme = theme switch
+        {
+            Core.Services.ThemeChoice.Light => AppTheme.Light,
+            Core.Services.ThemeChoice.Dark => AppTheme.Dark,
+            _ => AppTheme.Unspecified,
+        };
     }
 
     /// <summary>

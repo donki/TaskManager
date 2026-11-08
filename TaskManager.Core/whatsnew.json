@@ -1,5 +1,19 @@
 [
   {
+    "version": "2026.11.08.00",
+    "date": "2026-11-08",
+    "es": [
+      "Tocar una tarea enseña ahora un resumen de solo lectura, con sus fechas, etiquetas, pasos y notas. Para cambiarla, el lápiz, que está aparte.",
+      "Apuntar una tarea con la caja de arriba ya no abre el formulario: se queda en la lista y se ve al momento.",
+      "Nuevo en Ajustes: el tema. El del sistema, como hasta ahora, o claro u oscuro."
+    ],
+    "en": [
+      "Tapping a task now shows a read-only summary with its dates, tags, steps and notes. To change it, use the pencil, which is separate.",
+      "Adding a task from the top box no longer opens the form: it stays in the list and shows up straight away.",
+      "New in Settings: the theme. System theme, as before, or light or dark."
+    ]
+  },
+  {
     "version": "2026.10.29.00",
     "date": "2026-10-29",
     "es": [

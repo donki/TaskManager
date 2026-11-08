@@ -79,6 +79,16 @@
                 </VerticalStackLayout>
             </Border>
 
+            <!-- Tema: el del sistema por defecto, o claro u oscuro a mano. Es de este dispositivo. -->
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Padding="16" Spacing="10">
+                    <Label Text="{loc:T ThemeTitle}" Style="{StaticResource CardTitle}" />
+                    <Picker x:Name="ThemePicker" AutomationId="ThemePicker"
+                            SelectedIndexChanged="OnThemeChanged" />
+                    <Label Text="{loc:T ThemeHint}" Style="{StaticResource HintText}" />
+                </VerticalStackLayout>
+            </Border>
+
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Padding="16" Spacing="10">
                     <Label Text="{loc:T Celebration}" Style="{StaticResource CardTitle}" />

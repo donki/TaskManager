@@ -2,6 +2,34 @@
 
 Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del día a dos cifras, el mismo que cierra el versionCode.
 
+## 2026.11.08.00 — Ver una tarea sin editarla y tema claro u oscuro
+
+Windows `2026.11.8.0` · Android `2026.11.08.00`
+
+**Castellano**
+
+- Tocar una tarea (doble clic en Windows) enseña ahora un resumen de solo lectura: estado, lista,
+  fechas, repetición, etiquetas, pasos y notas. Para cambiarla, el lápiz, que está aparte: en el
+  propio resumen y, en Windows, también en cada fila.
+- Apuntar una tarea con la caja rápida ya no abre el formulario: la tarea se queda en la lista y
+  se ve al momento. Vale en Mis tareas, en las listas, en el tablero, en el calendario y en el
+  panel rápido de Windows.
+- Nuevo ajuste «Tema»: el del sistema (como hasta ahora, y es lo que viene puesto), claro u
+  oscuro. Es de cada dispositivo y se aplica al momento, sin reiniciar.
+- Las dos cosas las pidieron probadores de la prueba cerrada de Google Play.
+
+**English**
+
+- Tapping a task (double-click on Windows) now shows a read-only summary: status, list, dates,
+  repeat, tags, steps and notes. To change it, use the pencil, which is separate: on the summary
+  itself and, on Windows, on every row too.
+- Adding a task from the quick box no longer opens the form: the task stays in the list and shows
+  up straight away. This applies to My tasks, the lists, the board, the calendar and the Windows
+  quick panel.
+- New «Theme» setting: system theme (as before, and the default), light or dark. It is per device
+  and applies straight away, without restarting.
+- Both were asked for by testers in the Google Play closed test.
+
 ## 2026.10.29.00 — Cambiar el nombre de las etiquetas
 
 Windows `2026.10.29.0` · Android `2026.10.29.00`

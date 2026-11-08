@@ -318,7 +318,7 @@ public class MyTasksPageTests
     });
 
     [Fact]
-    public void Captura_rapida_crea_en_la_primera_lista_y_abre_el_detalle() => UiThread.Run(async () =>
+    public void Captura_rapida_crea_en_la_primera_lista_y_se_queda_en_la_lista() => UiThread.Run(async () =>
     {
         await using var app = await TestApp.StartAsync();
         var page = await OpenAsync(app);
@@ -333,12 +333,13 @@ public class MyTasksPageTests
         var task = (await app.Repository.GetAllTasksAsync(TaskFilter.All)).Single();
         Assert.Equal("Llamar al banco", task.Title);
         Assert.Equal(app.Texts["DefaultListName"], (await app.Repository.GetListAsync(task.ListId))!.Name);
-        Assert.Equal($"{nameof(TaskDetailPage)}?taskId={task.Id}", app.Ui.Routes.Single());
+        Assert.Empty(app.Ui.Routes);
+        Assert.Contains(Rows(page), r => r.Id == task.Id);
         Assert.Equal(string.Empty, page.Named<Entry>("QuickAdd").Text);
     });
 
     [Fact]
-    public void Tocar_una_fila_abre_el_detalle_y_marcarla_la_completa() => UiThread.Run(async () =>
+    public void Tocar_una_fila_abre_el_resumen_y_marcarla_la_completa() => UiThread.Run(async () =>
     {
         await using var app = await TestApp.StartAsync();
         var (_, tasks) = await app.SeedAsync("Casa", "Comprar pan");
@@ -347,7 +348,7 @@ public class MyTasksPageTests
         await page.Handler("OnTaskTapped", null, new TappedEventArgs("no es un id"));
         Assert.Empty(app.Ui.Routes);
         await page.Handler("OnTaskTapped", null, new TappedEventArgs(tasks[0].Id));
-        Assert.Equal($"{nameof(TaskDetailPage)}?taskId={tasks[0].Id}", app.Ui.Routes.Single());
+        Assert.Equal($"{nameof(TaskSummaryPage)}?taskId={tasks[0].Id}", app.Ui.Routes.Single());
 
         await page.Handler("OnToggleDoneClicked", PageDriver.RowButton(tasks[0].Id));
         Assert.True((await app.Repository.GetTaskAsync(tasks[0].Id))!.IsDone);

@@ -475,7 +475,8 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
             return;
         }
 
-        await Ui.Platform.GoToAsync($"{nameof(TaskDetailPage)}?taskId={id}");
+        // Tocar una tarea es verla (resumen de solo lectura); editar es el lapiz de alli.
+        await Ui.Platform.GoToAsync(TaskSummaryPage.Route(id));
     }
 
     // -----------------------------------------------------------------------
@@ -695,13 +696,13 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
                 .GetOrCreateDefaultListAsync(Localization.Loc.Instance["DefaultListName"])).Id;
         }
 
-        var task = await _tasks.Repository.AddTaskAsync(_defaultListId, title);
+        await _tasks.Repository.AddTaskAsync(_defaultListId, title);
         QuickAdd.Text = string.Empty;
         await ReloadAsync();
 
-        // Se abre el detalle: la caja de arriba solo recoge el titulo, y una tarea recien escrita
-        // casi siempre necesita lista y etiqueta. Quien no quiera tocar nada mas, vuelve atras.
-        await Ui.Platform.GoToAsync($"{nameof(TaskDetailPage)}?taskId={task.Id}");
+        // Se queda en la lista: la tarea nueva se ve ahi mismo. Antes se abria el detalle cada vez,
+        // y un probador pidio (2026-11-08) no tener que pasar por el formulario para apuntar algo;
+        // quien quiera fecha o etiqueta la toca y usa el lapiz.
     }
 
     private async void OnToggleDoneClicked(object? sender, EventArgs e)

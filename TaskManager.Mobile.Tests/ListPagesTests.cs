@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Globalization;
 using TaskManager.Core.Models;
 using TaskManager.Mobile.Models;
@@ -127,13 +127,13 @@ public class ListPagesTests
         var page = new ListDetailPage { ListId = list.Id.ToString() };
         await page.Appear();
 
-        // Añadir: vacio no; con titulo abre el detalle.
+        // Añadir: vacio no; con titulo se queda en la lista.
         page.Named<Entry>("QuickAdd").Text = " ";
         await page.Handler("OnAddClicked");
         page.Named<Entry>("QuickAdd").Text = "Regar";
         await page.Handler("OnAddClicked");
         var regar = Rows(page).Single(r => r.Task.Title == "Regar").Task;
-        Assert.Equal($"{nameof(TaskDetailPage)}?taskId={regar.Id}", app.Ui.Routes.Single());
+        Assert.Empty(app.Ui.Routes);
 
         // Marcar hecha y deshacer.
         await page.Handler("OnToggleDoneClicked", PageDriver.RowButton(regar.Id));
@@ -160,7 +160,7 @@ public class ListPagesTests
         // Abrir una tarea.
         await page.Handler("OnTaskTapped", null, new TappedEventArgs(tasks[0].Id));
         await page.Handler("OnTaskTapped", null, new TappedEventArgs(null));
-        Assert.Equal(2, app.Ui.Routes.Count);
+        Assert.Equal($"{nameof(TaskSummaryPage)}?taskId={tasks[0].Id}", app.Ui.Routes.Single());
 
         // Renombrar: cancelar, el mismo nombre, uno nuevo.
         await page.Handler("OnRenameListClicked");
@@ -252,11 +252,11 @@ public class ListPagesTests
         page.Named<Entry>("QuickAdd").Text = "Segunda";
         await page.Handler("OnAddClicked");
         Assert.Equal(2, Column(page, "TodoView").Count);
-        Assert.Equal(2, app.Ui.Routes.Count);
+        Assert.Empty(app.Ui.Routes);
 
         await page.Handler("OnCardTapped", null, new TappedEventArgs(Guid.Empty));
         await page.Handler("OnCardTapped", null, new TappedEventArgs(Column(page, "TodoView")[0].Id));
-        Assert.Equal(3, app.Ui.Routes.Count);
+        Assert.Equal($"{nameof(TaskSummaryPage)}?taskId={Column(page, "TodoView")[0].Id}", app.Ui.Routes.Single());
 
         var order = Column(page, "TodoView").Select(r => r.Id).Reverse().ToList();
         Column(page, "TodoView").Move(1, 0);
@@ -307,7 +307,7 @@ public class ListPagesTests
         // Tocar una tarea la abre.
         await page.Handler("OnTaskTapped", new Label { BindingContext = rows.Single(r => r.Task.Title == "Hoy") }, new TappedEventArgs(null));
         await page.Handler("OnTaskTapped", new Label(), new TappedEventArgs(null));
-        Assert.Equal($"{nameof(TaskDetailPage)}?taskId={hoy.Id}", app.Ui.Routes.Single());
+        Assert.Equal($"{nameof(TaskSummaryPage)}?taskId={hoy.Id}", app.Ui.Routes.Single());
 
         // Tocar otro dia lo elige.
         var otherDay = DateTime.Today.Day == 1 ? 2 : 1;
@@ -341,7 +341,7 @@ public class ListPagesTests
         await page.Handler("OnAddClicked");
         var task = (await app.Repository.GetAllTasksAsync(TaskFilter.All)).Single();
         Assert.Equal(next.AddMonths(-2), task.PlannedFor);
-        Assert.Equal($"{nameof(TaskDetailPage)}?taskId={task.Id}", app.Ui.Routes.Single());
+        Assert.Empty(app.Ui.Routes);
 
         await page.Handler("OnRefreshClicked");
         Assert.Single((List<TaskRow>)page.Named<CollectionView>("DayTasksView").ItemsSource);

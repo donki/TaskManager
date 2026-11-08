@@ -140,10 +140,7 @@ public partial class ListDetailPage : ContentPage, Helpers.IBackHandler
         QuickAdd.Text = string.Empty;
         await ReloadAsync();
 
-        // Se abre el detalle: la caja de arriba solo recoge el titulo, y una tarea recien escrita
-        // casi siempre necesita etiqueta (la lista ya la tiene, es esta). Quien no quiera tocar
-        // nada mas, vuelve atras.
-        await Ui.Platform.GoToAsync($"{nameof(TaskDetailPage)}?taskId={task.Id}");
+        // Se queda en la lista, como en «Mis tareas»: apuntar no obliga a pasar por el formulario.
         return task;
     }
 
@@ -225,7 +222,7 @@ public partial class ListDetailPage : ContentPage, Helpers.IBackHandler
     {
         if (e.Parameter is Guid id)
         {
-            await Ui.Platform.GoToAsync($"{nameof(TaskDetailPage)}?taskId={id}");
+            await Ui.Platform.GoToAsync(TaskSummaryPage.Route(id));
         }
     }
 

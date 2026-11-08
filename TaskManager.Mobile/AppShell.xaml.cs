@@ -12,6 +12,7 @@ public partial class AppShell : Shell
         // Pagina de detalle: no esta en el menu, se llega desde una lista o desde un grupo.
         Routing.RegisterRoute(nameof(ListDetailPage), typeof(ListDetailPage));
         Routing.RegisterRoute(nameof(TaskDetailPage), typeof(TaskDetailPage));
+        Routing.RegisterRoute(nameof(TaskSummaryPage), typeof(TaskSummaryPage));
 
         // El correo esta oculto: la fila del menu no se enseña y la ruta no se ofrece.
         MailMenuRow.IsVisible = TaskManager.Core.FeatureOptions.MailEnabled;

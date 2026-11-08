@@ -102,7 +102,7 @@ public class FlyoutWindowTests
     });
 
     [Fact]
-    public Task Escribir_una_tarea_la_crea_en_la_lista_elegida_y_abre_el_detalle() => Ui.Run(async () =>
+    public Task Escribir_una_tarea_la_crea_en_la_lista_elegida_sin_abrir_el_detalle() => Ui.Run(async () =>
     {
         var (datos, panel, _) = await AbrirAsync(async d => await d.Repo.CreateListAsync("Casa"));
 
@@ -110,27 +110,20 @@ public class FlyoutWindowTests
         await Ui.Tecla(panel.QuickAdd, Key.Enter);
         await Ui.Tecla(panel.QuickAdd, Key.Down);
 
-        Ui.ResponderAsync(async w =>
-        {
-            await Ui.Calma();
-            ((TaskDetailWindow)w).TitleBox.Text = "Tender la ropa";
-            await Ui.Pulsar(((TaskDetailWindow)w).SaveButton);
-        });
         panel.QuickAdd.Text = "Tender";
         await Ui.Tecla(panel.QuickAdd, Key.Enter);
 
-        Assert.Equal(["Tender la ropa"], (await datos.Repo.GetAllTasksAsync(TaskFilter.All)).Select(t => t.Title));
-        Assert.False(panel.IsVisible);
+        Assert.Equal(["Tender"], (await datos.Repo.GetAllTasksAsync(TaskFilter.All)).Select(t => t.Title));
+        Assert.DoesNotContain(Ui.Abiertas, w => w is TaskDetailWindow);
         Assert.Equal(string.Empty, panel.QuickAdd.Text);
 
-        // Con el boton, otra; el detalle se cierra sin cambios.
-        Ui.Responder(Dialogo.Cerrar);
+        // Con el boton, otra.
         await Ui.Hacer(panel.ShowFlyout);
         panel.QuickAdd.Text = "Planchar";
         await Ui.Llamar(panel, "OnAddClick", null, new RoutedEventArgs());
         Assert.Equal(2, (await datos.Repo.GetAllTasksAsync(TaskFilter.All)).Count);
 
-        // Abrir por el lapiz y por doble clic.
+        // El lapiz abre el detalle; el doble clic, el resumen.
         await Ui.Hacer(panel.ShowFlyout);
         var fila = panel.TaskList.Items.Cast<FlyoutWindow.TaskRow>().First();
         Ui.Responder(Dialogo.Cerrar, Dialogo.Cerrar);
@@ -141,7 +134,9 @@ public class FlyoutWindowTests
         await Ui.Llamar(panel, "OnTaskDoubleClick", panel.TaskList, Ui.Raton(panel.TaskList));
         await Ui.Llamar(panel, "OnOpenTaskClick", new Button { Tag = Guid.NewGuid() }, new RoutedEventArgs());
         await Ui.Llamar(panel, "OnOpenTaskClick", new Button(), new RoutedEventArgs());
-        Assert.Equal(4, Ui.Abiertas.Count(w => w is TaskDetailWindow));
+        Assert.Equal(1, Ui.Abiertas.Count(w => w is TaskDetailWindow));
+        Assert.Equal(1, Ui.Abiertas.Count(w => w is TaskSummaryWindow));
+        Assert.False(panel.IsVisible);
     });
 
     [Fact]
