@@ -2,8 +2,9 @@
 
 Estado: **publicada en la Store** (https://apps.microsoft.com/detail/9PHJK2391727; «En Microsoft
 Store», 240 mercados, gratis, confirmado por Josep el 2026-09-29). En la Store está la `2026.9.71.0`
-(catálogo público, 2026-09-29) y el paquete de la siguiente, la `2026.11.80.0` (2026.11.08.00), está construido y
-**sin enviar** (2026-11-08: Partner Center pedía iniciar sesión y Josep lo dejó para más tarde).
+(catálogo público, 2026-09-29); después, la `2026.10.290.0` (envío 5, 2026-11-01). La `2026.11.80.0`
+(2026.11.08.00) se **envió a certificación el 2026-11-08** (envío 6), con las novedades en es-ES y
+en-US y la característica del tema reescrita (claro, oscuro o el del sistema).
 Cada envío se hace **a mano desde Partner Center**: no por lo que decía este documento —que el
 primero no se puede crear por API— sino por lo que hay debajo, que sigue valiendo para todos los
 demás (ver «Por qué sigue siendo a mano»).
