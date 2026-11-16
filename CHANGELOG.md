@@ -2,6 +2,47 @@
 
 Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del día a dos cifras, el mismo que cierra el versionCode.
 
+## 2026.11.16.00 — El tema elegido manda en todos los controles; fuera los emoji
+
+Windows `2026.11.16.0` · Android `2026.11.16.00`
+
+**Castellano**
+
+- Android, tema claro elegido con el móvil en oscuro (visto en un Xiaomi con Android 16): el
+  desplegable de Ajustes › Tema se quedaba en blanco al elegir «Claro» (texto blanco sobre la
+  tarjeta blanca) y los interruptores de Ajustes › Celebración perdían el botón (era blanco fijo,
+  sobre la misma tarjeta blanca). Causa: los desplegables, fechas, horas, cajas de texto largas y
+  casillas no tenían color propio, así que Android ponía el del tema del **sistema** y se lo
+  quedaba aunque luego cambiara el de la aplicación; y el pulgar del interruptor era `White` en
+  los dos temas. Ahora todos llevan su color por tema (`AppThemeBinding`) en `Styles.xaml`, y el
+  interruptor tiene pista y botón por tema y por estado (encendido/apagado), visibles en los
+  cuatro casos.
+- Los iconos que quedaban en casi negro (chincheta, etiqueta, seleccionar, enlace, adjunto,
+  escanear, compartir) pasan al índigo de la paleta, como manda la constitución: en tema oscuro no
+  se veían sobre las tarjetas oscuras.
+- Las tareas fijadas llevaban el emoji 📌 pegado al título (Android y Windows). Ahora es un icono
+  plano delante: `ic_pin` en Android y el glifo «Pin» de la fuente de iconos en Windows. En el
+  resumen de una tarea, los pasos llevan el círculo de las listas (Android) o los glifos de tick y
+  círculo (Windows) en vez de los caracteres ✓ y ○. El aviso de «Acerca de» ya no lleva el emoji
+  de advertencia.
+
+**English**
+
+- Android, light theme chosen with the phone in dark mode (seen on a Xiaomi with Android 16): the
+  Settings › Theme picker looked empty after choosing «Light» (white text on the white card) and
+  the Settings › Celebration switches lost their knob (it was always white, on that same white
+  card). Cause: pickers, dates, times, multi-line text boxes and check boxes had no colour of
+  their own, so Android used the **system** theme's colour and kept it even after the app's theme
+  changed; and the switch knob was `White` in both themes. All of them now take their colour from
+  the theme (`AppThemeBinding`) in `Styles.xaml`, and the switch has its track and knob per theme
+  and per state (on/off), visible in all four cases.
+- Icons still drawn in near-black (pin, tag, select, link, attachment, scan, share) now use the
+  palette indigo, as the constitution says: in dark mode they disappeared on the dark cards.
+- Pinned tasks had the 📌 emoji glued to the title (Android and Windows). It is now a flat icon in
+  front: `ic_pin` on Android and the icon font's «Pin» glyph on Windows. In a task's summary, steps
+  show the lists' circle (Android) or the tick and circle glyphs (Windows) instead of the ✓ and ○
+  characters. The About warning no longer carries the warning emoji.
+
 ## 2026.11.08.00 — Ver una tarea sin editarla y tema claro u oscuro
 
 Windows `2026.11.8.0` · Android `2026.11.08.00`

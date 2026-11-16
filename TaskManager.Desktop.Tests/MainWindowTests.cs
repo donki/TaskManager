@@ -646,7 +646,8 @@ public class MainWindowTests
         // Anclar y desanclar.
         await Ui.Llamar(ventana, "OnBulkPinOnClick", null, new RoutedEventArgs());
         Assert.Equal(2, (await datos.Repo.GetAllTasksAsync(TaskFilter.Pinned)).Count);
-        Assert.Contains(Titulos(ventana.AllTasksBox), t => t.StartsWith("📌"));
+        Assert.Equal(2, ventana.AllTasksBox.Items.Cast<object>().Count(r => P<Visibility>(r, "PinVisibility") == Visibility.Visible));
+        Assert.DoesNotContain(Titulos(ventana.AllTasksBox), t => t.StartsWith("📌"));
         await Marcar(ventana, ventana.AllTasksBox, 0, 1);
         await Ui.Llamar(ventana, "OnBulkPinOffClick", null, new RoutedEventArgs());
         Assert.Empty(await datos.Repo.GetAllTasksAsync(TaskFilter.Pinned));
@@ -1123,7 +1124,8 @@ public class MainWindowTests
         await Ui.Marcar(todas, true);
 
         var completa = ventana.AllTasksBox.Items.Cast<object>().Single(r => Titulo(r).Contains("Completa"));
-        Assert.StartsWith("📌 ", Titulo(completa));
+        Assert.Equal("Completa", Titulo(completa));
+        Assert.Equal(Visibility.Visible, P<Visibility>(completa, "PinVisibility"));
         var pie = P<string>(completa, "Caption");
         Assert.Contains("0/2", pie);
         Assert.Contains("#a  #b", pie);

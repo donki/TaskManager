@@ -419,7 +419,9 @@ public class ShellAndAppTests
         };
         var row = new TaskRow(task, "Casa");
 
-        Assert.Equal("📌 Pagar", row.Title);
+        Assert.Equal("Pagar", row.Title);
+        Assert.True(row.IsPinned);
+        Assert.False(new TaskRow(new TaskItem { Title = "Otra" }).IsPinned);
         Assert.True(row.ShowListName);
         Assert.Equal("#" + string.Join("  #", task.TagList), row.TagsCaption);
         Assert.Equal(2, task.TagList.Count);

@@ -124,6 +124,12 @@ public class VentanasTests
         var completa = await Ui.Mostrar(new TaskSummaryWindow(TaskSummary.Build(tarea, "Casa", pasos, datos.Store.Texts)));
         Assert.Equal(Visibility.Collapsed, completa.BareHint.Visibility);
         Assert.Equal(2, completa.StepsPanel.Children.Count);
+
+        // Cada paso: glifo plano de pendiente (no el caracter ○) y el titulo limpio.
+        var paso = Assert.IsType<DockPanel>(completa.StepsPanel.Children[0]);
+        var marcas = paso.Children.OfType<TextBlock>().ToList();
+        Assert.Equal(TaskSummaryWindow.StepPendingGlyph, marcas[0].Text);
+        Assert.Equal("Cajas", marcas[1].Text);
         Assert.Equal("Llamar antes", completa.NotesText.Text);
 
         completa.Edit();
@@ -384,7 +390,7 @@ public class VentanasTests
         await Ui.Hasta(() => vista.DayTasks.Items.Count == 3, que: "las tareas de hoy");
 
         var filas = vista.DayTasks.Items.Cast<Views.CalendarView.DayTaskRow>().ToList();
-        Assert.Contains(filas, r => r.Title == "📌 Hoy" && r.ListName == "Casa");
+        Assert.Contains(filas, r => r.Title == "Hoy" && r.IsPinned && r.PinVisibility == Visibility.Visible && r.ListName == "Casa");
         Assert.Contains(filas, r => r.ListName == "Familia · Compra");
         var filaHecha = filas.Single(r => r.IsDone);
         Assert.Equal(0.55, filaHecha.Opacity);

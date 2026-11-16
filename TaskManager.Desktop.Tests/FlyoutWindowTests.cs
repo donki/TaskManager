@@ -56,7 +56,8 @@ public class FlyoutWindowTests
         Assert.Equal("Ctrl+Alt+T", panel.HotkeyLabel.Text);
 
         var barrer = panel.TaskList.Items.Cast<FlyoutWindow.TaskRow>().Single(r => r.Title.Contains("Barrer"));
-        Assert.Equal("📌 Barrer", barrer.Title);
+        Assert.Equal("Barrer", barrer.Title);
+        Assert.Equal(Visibility.Visible, barrer.PinVisibility);
         Assert.Equal("Casa", barrer.ListName);
         Assert.Equal(Visibility.Visible, barrer.StepsVisibility);
         var leche = panel.TaskList.Items.Cast<FlyoutWindow.TaskRow>().Single(r => r.Title == "Leche");

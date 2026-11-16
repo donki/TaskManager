@@ -26,8 +26,11 @@
             <Border Background="{DynamicResource PageBackground}" CornerRadius="8"
                     Padding="10,8" Margin="0,0,0,6">
                 <StackPanel Opacity="{Binding Opacity}">
-                    <TextBlock Text="{Binding Title}" Style="{StaticResource ItemTitle}"
-                               TextWrapping="Wrap" TextDecorations="{Binding Decoration}" />
+                    <DockPanel>
+                        <TextBlock Style="{StaticResource PinGlyph}" Visibility="{Binding PinVisibility}" />
+                        <TextBlock Text="{Binding Title}" Style="{StaticResource ItemTitle}"
+                                   TextWrapping="Wrap" TextDecorations="{Binding Decoration}" />
+                    </DockPanel>
                     <TextBlock Text="{Binding Caption}" Style="{StaticResource ItemSubtitle}"
                                TextWrapping="Wrap" Visibility="{Binding CaptionVisibility}" />
                 </StackPanel>
@@ -165,9 +168,12 @@
 
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center"
                                                     Opacity="{Binding Opacity}">
-                                            <TextBlock Text="{Binding Title}" Style="{StaticResource ItemTitle}"
-                                                       TextWrapping="Wrap"
-                                                       TextDecorations="{Binding Decoration}" />
+                                            <DockPanel>
+                                                <TextBlock Style="{StaticResource PinGlyph}" Visibility="{Binding PinVisibility}" />
+                                                <TextBlock Text="{Binding Title}" Style="{StaticResource ItemTitle}"
+                                                           TextWrapping="Wrap"
+                                                           TextDecorations="{Binding Decoration}" />
+                                            </DockPanel>
                                             <TextBlock Text="{Binding Caption}" Style="{StaticResource ItemSubtitle}"
                                                        Visibility="{Binding CaptionVisibility}" />
                                         </StackPanel>
@@ -292,9 +298,12 @@
 
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center"
                                                         Opacity="{Binding Opacity}">
-                                                <TextBlock Text="{Binding Title}" Style="{StaticResource ItemTitle}"
-                                                           TextWrapping="Wrap"
-                                                           TextDecorations="{Binding Decoration}" />
+                                                <DockPanel>
+                                                    <TextBlock Style="{StaticResource PinGlyph}" Visibility="{Binding PinVisibility}" />
+                                                    <TextBlock Text="{Binding Title}" Style="{StaticResource ItemTitle}"
+                                                               TextWrapping="Wrap"
+                                                               TextDecorations="{Binding Decoration}" />
+                                                </DockPanel>
                                                 <TextBlock Text="{Binding Caption}" Style="{StaticResource ItemSubtitle}"
                                                            Visibility="{Binding CaptionVisibility}" />
                                             </StackPanel>

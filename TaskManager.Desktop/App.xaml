@@ -72,6 +72,18 @@
                 <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
             </Style>
 
+            <!-- Chincheta delante del titulo de una tarea fijada: el glifo Pin de la fuente de
+                 iconos, plano y del color del tema. Nunca el emoji (General 6.2). -->
+            <Style x:Key="PinGlyph" TargetType="TextBlock">
+                <Setter Property="Text" Value="&#xE718;" />
+                <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Margin" Value="0,3,6,0" />
+                <Setter Property="VerticalAlignment" Value="Top" />
+                <Setter Property="Foreground" Value="{DynamicResource PrimaryText}" />
+                <Setter Property="DockPanel.Dock" Value="Left" />
+            </Style>
+
             <Style x:Key="ItemSubtitle" TargetType="TextBlock">
                 <Setter Property="FontSize" Value="11" />
                 <Setter Property="TextTrimming" Value="CharacterEllipsis" />

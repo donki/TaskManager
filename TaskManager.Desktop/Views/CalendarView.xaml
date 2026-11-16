@@ -68,9 +68,12 @@
                     <DataTemplate>
                         <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="10,8">
                             <StackPanel Opacity="{Binding Opacity}">
-                                <TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontSize="13"
-                                           TextDecorations="{Binding Decoration}"
-                                           Foreground="{DynamicResource TextPrimary}" />
+                                <DockPanel>
+                                    <TextBlock Style="{StaticResource PinGlyph}" Visibility="{Binding PinVisibility}" />
+                                    <TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontSize="13"
+                                               TextDecorations="{Binding Decoration}"
+                                               Foreground="{DynamicResource TextPrimary}" />
+                                </DockPanel>
                                 <TextBlock Text="{Binding ListName}" FontSize="11"
                                            Foreground="{DynamicResource TextSecondary}" />
                             </StackPanel>

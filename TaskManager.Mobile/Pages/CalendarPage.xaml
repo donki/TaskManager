@@ -75,7 +75,10 @@
                                        VerticalOptions="Center" Margin="0,0,10,0" />
 
                                 <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
-                                    <Label Text="{Binding Title}" Style="{StaticResource ItemTitle}" />
+                                    <Grid ColumnDefinitions="Auto,*">
+                                        <Image Style="{StaticResource PinMark}" IsVisible="{Binding IsPinned}" />
+                                        <Label Grid.Column="1" Text="{Binding Title}" Style="{StaticResource ItemTitle}" />
+                                    </Grid>
                                     <Label Text="{Binding ListName}" Style="{StaticResource ItemSubtitle}"
                                            IsVisible="{Binding ShowListName}" />
                                 </VerticalStackLayout>

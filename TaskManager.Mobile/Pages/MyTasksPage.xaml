@@ -117,9 +117,12 @@
                                         <VerticalStackLayout.GestureRecognizers>
                                             <TapGestureRecognizer Tapped="OnTaskTapped" CommandParameter="{Binding Id}" />
                                         </VerticalStackLayout.GestureRecognizers>
-                                        <Label Text="{Binding Title}"
-                                               Style="{StaticResource ItemTitle}"
-                                               TextDecorations="{Binding Decoration}" />
+                                        <Grid ColumnDefinitions="Auto,*">
+                                            <Image Style="{StaticResource PinMark}" IsVisible="{Binding IsPinned}" />
+                                            <Label Grid.Column="1" Text="{Binding Title}"
+                                                   Style="{StaticResource ItemTitle}"
+                                                   TextDecorations="{Binding Decoration}" />
+                                        </Grid>
                                         <Label Text="{Binding ScheduleCaption}"
                                                Style="{StaticResource HintText}"
                                                IsVisible="{Binding HasSchedule}" />

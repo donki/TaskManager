@@ -42,6 +42,24 @@
     <Color x:Key="WarningSurfaceLight">#FFF4E5</Color>
     <Color x:Key="WarningSurfaceDark">#33291A</Color>
 
+    <!--
+        Interruptores, por tema y por estado. Nunca un pulgar blanco fijo: sobre la tarjeta blanca
+        del tema claro desaparece y solo se ve la pista (Xiaomi, 2026-11-16). El pulgar contrasta
+        con la tarjeta y con su pista en los cuatro casos.
+    -->
+    <Color x:Key="SwitchThumbOnLight">#3525CD</Color>
+    <Color x:Key="SwitchTrackOnLight">#C3C0FF</Color>
+    <Color x:Key="SwitchThumbOffLight">#787586</Color>
+    <Color x:Key="SwitchTrackOffLight">#E2E0EC</Color>
+    <Color x:Key="SwitchThumbOnDark">#C3C0FF</Color>
+    <Color x:Key="SwitchTrackOnDark">#3525CD</Color>
+    <Color x:Key="SwitchThumbOffDark">#C7C4D8</Color>
+    <Color x:Key="SwitchTrackOffDark">#48454F</Color>
+
+    <!-- Casillas: el indigo de marca se pierde sobre el fondo oscuro. -->
+    <Color x:Key="CheckLight">#3525CD</Color>
+    <Color x:Key="CheckDark">#C3C0FF</Color>
+
     <!-- Neutros -->
     <Color x:Key="White">#FFFFFF</Color>
     <Color x:Key="Black">#000000</Color>

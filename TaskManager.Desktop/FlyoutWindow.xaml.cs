@@ -556,7 +556,8 @@ public partial class FlyoutWindow : Window
         public TaskRow(TaskItem task, string listName)
         {
             Id = task.Id;
-            Title = task.IsPinned ? "📌 " + task.Title : task.Title;
+            Title = task.Title;
+            IsPinned = task.IsPinned;
             IsDone = task.IsDone;
             ListName = listName;
             StepsCaption = task.StepCount > 0
@@ -567,6 +568,11 @@ public partial class FlyoutWindow : Window
         public Guid Id { get; }
 
         public string Title { get; }
+
+        /// <summary>Fijada: la fila pinta la chincheta plana (PinGlyph) delante del titulo.</summary>
+        public bool IsPinned { get; }
+
+        public Visibility PinVisibility => IsPinned ? Visibility.Visible : Visibility.Collapsed;
 
         public bool IsDone { get; }
 

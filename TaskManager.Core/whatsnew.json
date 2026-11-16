@@ -1,5 +1,19 @@
 [
   {
+    "version": "2026.11.16.00",
+    "date": "2026-11-16",
+    "es": [
+      "Con el tema claro elegido y el móvil en oscuro, el desplegable del tema ya no se queda en blanco y los interruptores vuelven a enseñar su botón. Lo mismo con el tema oscuro y el móvil en claro, y en el resto de desplegables, fechas, horas, casillas y cajas de texto.",
+      "Las tareas fijadas llevan delante un icono de chincheta plano, del color de la aplicación, en vez del emoji. En Windows también.",
+      "En el resumen de una tarea, los pasos llevan el mismo círculo (con o sin tick) que las listas."
+    ],
+    "en": [
+      "With the light theme chosen and the phone in dark mode, the theme picker no longer looks empty and the switches show their knob again. The same goes for the dark theme with the phone in light mode, and for the other pickers, dates, times, check boxes and text boxes.",
+      "Pinned tasks now show a flat pin icon in the app's colour instead of the emoji. On Windows too.",
+      "In a task's summary, steps show the same circle (with or without a tick) as the lists."
+    ]
+  },
+  {
     "version": "2026.11.08.00",
     "date": "2026-11-08",
     "es": [

@@ -224,9 +224,10 @@ public partial class CalendarView : UserControl
         {
             _rows.Add(new DayTaskRow(
                 task.Id,
-                task.IsPinned ? "📌 " + task.Title : task.Title,
+                task.Title,
                 _listNames.GetValueOrDefault(task.ListId, string.Empty),
-                task.IsDone));
+                task.IsDone,
+                task.IsPinned));
         }
 
         EmptyLabel.Text = _rows.Count == 0 ? Localization.Loc.Get("CalendarDayEmpty") : string.Empty;
@@ -324,8 +325,11 @@ public partial class CalendarView : UserControl
         text.Length == 0 ? text : char.ToUpper(text[0], CultureInfo.InvariantCulture) + text[1..];
 
     /// <summary>Una tarea del dia elegido, lista para pintar.</summary>
-    public sealed record DayTaskRow(Guid Id, string Title, string ListName, bool IsDone)
+    public sealed record DayTaskRow(Guid Id, string Title, string ListName, bool IsDone, bool IsPinned = false)
     {
+        /// <summary>Fijada: chincheta plana delante del titulo (PinGlyph), nunca el emoji.</summary>
+        public Visibility PinVisibility => IsPinned ? Visibility.Visible : Visibility.Collapsed;
+
         public TextDecorationCollection? Decoration =>
             IsDone ? TextDecorations.Strikethrough : null;
 

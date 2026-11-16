@@ -87,14 +87,28 @@ public sealed class TaskSummaryWindow : Window
             stack.Children.Add(Heading(T("Steps")));
             foreach (var step in summary.Steps)
             {
-                StepsPanel.Children.Add(new TextBlock
+                // El estado con un glifo plano de la fuente de iconos (tick o circulo), no con los
+                // caracteres de tick y de circulo metidos en el texto (General 6.2).
+                var row = new DockPanel { Margin = new Thickness(0, 1, 0, 1) };
+                var mark = new TextBlock
                 {
-                    Text = (step.IsDone ? "✓  " : "○  ") + step.Title,
+                    Text = step.IsDone ? StepDoneGlyph : StepPendingGlyph,
+                    FontFamily = (FontFamily)FindResource("IconFont"),
+                    FontSize = 12,
+                    Foreground = Brush("PrimaryText"),
+                    Margin = new Thickness(0, 3, 8, 0),
+                    VerticalAlignment = VerticalAlignment.Top,
+                };
+                DockPanel.SetDock(mark, Dock.Left);
+                row.Children.Add(mark);
+                row.Children.Add(new TextBlock
+                {
+                    Text = step.Title,
                     Foreground = Brush(step.IsDone ? "TextSecondary" : "TextPrimary"),
                     TextDecorations = step.IsDone ? TextDecorations.Strikethrough : null,
                     TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, 1, 0, 1),
                 });
+                StepsPanel.Children.Add(row);
             }
 
             stack.Children.Add(StepsPanel);
@@ -190,6 +204,11 @@ public sealed class TaskSummaryWindow : Window
     };
 
     private Brush Brush(string key) => (Brush)FindResource(key);
+
+    /// <summary>Segoe Fluent Icons: CheckMark y CircleRing.</summary>
+    internal const string StepDoneGlyph = "\uE73E";
+
+    internal const string StepPendingGlyph = "\uEA3A";
 
     private static string T(string key) => Localization.Loc.Get(key);
 }

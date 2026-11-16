@@ -164,8 +164,11 @@
                                               Tag="{Binding Id}" />
 
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontSize="14"
-                                                   Foreground="{DynamicResource TextPrimary}" />
+                                        <DockPanel>
+                                            <TextBlock Style="{StaticResource PinGlyph}" Visibility="{Binding PinVisibility}" />
+                                            <TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontSize="14"
+                                                       Foreground="{DynamicResource TextPrimary}" />
+                                        </DockPanel>
                                         <TextBlock Text="{Binding StepsCaption}" FontSize="11"
                                                    Foreground="{DynamicResource TextSecondary}"
                                                    Visibility="{Binding StepsVisibility}" />

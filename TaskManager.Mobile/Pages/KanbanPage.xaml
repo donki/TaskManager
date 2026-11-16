@@ -27,9 +27,13 @@
         <DataTemplate x:Key="KanbanCard" x:DataType="models:TaskRow">
             <Border Style="{StaticResource Card}" Margin="0,0,0,6" Padding="8">
                 <VerticalStackLayout Spacing="2" Opacity="{Binding Opacity}">
-                    <Label Text="{Binding Title}" Style="{StaticResource ItemTitle}" FontSize="13"
-                           MaxLines="3" LineBreakMode="TailTruncation"
-                           TextDecorations="{Binding Decoration}" />
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Image Style="{StaticResource PinMark}" IsVisible="{Binding IsPinned}"
+                               VerticalOptions="Start" Margin="0,2,4,0" />
+                        <Label Grid.Column="1" Text="{Binding Title}" Style="{StaticResource ItemTitle}" FontSize="13"
+                               MaxLines="3" LineBreakMode="TailTruncation"
+                               TextDecorations="{Binding Decoration}" />
+                    </Grid>
                     <Label Text="{Binding ScheduleCaption}" Style="{StaticResource HintText}"
                            FontSize="11" IsVisible="{Binding HasSchedule}" />
                     <Label Text="{Binding TagsCaption}" Style="{StaticResource HintText}"

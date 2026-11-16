@@ -25,12 +25,15 @@ public sealed class TaskRow : INotifyPropertyChanged
 
     public Guid Id => Task.Id;
 
+    /// <summary>El titulo tal cual. Lo de fijada no va en el texto: ver <see cref="IsPinned"/>.</summary>
+    public string Title => Task.Title;
+
     /// <summary>
-    /// Con estrella delante si es prioritaria. Delante del texto y no en una columna aparte: la fila
-    /// ya lleva boton de estado y texto, y una columna vacia en casi todas las filas solo estrecha
-    /// el titulo.
+    /// Si es prioritaria, la fila enseña el icono plano de la chincheta (<c>ic_pin</c>) delante del
+    /// titulo. Antes era el emoji de la chincheta pegado al texto, que la constitucion prohibe (General 6.2): cada
+    /// telefono lo dibuja distinto, en color y sin seguir el tema.
     /// </summary>
-    public string Title => Task.IsPinned ? "📌 " + Task.Title : Task.Title;
+    public bool IsPinned => Task.IsPinned;
 
     public bool IsDone => Task.IsDone;
 

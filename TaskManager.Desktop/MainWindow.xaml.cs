@@ -1788,9 +1788,10 @@ public partial class MainWindow : Window
         {
             Id = task.Id;
 
-            // La estrella delante en vez de una columna aparte: la fila ya tiene casilla, texto y
-            // lapiz, y una cuarta pieza vacia en casi todas las filas solo estrecharia el titulo.
-            Title = task.IsPinned ? "📌 " + task.Title : task.Title;
+            // La chincheta va delante del titulo, pero como glifo plano de la fuente de iconos
+            // (estilo PinGlyph) y no como el emoji pegado al texto (General 6.2).
+            Title = task.Title;
+            IsPinned = task.IsPinned;
             IsDone = task.IsDone;
 
             var parts = new List<string>();
@@ -1826,6 +1827,10 @@ public partial class MainWindow : Window
         public Guid Id { get; }
 
         public string Title { get; }
+
+        public bool IsPinned { get; }
+
+        public Visibility PinVisibility => IsPinned ? Visibility.Visible : Visibility.Collapsed;
 
         public bool IsDone { get; }
 

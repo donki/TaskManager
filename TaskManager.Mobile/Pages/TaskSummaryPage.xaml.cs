@@ -78,13 +78,29 @@ public partial class TaskSummaryPage : ContentPage
         StepsHost.Children.Clear();
         foreach (var step in summary.Steps)
         {
-            StepsHost.Children.Add(new Label
+            // El estado con el mismo circulo (con o sin tick) que las filas de la lista, no con los
+            // caracteres de tick y de circulo: cada telefono los dibuja a su manera (General 6.2).
+            var row = new Grid
             {
-                Text = (step.IsDone ? "✓  " : "○  ") + step.Title,
+                ColumnDefinitions = [new(GridLength.Auto), new(GridLength.Star)],
+                ColumnSpacing = 8,
                 Opacity = step.IsDone ? 0.6 : 1,
+            };
+            row.Add(new Image
+            {
+                Source = step.IsDone ? "ic_circle_check.png" : "ic_circle.png",
+                WidthRequest = 18,
+                HeightRequest = 18,
+                VerticalOptions = LayoutOptions.Start,
+                Margin = new Thickness(0, 1, 0, 0),
+            }, 0);
+            row.Add(new Label
+            {
+                Text = step.Title,
                 TextDecorations = step.IsDone ? TextDecorations.Strikethrough : TextDecorations.None,
                 LineBreakMode = LineBreakMode.WordWrap,
-            });
+            }, 1);
+            StepsHost.Children.Add(row);
         }
 
         StepsCard.IsVisible = summary.Steps.Count > 0;

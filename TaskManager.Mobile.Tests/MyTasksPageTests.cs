@@ -113,7 +113,9 @@ public class MyTasksPageTests
 
         await chips.Single(c => c.ClassId == nameof(TaskFilter.Pinned)).Click();
         Assert.Equal(["Anclada"], Rows(page).Select(r => r.Task.Title));
-        Assert.StartsWith("📌", Rows(page)[0].Title);
+        // Fijada: la chincheta es un icono aparte, el titulo va limpio (General 6.2, 2026-11-16).
+        Assert.True(Rows(page)[0].IsPinned);
+        Assert.Equal("Anclada", Rows(page)[0].Title);
 
         // Otra pagina nueva arranca donde se dejo.
         var again = await OpenAsync(app);
