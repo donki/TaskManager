@@ -1,3 +1,4 @@
+using TaskManager.Core.Data;
 using TaskManager.Core.Models;
 using TaskManager.Core.Services;
 using TaskManager.Mobile.Helpers;
@@ -696,5 +697,66 @@ public class TaskDetailPageTests
         await UiThread.IdleAsync();
 
         Assert.Equal([".."], app.Ui.Routes);
+    });
+
+    private static async Task<TaskDetailPage> OpenDraftAsync(TestApp app, string title = "")
+    {
+        var list = await app.Repository.CreateListAsync("Casa");
+        var task = await app.Repository.AddTaskAsync(list.Id, title);
+        var page = new TaskDetailPage { TaskId = task.Id.ToString(), IsNew = "1" };
+        await page.Appear();
+        return page;
+    }
+
+    private static async Task<List<TaskItem>> AllTasks(TestApp app) => await app.Repository.GetAllTasksAsync(TaskFilter.All);
+
+    [Fact]
+    public void Borrador_del_mas_sin_tocar_se_borra_al_salir() => UiThread.Run(async () =>
+    {
+        await using var app = await TestApp.StartAsync();
+        var page = await OpenDraftAsync(app);
+
+        Assert.Equal(app.Texts["NewTask"], page.Title);
+        Assert.True(page.HandleBack());   // borrador: lo gestiona la pagina, sin preguntar
+        await UiThread.IdleAsync();
+        await Task.Delay(20);
+        await UiThread.IdleAsync();
+
+        Assert.Empty(app.Ui.Dialogs);
+        Assert.Equal([".."], app.Ui.Routes);
+        Assert.Empty(await AllTasks(app));
+    });
+
+    [Fact]
+    public void Borrador_del_mas_guardado_se_queda_y_descartado_se_borra() => UiThread.Run(async () =>
+    {
+        await using var app = await TestApp.StartAsync();
+        var page = await OpenDraftAsync(app);
+
+        // Sin titulo no se guarda: avisa y sigue siendo borrador.
+        await page.Handler("OnSaveClicked");
+        Assert.Equal("alert", app.Ui.Dialogs.Single().Kind);
+        Assert.Empty(app.Ui.Routes);
+
+        page.Named<Editor>("TitleEntry").Text = "Regar";
+        await page.Handler("OnSaveClicked");
+        Assert.Equal("Regar", (await AllTasks(app)).Single().Title);
+        Assert.Equal([".."], app.Ui.Routes);
+
+        // Guardada ya no es borrador: atras sin cambios no la borra.
+        Assert.False(page.HandleBack());
+        Assert.Single(await AllTasks(app));
+
+        // Otro borrador, con titulo escrito y «Descartar»: se borra.
+        await using var app2 = await TestApp.StartAsync();
+        var page2 = await OpenDraftAsync(app2, "Algo");
+        page2.Named<Editor>("TitleEntry").Text = "Algo mas";
+        app2.Ui.Answer(app2.Texts["Discard"]);
+        Assert.True(page2.HandleBack());
+        await UiThread.IdleAsync();
+        await Task.Delay(20);
+        await UiThread.IdleAsync();
+        Assert.Equal([".."], app2.Ui.Routes);
+        Assert.Empty(await AllTasks(app2));
     });
 }

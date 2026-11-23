@@ -682,7 +682,27 @@ public partial class MyTasksPage : ContentPage, Helpers.IBackHandler
 
     // -----------------------------------------------------------------------
 
+    /// <summary>El «+»: abre el formulario de una tarea nueva (ver <see cref="NewTaskForm"/>).</summary>
     private async void OnAddClicked(object? sender, EventArgs e)
+    {
+        var title = QuickAdd.Text;
+        QuickAdd.Text = string.Empty;
+        await NewTaskForm.OpenAsync(_tasks.Repository, await DefaultListIdAsync(), title);
+    }
+
+    private async Task<Guid> DefaultListIdAsync()
+    {
+        if (_defaultListId == Guid.Empty)
+        {
+            _defaultListId = (await _tasks.Repository
+                .GetOrCreateDefaultListAsync(Localization.Loc.Instance["DefaultListName"])).Id;
+        }
+
+        return _defaultListId;
+    }
+
+    /// <summary>Intro en la caja: apunta la tarea y se queda en la lista.</summary>
+    private async void OnQuickAddCompleted(object? sender, EventArgs e)
     {
         var title = QuickAdd.Text?.Trim();
         if (string.IsNullOrEmpty(title))

@@ -1,5 +1,17 @@
 [
   {
+    "version": "2026.11.23.00",
+    "date": "2026-11-23",
+    "es": [
+      "El botón «+» vuelve a abrir el formulario de una tarea nueva, aunque la caja esté vacía; lo que hayas escrito en ella va de título. Si sales sin guardar, no se queda nada a medias.",
+      "Para apuntar rápido sin pasar por el formulario, escribe en la caja y pulsa Intro en el teclado."
+    ],
+    "en": [
+      "The «+» button opens the form for a new task again, even with the box empty; whatever you typed becomes the title. If you leave without saving, nothing is left half-done.",
+      "To jot something down without going through the form, type in the box and press Enter on the keyboard."
+    ]
+  },
+  {
     "version": "2026.11.16.00",
     "date": "2026-11-16",
     "es": [

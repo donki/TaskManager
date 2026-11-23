@@ -108,7 +108,7 @@ public class ListPagesTests
         await none.Appear();
         Assert.Null(none.Named<CollectionView>("TasksView").ItemsSource);
         none.Named<Entry>("QuickAdd").Text = "Algo";
-        await none.Handler("OnAddClicked");
+        await none.Handler("OnQuickAddCompleted");
         Assert.Empty(app.Ui.Routes);
         await none.Handler("OnRenameListClicked");
         Assert.Empty(app.Ui.Dialogs);
@@ -129,9 +129,9 @@ public class ListPagesTests
 
         // Añadir: vacio no; con titulo se queda en la lista.
         page.Named<Entry>("QuickAdd").Text = " ";
-        await page.Handler("OnAddClicked");
+        await page.Handler("OnQuickAddCompleted");
         page.Named<Entry>("QuickAdd").Text = "Regar";
-        await page.Handler("OnAddClicked");
+        await page.Handler("OnQuickAddCompleted");
         var regar = Rows(page).Single(r => r.Task.Title == "Regar").Task;
         Assert.Empty(app.Ui.Routes);
 
@@ -245,12 +245,12 @@ public class ListPagesTests
         Assert.False(page.Named<VisualElement>("TagFilterScroll").IsVisible);
 
         page.Named<Entry>("QuickAdd").Text = "";
-        await page.Handler("OnAddClicked");
+        await page.Handler("OnQuickAddCompleted");
         Assert.Empty(app.Ui.Routes);
         page.Named<Entry>("QuickAdd").Text = "Primera";
-        await page.Handler("OnAddClicked");
+        await page.Handler("OnQuickAddCompleted");
         page.Named<Entry>("QuickAdd").Text = "Segunda";
-        await page.Handler("OnAddClicked");
+        await page.Handler("OnQuickAddCompleted");
         Assert.Equal(2, Column(page, "TodoView").Count);
         Assert.Empty(app.Ui.Routes);
 
@@ -336,9 +336,9 @@ public class ListPagesTests
         Assert.Equal(next.AddMonths(-2), page.Field<DateTime>("_selected"));
 
         page.Named<Entry>("QuickAdd").Text = " ";
-        await page.Handler("OnAddClicked");
+        await page.Handler("OnQuickAddCompleted");
         page.Named<Entry>("QuickAdd").Text = "Cita";
-        await page.Handler("OnAddClicked");
+        await page.Handler("OnQuickAddCompleted");
         var task = (await app.Repository.GetAllTasksAsync(TaskFilter.All)).Single();
         Assert.Equal(next.AddMonths(-2), task.PlannedFor);
         Assert.Empty(app.Ui.Routes);

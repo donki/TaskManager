@@ -326,17 +326,39 @@ public class MyTasksPageTests
         var page = await OpenAsync(app);
 
         page.Named<Entry>("QuickAdd").Text = "   ";
-        await page.Handler("OnAddClicked");
+        await page.Handler("OnQuickAddCompleted");
         Assert.Empty(app.Ui.Routes);
 
         // Sin listas: se crea la de por defecto.
         page.Named<Entry>("QuickAdd").Text = " Llamar al banco ";
-        await page.Handler("OnAddClicked");
+        await page.Handler("OnQuickAddCompleted");
         var task = (await app.Repository.GetAllTasksAsync(TaskFilter.All)).Single();
         Assert.Equal("Llamar al banco", task.Title);
         Assert.Equal(app.Texts["DefaultListName"], (await app.Repository.GetListAsync(task.ListId))!.Name);
         Assert.Empty(app.Ui.Routes);
         Assert.Contains(Rows(page), r => r.Id == task.Id);
+        Assert.Equal(string.Empty, page.Named<Entry>("QuickAdd").Text);
+    });
+
+    [Fact]
+    public void El_mas_abre_el_formulario_de_una_tarea_nueva_aun_con_la_caja_vacia() => UiThread.Run(async () =>
+    {
+        await using var app = await TestApp.StartAsync();
+        var page = await OpenAsync(app);
+
+        // Caja vacia: antes no hacia nada (Josep, 2026-11-23). Ahora abre el detalle de un borrador.
+        page.Named<Entry>("QuickAdd").Text = "";
+        await page.Handler("OnAddClicked");
+        var draft = (await app.Repository.GetAllTasksAsync(TaskFilter.All)).Single();
+        Assert.Equal(string.Empty, draft.Title);
+        Assert.Equal([$"TaskDetailPage?taskId={draft.Id}&isNew=1"], app.Ui.Routes);
+
+        // Con texto: lo escrito va de titulo y la caja se vacia.
+        page.Named<Entry>("QuickAdd").Text = " Llamar al banco ";
+        await page.Handler("OnAddClicked");
+        var task = (await app.Repository.GetAllTasksAsync(TaskFilter.All)).Single(t => t.Id != draft.Id);
+        Assert.Equal("Llamar al banco", task.Title);
+        Assert.Equal($"TaskDetailPage?taskId={task.Id}&isNew=1", app.Ui.Routes[^1]);
         Assert.Equal(string.Empty, page.Named<Entry>("QuickAdd").Text);
     });
 
@@ -575,7 +597,7 @@ public class MyTasksPageTests
         // Al repintar ya no hay lista por defecto: la captura rapida la crea.
         await page.Call("ReloadAsync");
         page.Named<Entry>("QuickAdd").Text = "Nueva";
-        await page.Handler("OnAddClicked");
+        await page.Handler("OnQuickAddCompleted");
         var created = (await app.Repository.GetPrivateListsAsync()).Single();
         Assert.Equal(app.Texts["DefaultListName"], created.Name);
         Assert.NotEqual(list.Id, created.Id);

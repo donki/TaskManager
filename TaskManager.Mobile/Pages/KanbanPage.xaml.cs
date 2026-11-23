@@ -281,7 +281,7 @@ public partial class KanbanPage : ContentPage, Helpers.IBackHandler
     /// Crear desde el tablero: a la primera lista, en «por hacer», y se queda en el tablero, igual que
     /// la captura rapida de «Mis tareas».
     /// </summary>
-    private async void OnAddClicked(object? sender, EventArgs e)
+    private async void OnQuickAddCompleted(object? sender, EventArgs e)
     {
         var title = QuickAdd.Text?.Trim();
         if (string.IsNullOrEmpty(title))
@@ -296,6 +296,16 @@ public partial class KanbanPage : ContentPage, Helpers.IBackHandler
         QuickAdd.Text = string.Empty;
         await ReloadAsync();
 
+    }
+
+    /// <summary>El «+»: abre el formulario de una tarea nueva (ver <see cref="NewTaskForm"/>).</summary>
+    private async void OnAddClicked(object? sender, EventArgs e)
+    {
+        var title = QuickAdd.Text;
+        QuickAdd.Text = string.Empty;
+        var list = await _tasks.Repository
+            .GetOrCreateDefaultListAsync(Localization.Loc.Instance["DefaultListName"]);
+        await NewTaskForm.OpenAsync(_tasks.Repository, list.Id, title);
     }
 
     private async void OnRefreshClicked(object? sender, EventArgs e)

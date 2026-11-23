@@ -234,7 +234,7 @@ public partial class CalendarPage : ContentPage
     /// Crear desde el calendario: la tarea nace planificada para el dia elegido, en la primera
     /// lista, y se queda en el calendario, sin pasar por el formulario.
     /// </summary>
-    private async void OnAddClicked(object? sender, EventArgs e)
+    private async void OnQuickAddCompleted(object? sender, EventArgs e)
     {
         var title = QuickAdd.Text?.Trim();
         if (string.IsNullOrEmpty(title))
@@ -249,6 +249,16 @@ public partial class CalendarPage : ContentPage
         QuickAdd.Text = string.Empty;
         await ReloadAsync();
 
+    }
+
+    /// <summary>El «+»: abre el formulario de una tarea nueva planificada el dia elegido.</summary>
+    private async void OnAddClicked(object? sender, EventArgs e)
+    {
+        var title = QuickAdd.Text;
+        QuickAdd.Text = string.Empty;
+        var list = await _tasks.Repository
+            .GetOrCreateDefaultListAsync(Localization.Loc.Instance["DefaultListName"]);
+        await NewTaskForm.OpenAsync(_tasks.Repository, list.Id, title, plannedFor: _selected);
     }
 
     private async void OnPreviousMonthClicked(object? sender, EventArgs e) => await MoveMonthAsync(-1);

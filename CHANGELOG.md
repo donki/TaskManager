@@ -2,6 +2,30 @@
 
 Formato de versión `AAAA.MM.DD.NN` (constitución Mobile 3): el contador del día a dos cifras, el mismo que cierra el versionCode.
 
+## 2026.11.23.00 — El «+» vuelve a abrir el formulario
+
+Android `2026.11.23.00` (Windows sigue en `2026.11.16.0`)
+
+**Castellano**
+
+- Android: el botón «+» de la caja de apuntar (Mis tareas, listas, tablero y calendario) no abría
+  el detalle; con la caja vacía no hacía nada (lo vio Josep en un Xiaomi). Causa: desde la
+  2026.11.08.00 el «+» hacía lo mismo que Intro —apuntar y quedarse en la lista— y sin texto no
+  hay nada que apuntar. Ahora cada uno tiene su papel: **Intro** apunta rápido y se queda en la
+  lista, como pidió el probador; el **«+»** abre el formulario de una tarea nueva, con lo escrito
+  como título o vacío, y en el calendario planificada el día elegido. La tarea nace como borrador:
+  si se sale sin guardar (atrás, la flecha o «Descartar»), se borra; si tiene pasos o adjuntos,
+  antes pregunta.
+
+**English**
+
+- Android: the «+» button next to the quick box (My tasks, lists, board and calendar) did not open
+  the task form, and with the box empty it did nothing. Since 2026.11.08.00 it did the same as
+  Enter. Now **Enter** adds the task and stays in the list, and **«+»** opens the form for a new
+  task, with whatever was typed as its title (on the calendar, planned for the chosen day). If you
+  leave without saving, the draft is removed; if it already has steps or attachments, you are
+  asked first.
+
 ## 2026.11.16.00 — El tema elegido manda en todos los controles; fuera los emoji
 
 Windows `2026.11.16.0` · Android `2026.11.16.00`

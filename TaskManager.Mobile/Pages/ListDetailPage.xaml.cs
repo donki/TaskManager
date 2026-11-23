@@ -126,7 +126,21 @@ public partial class ListDetailPage : ContentPage, Helpers.IBackHandler
         await ReloadAsync();
     }
 
-    private async void OnAddClicked(object? sender, EventArgs e) => await AddTaskAsync();
+    /// <summary>Intro en la caja: apunta la tarea y se queda en la lista.</summary>
+    private async void OnQuickAddCompleted(object? sender, EventArgs e) => await AddTaskAsync();
+
+    /// <summary>El «+»: abre el formulario de una tarea nueva en esta lista (ver <see cref="NewTaskForm"/>).</summary>
+    private async void OnAddClicked(object? sender, EventArgs e)
+    {
+        if (_listId == Guid.Empty)
+        {
+            return;
+        }
+
+        var title = QuickAdd.Text;
+        QuickAdd.Text = string.Empty;
+        await NewTaskForm.OpenAsync(_tasks.Repository, _listId, title);
+    }
 
     private async Task<TaskItem?> AddTaskAsync()
     {

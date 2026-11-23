@@ -240,6 +240,7 @@ public sealed class LocalizationService
         ["Delete"] = "Delete",
         ["NeedTitleTitle"] = "Title missing",
         ["NeedTitleMessage"] = "The task needs a title.",
+        ["NewTask"] = "New task",
 
         // --- Repeticion ---
         ["RepeatNever"] = "Does not repeat",
@@ -651,6 +652,7 @@ public sealed class LocalizationService
         ["Delete"] = "Borrar",
         ["NeedTitleTitle"] = "Falta el título",
         ["NeedTitleMessage"] = "La tarea necesita un título.",
+        ["NewTask"] = "Tarea nueva",
 
         ["RepeatNever"] = "No se repite",
         ["RepeatDaily"] = "Cada día",

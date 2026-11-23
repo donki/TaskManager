@@ -15,6 +15,7 @@ namespace TaskManager.Mobile.Pages;
 /// propuestos"): desde Mi Dia solo se podia completar una tarea, no tocarla.
 /// </remarks>
 [QueryProperty(nameof(TaskId), "taskId")]
+[QueryProperty(nameof(IsNew), "isNew")]
 public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
 {
     private ObservableCollection<StepRow> _steps = [];
@@ -33,6 +34,11 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
     private TaskItem? _task;
     private Guid _taskId;
     private bool _loading;
+
+    // Tarea recien creada con el boton «+» (ver NewTaskForm): hasta el primer «Guardar» es un
+    // borrador, y salir sin guardarlo lo borra en vez de dejar una tarea sin titulo en la lista.
+    private bool _isNew;
+    private bool _saved;
 
     public TaskDetailPage()
         : this(ServiceHelper.GetRequiredService<TaskService>(),
@@ -73,7 +79,7 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
     /// <summary>Atras (Mobile 7): con cambios sin guardar se pregunta; sin cambios, vuelve.</summary>
     public bool HandleBack()
     {
-        if (!HasUnsavedChanges())
+        if (!HasUnsavedChanges() && !IsDraft)
         {
             return false;
         }
@@ -117,6 +123,7 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
                 }
             }
 
+            await DropDraftAsync();
             await Ui.Platform.GoToAsync("..");
         }
         finally
@@ -142,12 +149,34 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
         RecurrencePicker.SelectedIndex, IntervalStepper.Value, _days, _monthDay, _month, ListPicker.SelectedIndex);
 
     private bool HasUnsavedChanges() =>
-        _task is not null && !_loading && _loadedState is not null && CurrentState() != _loadedState;
+        _task is not null && !_loading && _loadedState is not null
+        && (CurrentState() != _loadedState
+            // Un borrador con pasos o adjuntos ya tiene algo del usuario: se pregunta antes de tirarlo.
+            || (IsDraft && (_steps.Count > 0 || !NoAttachmentsLabel.IsVisible)));
+
+    /// <summary>Tarea nueva del «+» que aun no se ha guardado nunca.</summary>
+    private bool IsDraft => _isNew && !_saved && _task is not null;
+
+    /// <summary>Salir de un borrador sin guardarlo lo borra (pasos y adjuntos incluidos).</summary>
+    private async Task DropDraftAsync()
+    {
+        if (IsDraft)
+        {
+            await _tasks.Repository.DeleteTaskAsync(_task!);
+            _task = null;
+        }
+    }
 
     /// <summary>Llega por la ruta: <c>TaskDetailPage?taskId=...</c>.</summary>
     public string TaskId
     {
         set => _taskId = Guid.TryParse(Uri.UnescapeDataString(value), out var id) ? id : Guid.Empty;
+    }
+
+    /// <summary>Llega por la ruta: <c>TaskDetailPage?taskId=...&amp;isNew=1</c> desde el boton «+».</summary>
+    public string IsNew
+    {
+        set => _isNew = value == "1";
     }
 
     protected override async void OnAppearing()
@@ -178,7 +207,7 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
         // la tarea con lo que aun se esta pintando.
         _loading = true;
 
-        Title = _task.Title;
+        Title = _isNew && !_saved ? Localization.Loc.Instance["NewTask"] : _task.Title;
         DoneSwitch.IsToggled = _task.IsDone;
         PinSwitch.IsToggled = _task.IsPinned;
         ProgressSwitch.IsToggled = _task.InProgress;
@@ -227,6 +256,12 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
 
         // Con todo pintado: a partir de aqui, lo que cambie es del usuario.
         _loadedState = CurrentState();
+
+        // Borrador sin titulo: el cursor, en el titulo, que es lo primero que hay que escribir.
+        if (IsDraft && string.IsNullOrEmpty(TitleEntry.Text))
+        {
+            TitleEntry.Focus();
+        }
     }
 
     // ==================================================================================
@@ -999,6 +1034,8 @@ public partial class TaskDetailPage : ContentPage, Helpers.IBackHandler
 
         // El aviso se reprograma con lo que acaba de guardarse: si se quito la fecha, se cancela.
         _notifications.ScheduleTaskReminder(_task);
+        _saved = true;
+        _loadedState = CurrentState();
         return true;
     }
 
